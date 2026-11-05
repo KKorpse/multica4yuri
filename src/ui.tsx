@@ -9,6 +9,7 @@ import {
   on,
   onCleanup,
   onMount,
+  type JSX,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { Board, Column } from "./board";
@@ -32,8 +33,120 @@ function cost(value: number): string {
   return value > 0 ? `$${value.toFixed(value < 0.01 ? 4 : 2)}` : "$0";
 }
 
+function shortId(id: string): string {
+  return id.replace(/^ses_/, "").slice(-6);
+}
+
 function summary(t: T, total: number, shown: number, running: number): string {
   return t("board.summary", { total, shown, running });
+}
+
+function IconSearch() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.2" stroke="currentColor" stroke-width="1.4" />
+      <path d="m10.2 10.2 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+    </svg>
+  );
+}
+
+function IconPlus() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M8 3.2v9.6M3.2 8h9.6"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconRefresh() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M12.6 6.5A4.8 4.8 0 1 0 13 9.4M12.6 2.8v3.7H8.9"
+        stroke="currentColor"
+        stroke-width="1.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconFilter() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M2.6 3.4h10.8L9.4 8.2v4.4l-2.8-1.3V8.2L2.6 3.4Z"
+        stroke="currentColor"
+        stroke-width="1.3"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
+}
+
+function StatusIcon(props: { status: string; size?: number }) {
+  const color = () => statusColor(props.status);
+  const shape = (): JSX.Element => {
+    switch (props.status) {
+      case "待规划":
+        return <circle cx="6" cy="6" r="4.3" stroke-dasharray="1.7 1.7" />;
+      case "待开始":
+        return <circle cx="6" cy="6" r="4.3" />;
+      case "执行中":
+        return (
+          <>
+            <circle cx="6" cy="6" r="4.3" />
+            <path d="M6 1.7a4.3 4.3 0 0 1 0 8.6Z" fill={color()} stroke="none" />
+          </>
+        );
+      case "待确认":
+        return (
+          <>
+            <circle cx="6" cy="6" r="4.3" />
+            <path d="M6 3.2v3l1.8 1" />
+          </>
+        );
+      case "已完成":
+        return (
+          <>
+            <circle cx="6" cy="6" r="4.3" />
+            <path d="m3.8 6.1 1.5 1.5 2.9-3" />
+          </>
+        );
+      case "已搁置":
+        return (
+          <>
+            <circle cx="6" cy="6" r="4.3" />
+            <path d="m3.7 8.3 4.6-4.6" />
+          </>
+        );
+      default:
+        return <circle cx="6" cy="6" r="4.3" />;
+    }
+  };
+
+  return (
+    <svg
+      class="ysb-status-icon"
+      width={props.size ?? 12}
+      height={props.size ?? 12}
+      viewBox="0 0 12 12"
+      fill="none"
+      stroke={color()}
+      stroke-width="1.4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      {shape()}
+    </svg>
+  );
 }
 
 export function BoardPage(props: { board: Board; t: T }) {
@@ -41,11 +154,10 @@ export function BoardPage(props: { board: Board; t: T }) {
   const t = props.t;
   const [dragging, setDragging] = createSignal<string>();
   const [drop, setDrop] = createSignal<DropTarget>();
+  const [filtersOpen, setFiltersOpen] = createSignal(false);
   let draggedAt = 0;
 
-  onMount(() => {
-    board.activate();
-  });
+  onMount(() => board.activate());
   onCleanup(() => board.deactivate());
 
   const labelChips = createMemo(() => {
@@ -54,6 +166,20 @@ export function BoardPage(props: { board: Board; t: T }) {
       if (!list.some((entry) => entry.name === label)) list.push({ name: label, count: 0 });
     }
     return list;
+  });
+
+  const activeFilters = createMemo(() => {
+    const filters = board.view.filters;
+    return (
+      filters.statuses.length +
+      filters.labels.length +
+      filters.agents.length +
+      filters.directories.length +
+      (filters.runningOnly ? 1 : 0) +
+      (filters.plannedOnly ? 1 : 0) +
+      (filters.showChildren ? 1 : 0) +
+      (filters.archive !== "active" ? 1 : 0)
+    );
   });
 
   function columnElement(key: string): HTMLElement | undefined {
@@ -126,42 +252,54 @@ export function BoardPage(props: { board: Board; t: T }) {
     <div class="ysb-root" data-ysb-page>
       <header class="ysb-header">
         <div class="ysb-headrow">
-          <div>
+          <div class="ysb-titlewrap">
             <h1 class="ysb-title">{t("page.title")}</h1>
-            <p class="ysb-sub">
-              {summary(t, board.total(), board.visible().length, board.runningCount())}
-              <span class="ysb-build">v{BUILD}</span>
-            </p>
+            <span class="ysb-total">{board.visible().length}</span>
+            <span class="ysb-build">v{BUILD}</span>
           </div>
           <div class="ysb-actions">
-            <input
-              class="ysb-input ysb-search"
-              type="search"
-              value={board.view.filters.search}
-              placeholder={t("search.placeholder")}
-              aria-label={t("search.placeholder")}
-              onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
-            />
+            <label class="ysb-searchbox">
+              <IconSearch />
+              <input
+                type="search"
+                value={board.view.filters.search}
+                placeholder={t("search.placeholder")}
+                aria-label={t("search.placeholder")}
+                onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
+              />
+            </label>
+            <button
+              class="ysb-btn"
+              classList={{ "is-active": filtersOpen() }}
+              type="button"
+              onClick={() => setFiltersOpen((open) => !open)}
+            >
+              <IconFilter />
+              {t("filter.panel")}
+              <Show when={activeFilters() > 0}>
+                <span class="ysb-badge">{activeFilters()}</span>
+              </Show>
+            </button>
             <button class="ysb-btn primary" type="button" onClick={() => board.requestCreate()}>
-              + {t("action.create")}
+              <IconPlus />
+              {t("action.create")}
             </button>
             <button
-              class="ysb-icon-btn"
+              class="ysb-iconbtn"
               type="button"
               title={t("action.refresh")}
               aria-label={t("action.refresh")}
               onClick={() => void board.reload()}
             >
-              ⟳
+              <IconRefresh />
             </button>
           </div>
         </div>
 
-        <div class="ysb-filters">
-          <label class="ysb-field">
+        <div class="ysb-toolbar">
+          <label class="ysb-tool">
             {t("filter.group")}
             <select
-              class="ysb-select"
               value={board.view.grouping}
               onChange={(event) => board.setGrouping(event.currentTarget.value as Grouping)}
             >
@@ -170,10 +308,9 @@ export function BoardPage(props: { board: Board; t: T }) {
               <option value="directory">{t("group.directory")}</option>
             </select>
           </label>
-          <label class="ysb-field">
+          <label class="ysb-tool">
             {t("filter.sort")}
             <select
-              class="ysb-select"
               value={board.view.sort}
               onChange={(event) => board.setSort(event.currentTarget.value as Sort)}
             >
@@ -183,10 +320,9 @@ export function BoardPage(props: { board: Board; t: T }) {
               <option value="title">{t("sort.title")}</option>
             </select>
           </label>
-          <label class="ysb-field">
+          <label class="ysb-tool">
             {t("filter.archive")}
             <select
-              class="ysb-select"
               value={board.view.filters.archive}
               onChange={(event) => board.setArchive(event.currentTarget.value as ArchiveFilter)}
             >
@@ -195,106 +331,126 @@ export function BoardPage(props: { board: Board; t: T }) {
               <option value="archived">{t("archive.archived")}</option>
             </select>
           </label>
-          <label class="ysb-field">
-            {t("filter.agent")}
-            <select
-              class="ysb-select"
-              value={board.view.filters.agents[0] ?? ""}
-              onChange={(event) => board.setAgentFilter(event.currentTarget.value)}
-            >
-              <option value="">{t("filter.allAgents")}</option>
-              <For each={board.agentOptions()}>
-                {(agent) => <option value={agent}>{agent}</option>}
-              </For>
-            </select>
-          </label>
-          <label class="ysb-field">
-            {t("filter.directory")}
-            <select
-              class="ysb-select"
-              value={board.view.filters.directories[0] ?? ""}
-              onChange={(event) => board.setDirectoryFilter(event.currentTarget.value)}
-            >
-              <option value="">{t("filter.allDirectories")}</option>
-              <For each={board.directoryOptions()}>
-                {(directory) => <option value={directory.path}>{directory.label}</option>}
-              </For>
-            </select>
-          </label>
-          <label class="ysb-check">
-            <input
-              type="checkbox"
-              checked={board.view.filters.runningOnly}
-              onChange={(event) => board.setFilters({ runningOnly: event.currentTarget.checked })}
-            />
-            {t("filter.running")}
-          </label>
-          <label class="ysb-check">
-            <input
-              type="checkbox"
-              checked={board.view.filters.plannedOnly}
-              onChange={(event) => board.setFilters({ plannedOnly: event.currentTarget.checked })}
-            />
-            {t("filter.planned")}
-          </label>
-          <label class="ysb-check">
-            <input
-              type="checkbox"
-              checked={board.view.filters.showChildren}
-              onChange={(event) => board.setFilters({ showChildren: event.currentTarget.checked })}
-            />
-            {t("filter.children")}
-          </label>
-          <button class="ysb-btn ghost small" type="button" onClick={() => board.resetFilters()}>
-            {t("filter.reset")}
-          </button>
+          <span class="ysb-toolbar-meta">
+            {summary(t, board.total(), board.visible().length, board.runningCount())}
+          </span>
         </div>
 
-        <div class="ysb-chiprow">
-          <span class="ysb-chiprow-label">{t("filter.statuses")}</span>
-          <button
-            class="ysb-chip"
-            classList={{ "is-on": board.view.filters.statuses.length === 0 }}
-            type="button"
-            onClick={() => board.setFilters({ statuses: [] })}
-          >
-            {t("filter.all")}
-          </button>
-          <For each={board.statuses()}>
-            {(status) => (
-              <button
-                class="ysb-chip"
-                classList={{ "is-on": board.view.filters.statuses.includes(status) }}
-                style={`--ysb-chip:${statusColor(status)}`}
-                type="button"
-                onClick={() => board.toggleStatus(status)}
-              >
-                <span class="ysb-chip-dot" />
-                {status}
-                <span class="ysb-chip-count">{board.statusCounts().get(status) ?? 0}</span>
-              </button>
-            )}
-          </For>
-        </div>
-
-        <Show when={labelChips().length > 0}>
-          <div class="ysb-chiprow">
-            <span class="ysb-chiprow-label">{t("filter.labels")}</span>
-            <For each={labelChips()}>
-              {(label) => (
+        <Show when={filtersOpen()}>
+          <div class="ysb-filterpanel">
+            <div class="ysb-filtergroup">
+              <span class="ysb-filterlabel">{t("filter.statuses")}</span>
+              <div class="ysb-chips">
                 <button
                   class="ysb-chip"
-                  classList={{ "is-on": board.view.filters.labels.includes(label.name) }}
-                  style={`--ysb-chip:${labelColor(label.name)}`}
+                  classList={{ "is-on": board.view.filters.statuses.length === 0 }}
                   type="button"
-                  onClick={() => board.toggleLabel(label.name)}
+                  onClick={() => board.setFilters({ statuses: [] })}
                 >
-                  <span class="ysb-chip-dot" />
-                  {label.name}
-                  <span class="ysb-chip-count">{label.count}</span>
+                  {t("filter.all")}
                 </button>
-              )}
-            </For>
+                <For each={board.statuses()}>
+                  {(status) => (
+                    <button
+                      class="ysb-chip"
+                      classList={{ "is-on": board.view.filters.statuses.includes(status) }}
+                      type="button"
+                      onClick={() => board.toggleStatus(status)}
+                    >
+                      <StatusIcon status={status} />
+                      {status}
+                      <span class="ysb-chipcount">{board.statusCounts().get(status) ?? 0}</span>
+                    </button>
+                  )}
+                </For>
+              </div>
+            </div>
+
+            <Show when={labelChips().length > 0}>
+              <div class="ysb-filtergroup">
+                <span class="ysb-filterlabel">{t("filter.labels")}</span>
+                <div class="ysb-chips">
+                  <For each={labelChips()}>
+                    {(label) => (
+                      <button
+                        class="ysb-chip"
+                        classList={{ "is-on": board.view.filters.labels.includes(label.name) }}
+                        type="button"
+                        onClick={() => board.toggleLabel(label.name)}
+                      >
+                        <span class="ysb-chipdot" style={`background:${labelColor(label.name)}`} />
+                        {label.name}
+                        <span class="ysb-chipcount">{label.count}</span>
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
+
+            <div class="ysb-filterrow">
+              <label class="ysb-tool">
+                {t("filter.agent")}
+                <select
+                  value={board.view.filters.agents[0] ?? ""}
+                  onChange={(event) => board.setAgentFilter(event.currentTarget.value)}
+                >
+                  <option value="">{t("filter.allAgents")}</option>
+                  <For each={board.agentOptions()}>
+                    {(agent) => <option value={agent}>{agent}</option>}
+                  </For>
+                </select>
+              </label>
+              <label class="ysb-tool">
+                {t("filter.directory")}
+                <select
+                  value={board.view.filters.directories[0] ?? ""}
+                  onChange={(event) => board.setDirectoryFilter(event.currentTarget.value)}
+                >
+                  <option value="">{t("filter.allDirectories")}</option>
+                  <For each={board.directoryOptions()}>
+                    {(directory) => <option value={directory.path}>{directory.label}</option>}
+                  </For>
+                </select>
+              </label>
+              <label class="ysb-check">
+                <input
+                  type="checkbox"
+                  checked={board.view.filters.runningOnly}
+                  onChange={(event) =>
+                    board.setFilters({ runningOnly: event.currentTarget.checked })
+                  }
+                />
+                {t("filter.running")}
+              </label>
+              <label class="ysb-check">
+                <input
+                  type="checkbox"
+                  checked={board.view.filters.plannedOnly}
+                  onChange={(event) =>
+                    board.setFilters({ plannedOnly: event.currentTarget.checked })
+                  }
+                />
+                {t("filter.planned")}
+              </label>
+              <label class="ysb-check">
+                <input
+                  type="checkbox"
+                  checked={board.view.filters.showChildren}
+                  onChange={(event) =>
+                    board.setFilters({ showChildren: event.currentTarget.checked })
+                  }
+                />
+                {t("filter.children")}
+              </label>
+              <button
+                class="ysb-btn ghost small"
+                type="button"
+                onClick={() => board.resetFilters()}
+              >
+                {t("filter.reset")}
+              </button>
+            </div>
           </div>
         </Show>
       </header>
@@ -304,20 +460,18 @@ export function BoardPage(props: { board: Board; t: T }) {
           <div class="ysb-loading">{t("board.loading")}</div>
         </Show>
         <Show when={board.error()}>
-          <div class="ysb-error-box">
+          <div class="ysb-errorbox">
             <strong>{t("board.error")}</strong>
             <span>{board.error()}</span>
-            <div>
-              <button class="ysb-btn small" type="button" onClick={() => void board.reload()}>
-                {t("board.retry")}
-              </button>
-            </div>
+            <button class="ysb-btn small" type="button" onClick={() => void board.reload()}>
+              {t("board.retry")}
+            </button>
           </div>
         </Show>
         <Show when={!board.loading() && board.visible().length === 0 && !board.error()}>
-          <div class="ysb-loading">
+          <div class="ysb-empty">
             <div>{t("board.empty")}</div>
-            <p class="ysb-hint">{t("board.emptyHint")}</p>
+            <p>{t("board.emptyHint")}</p>
           </div>
         </Show>
         <Index each={board.columns()}>
@@ -338,14 +492,14 @@ export function BoardPage(props: { board: Board; t: T }) {
                 void onDropCard(column().key);
               }}
             >
-              <div class="ysb-col-head">
-                <span class="ysb-dot" style={{ background: column().color }} aria-hidden="true" />
-                <span class="ysb-col-title">
+              <div class="ysb-colhead">
+                <StatusIcon status={column().key} size={13} />
+                <span class="ysb-coltitle">
                   {board.view.grouping === "directory" ? basename(column().key) : column().key}
                 </span>
-                <span class="ysb-col-count">{column().tasks.length}</span>
+                <span class="ysb-colcount">{column().tasks.length}</span>
                 <button
-                  class="ysb-icon-btn"
+                  class="ysb-coladd"
                   type="button"
                   title={t("action.create")}
                   aria-label={t("action.create")}
@@ -353,10 +507,10 @@ export function BoardPage(props: { board: Board; t: T }) {
                     board.requestCreate(board.view.grouping === "status" ? column().key : "")
                   }
                 >
-                  +
+                  <IconPlus />
                 </button>
               </div>
-              <div class="ysb-col-body">
+              <div class="ysb-colbody">
                 <Index each={column().tasks}>
                   {(task, index) => (
                     <>
@@ -380,7 +534,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                   <div class="ysb-insert" />
                 </Show>
                 <Show when={column().tasks.length === 0}>
-                  <div class="ysb-col-empty">
+                  <div class="ysb-colempty">
                     {dragging() ? t("column.drop") : t("column.empty")}
                   </div>
                 </Show>
@@ -420,6 +574,7 @@ function Card(props: {
   onDragStart(id: string): void;
   onDragEnd(): void;
 }) {
+  const initial = () => props.task.agent.trim().charAt(0).toUpperCase() || "A";
   return (
     <article
       class="ysb-card"
@@ -444,43 +599,41 @@ function Card(props: {
         if (event.key === "Enter") props.onEdit(props.task.id);
       }}
     >
-      <div class="ysb-card-top">
-        <span class="ysb-dot" style={{ background: statusColor(props.task.status) }} />
-        <span class="ysb-card-title">{props.task.title}</span>
+      <div class="ysb-cardtop">
+        <span class="ysb-cardid">#{shortId(props.task.id)}</span>
         <Show when={props.task.running}>
-          <span class="ysb-run-dot" title={props.t("card.running")} />
+          <span class="ysb-run" title={props.t("card.running")} />
         </Show>
       </div>
+      <p class="ysb-cardtitle">{props.task.title}</p>
       <Show when={props.task.description}>
-        <p class="ysb-desc">{props.task.description}</p>
+        <p class="ysb-carddesc">{props.task.description}</p>
       </Show>
       <Show when={props.task.labels.length > 0}>
-        <div class="ysb-card-labels">
+        <div class="ysb-chips ysb-cardchips">
           <For each={props.task.labels.slice(0, 4)}>
             {(label) => (
               <span class="ysb-label" style={`--ysb-label:${labelColor(label)}`}>
+                <span class="ysb-chipdot" />
                 {label}
               </span>
             )}
           </For>
           <Show when={props.task.labels.length > 4}>
-            <span class="ysb-label" style="--ysb-label:var(--ysb-muted)">
-              +{props.task.labels.length - 4}
-            </span>
+            <span class="ysb-label ysb-label-more">+{props.task.labels.length - 4}</span>
           </Show>
         </div>
       </Show>
-      <div class="ysb-card-foot">
+      <div class="ysb-cardmeta">
         <span class="ysb-agent" title={props.task.agent}>
-          <span class="ysb-agent-dot" style={`--ysb-agent:${labelColor(props.task.agent)}`} />
-          <span class="ysb-agent-name">{props.task.agent}</span>
+          <span class="ysb-avatar" style={`--ysb-avatar:${labelColor(props.task.agent)}`}>
+            {initial()}
+          </span>
+          <span class="ysb-agentname">{props.task.agent}</span>
         </span>
-        <span class="ysb-dir">{basename(props.task.directory)}</span>
+        <span class="ysb-metadir">{basename(props.task.directory)}</span>
         <span class="ysb-time">{relativeTime(props.task.updated)}</span>
       </div>
-      <Show when={!props.task.planned && props.task.status === "待规划"}>
-        <span class="ysb-unplanned">{props.t("card.unplanned")}</span>
-      </Show>
     </article>
   );
 }
@@ -509,6 +662,7 @@ function TagEditor(props: {
       <For each={props.value}>
         {(label) => (
           <span class="ysb-tag" style={`--ysb-label:${labelColor(label)}`}>
+            <span class="ysb-chipdot" />
             {label}
             <button
               type="button"
@@ -522,7 +676,7 @@ function TagEditor(props: {
         )}
       </For>
       <input
-        class="ysb-input ysb-tag-input"
+        class="ysb-input ysb-taginput"
         value={draft()}
         placeholder={props.placeholder}
         onInput={(event) => setDraft(event.currentTarget.value)}
@@ -647,13 +801,13 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
       }}
     >
       <div class="ysb-modal" role="dialog" aria-modal="true" aria-label={t("create.title")}>
-        <div class="ysb-modal-head">
+        <div class="ysb-modalhead">
           <div>
-            <h2 class="ysb-modal-title">{t("create.title")}</h2>
-            <p class="ysb-modal-sub">{t("create.hint")}</p>
+            <h2 class="ysb-modaltitle">{t("create.title")}</h2>
+            <p class="ysb-modalsub">{t("create.hint")}</p>
           </div>
           <button
-            class="ysb-icon-btn"
+            class="ysb-iconbtn"
             type="button"
             title={t("action.close")}
             aria-label={t("action.close")}
@@ -664,7 +818,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
         </div>
 
         <div class="ysb-form">
-          <label class="ysb-form-item">
+          <label class="ysb-formitem">
             <span>{t("field.title")}</span>
             <input
               class="ysb-input"
@@ -675,7 +829,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
             />
           </label>
 
-          <label class="ysb-form-item">
+          <label class="ysb-formitem">
             <span>{t("field.description")}</span>
             <textarea
               class="ysb-textarea"
@@ -685,8 +839,8 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
             />
           </label>
 
-          <div class="ysb-form-row">
-            <label class="ysb-form-item">
+          <div class="ysb-formrow">
+            <label class="ysb-formitem">
               <span>{t("field.directory")}</span>
               <input
                 class="ysb-input"
@@ -701,7 +855,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
                 </For>
               </datalist>
             </label>
-            <label class="ysb-form-item">
+            <label class="ysb-formitem">
               <span>{t("field.agent")}</span>
               <select
                 class="ysb-select"
@@ -716,8 +870,8 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
             </label>
           </div>
 
-          <div class="ysb-form-row">
-            <label class="ysb-form-item">
+          <div class="ysb-formrow">
+            <label class="ysb-formitem">
               <span>{t("field.status")}</span>
               <select
                 class="ysb-select"
@@ -729,7 +883,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
                 </For>
               </select>
             </label>
-            <label class="ysb-check" style="align-self:end;padding-bottom:7px">
+            <label class="ysb-check ysb-sendcheck">
               <input
                 type="checkbox"
                 checked={form.send}
@@ -739,7 +893,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
             </label>
           </div>
 
-          <div class="ysb-form-item">
+          <div class="ysb-formitem">
             <span>{t("field.labels")}</span>
             <TagEditor
               value={form.labels}
@@ -756,8 +910,8 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
           </Show>
         </div>
 
-        <div class="ysb-modal-foot">
-          <div class="ysb-foot-right">
+        <div class="ysb-modalfoot">
+          <div class="ysb-footright">
             <button class="ysb-btn" type="button" onClick={props.onClose}>
               {t("action.cancel")}
             </button>
@@ -830,13 +984,13 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
       }}
     >
       <div class="ysb-modal wide" role="dialog" aria-modal="true" aria-label={t("edit.title")}>
-        <div class="ysb-modal-head">
+        <div class="ysb-modalhead">
           <div>
-            <h2 class="ysb-modal-title">{t("edit.title")}</h2>
-            <p class="ysb-modal-sub">{t("edit.hint")}</p>
+            <h2 class="ysb-modaltitle">{t("edit.title")}</h2>
+            <p class="ysb-modalsub">{t("edit.hint")}</p>
           </div>
           <button
-            class="ysb-icon-btn"
+            class="ysb-iconbtn"
             type="button"
             title={t("action.close")}
             aria-label={t("action.close")}
@@ -848,7 +1002,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
 
         <Show when={task()} fallback={<p class="ysb-hint">{t("board.empty")}</p>}>
           <div class="ysb-form">
-            <label class="ysb-form-item">
+            <label class="ysb-formitem">
               <span>{t("field.title")}</span>
               <input
                 class="ysb-input"
@@ -857,7 +1011,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
               />
             </label>
 
-            <label class="ysb-form-item">
+            <label class="ysb-formitem">
               <span>{t("field.description")}</span>
               <textarea
                 class="ysb-textarea"
@@ -867,8 +1021,8 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
               />
             </label>
 
-            <div class="ysb-form-row">
-              <label class="ysb-form-item">
+            <div class="ysb-formrow">
+              <label class="ysb-formitem">
                 <span>{t("field.status")}</span>
                 <select
                   class="ysb-select"
@@ -880,10 +1034,11 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
                   </For>
                 </select>
               </label>
-              <div class="ysb-form-item">
+              <div class="ysb-formitem">
                 <span>{t("field.agent")}</span>
                 <div class="ysb-tags">
                   <span class="ysb-tag" style={`--ysb-label:${labelColor(task()!.agent)}`}>
+                    <span class="ysb-chipdot" />
                     {task()!.agent}
                   </span>
                 </div>
@@ -891,7 +1046,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
               </div>
             </div>
 
-            <div class="ysb-form-item">
+            <div class="ysb-formitem">
               <span>{t("field.labels")}</span>
               <TagEditor
                 value={form.labels}
@@ -916,7 +1071,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
           </div>
         </Show>
 
-        <div class="ysb-modal-foot">
+        <div class="ysb-modalfoot">
           <button
             class="ysb-btn small"
             classList={{ danger: !task()?.archived }}
@@ -926,7 +1081,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
           >
             {task()?.archived ? t("action.unarchive") : t("action.archive")}
           </button>
-          <div class="ysb-foot-right">
+          <div class="ysb-footright">
             <button
               class="ysb-btn ghost"
               type="button"
