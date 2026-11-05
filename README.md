@@ -7,8 +7,12 @@ Yuri chat.
 ## What it does
 
 - **Board over sessions** — every root session is a task; sub-agent and Yuri
-  system sessions are hidden. Sessions without task data are shown as
-  “未规划” and become normal tasks as soon as you edit them.
+  system sessions are hidden. Sessions without task data are auto-classified
+  from their own history: running → 执行中, `outcome: succeeded` → 已完成,
+  failed/interrupted → 待确认, previously executed → 待确认, never run → 待规划.
+  The first edit persists the task data on the session.
+- **Agent is already bound** — the card reads `session.agent`; changing it in
+  the chat composer updates the card. New tasks can pick an agent at creation.
 - **Statuses** — `待规划 / 待开始 / 执行中 / 待确认 / 已完成 / 已搁置`, plus any
   custom status you type. Drag cards between columns (when grouped by status).
 - **Tags** — free-form, per task, with deterministic colors; filter by one or

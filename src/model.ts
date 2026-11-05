@@ -96,11 +96,31 @@ export function isSystemSession(session: SessionInfo): boolean {
   );
 }
 
+export function hasBoardMeta(session: SessionInfo): boolean {
+  return record(session.metadata?.[METADATA_KEY]).version === 1;
+}
+
+/**
+ * Existing sessions predate the board. Derive their first status from what the
+ * session already recorded instead of dropping every one into “待规划”.
+ */
+export function deriveStatus(session: SessionInfo, running: boolean): string {
+  if (running) return "执行中";
+  if (session.outcome === "succeeded") return "已完成";
+  if (session.outcome === "failed" || session.outcome === "interrupted") return "待确认";
+  const time = record(session.time);
+  if (typeof time.busy === "number" || typeof session.time.idle === "number") return "待确认";
+  return "待规划";
+}
+
 export function toTask(session: SessionInfo, running = false): Task {
   const archive = record(record(session.metadata?.yuri).archive).archivedAt;
+  const meta = taskMeta(session);
+  const planned = hasBoardMeta(session);
   return {
-    ...taskMeta(session),
-    planned: record(session.metadata?.[METADATA_KEY]).version === 1,
+    ...meta,
+    status: planned ? meta.status : deriveStatus(session, running),
+    planned,
     id: session.id,
     title: session.title?.trim() || "未命名会话",
     directory: session.location.directory,

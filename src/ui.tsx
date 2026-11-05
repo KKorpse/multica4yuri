@@ -476,7 +476,7 @@ function Card(props: {
         <span class="ysb-dir">{basename(props.task.directory)}</span>
         <span class="ysb-time">{relativeTime(props.task.updated)}</span>
       </div>
-      <Show when={!props.task.planned}>
+      <Show when={!props.task.planned && props.task.status === "待规划"}>
         <span class="ysb-unplanned">{props.t("card.unplanned")}</span>
       </Show>
     </article>
@@ -908,7 +908,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
               <span>{t("edit.updated", { time: relativeTime(task()!.updated) })}</span>
               <span>{t("edit.cost", { cost: cost(task()!.cost) })}</span>
               <Show when={!task()!.planned}>
-                <span>{t("edit.unplanned")}</span>
+                <span>{task()!.status === "待规划" ? t("edit.unplanned") : t("edit.auto")}</span>
               </Show>
             </div>
           </div>

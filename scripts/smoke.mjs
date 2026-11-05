@@ -115,6 +115,17 @@ const sessions = [
     title: "Hidden child",
     location: { directory: "/work/project" },
   },
+  {
+    id: "ses_board_done",
+    projectID: "prj",
+    cost: 0.4,
+    tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+    time: { created: now - 300_000, updated: now - 200_000, busy: now - 240_000 },
+    outcome: "succeeded",
+    title: "Finished session",
+    agent: "plan",
+    location: { directory: "/work/project" },
+  },
 ];
 
 const ctx = {
@@ -174,7 +185,7 @@ await new Promise((resolve) => setTimeout(resolve, 200));
 const cards = [...dom.window.document.querySelectorAll("[data-ysb-card]")].map(
   (node) => node.textContent,
 );
-assert.equal(cards.length, 2, `expected 2 cards, got ${cards.length}`);
+assert.equal(cards.length, 3, `expected 3 cards, got ${cards.length}`);
 assert.ok(
   cards.some((text) => text.includes("Example task")),
   "planned task rendered",
@@ -183,6 +194,18 @@ assert.ok(
   cards.some((text) => text.includes("Plain session")),
   "unplanned session rendered",
 );
+assert.ok(
+  cards.some((text) => text.includes("Finished session")),
+  "executed session rendered",
+);
+const doneColumn = [...dom.window.document.querySelectorAll("[data-ysb-column]")].find(
+  (node) => node.dataset.ysbColumn === "已完成",
+);
+assert.ok(
+  doneColumn?.textContent.includes("Finished session"),
+  "executed session auto-classified as done",
+);
+assert.equal(doneColumn?.textContent.includes("Plain session"), false);
 assert.ok(!cards.some((text) => text.includes("Hidden child")), "child session hidden");
 assert.match(dom.window.document.body.textContent, /page\.title/, "page title rendered");
 

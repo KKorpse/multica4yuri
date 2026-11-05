@@ -5,6 +5,7 @@ import {
   EMPTY_FILTERS,
   METADATA_KEY,
   columnKeys,
+  deriveStatus,
   filterTasks,
   isSystemSession,
   labelColor,
@@ -76,6 +77,22 @@ test("toTask marks planned, archived and running sessions", () => {
   const plain = toTask(session());
   assert.equal(plain.planned, false);
   assert.equal(plain.archived, false);
+});
+
+test("executed sessions derive a first status from their own history", () => {
+  assert.equal(deriveStatus(session(), false), "待规划");
+  assert.equal(
+    deriveStatus(session({ time: { created: 1, updated: 2, idle: 3 } }), false),
+    "待确认",
+  );
+  assert.equal(deriveStatus(session({ outcome: "succeeded" }), false), "已完成");
+  assert.equal(deriveStatus(session({ outcome: "failed" }), false), "待确认");
+  assert.equal(deriveStatus(session({ outcome: "interrupted" }), false), "待确认");
+  assert.equal(deriveStatus(session({ outcome: "succeeded" }), true), "执行中");
+
+  const succeeded = toTask(session({ outcome: "succeeded" }));
+  assert.equal(succeeded.status, "已完成");
+  assert.equal(succeeded.planned, false);
 });
 
 test("system sessions are not board tasks", () => {
