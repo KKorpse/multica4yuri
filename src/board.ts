@@ -82,6 +82,7 @@ function loadView(): ViewState {
         : [];
     const bool = (key: keyof Filters, fallback: boolean) =>
       typeof filters[key] === "boolean" ? (filters[key] as boolean) : fallback;
+    const archive = text("archive", "active");
     return {
       grouping:
         parsed.grouping === "agent" || parsed.grouping === "directory" ? parsed.grouping : "status",
@@ -98,7 +99,8 @@ function loadView(): ViewState {
         runningOnly: bool("runningOnly", false),
         plannedOnly: bool("plannedOnly", false),
         showChildren: bool("showChildren", false),
-        archive: (text("archive", "active") as ArchiveFilter) ?? "active",
+        archive:
+          archive === "all" || archive === "archived" || archive === "active" ? archive : "active",
       },
       lastDirectory: typeof parsed.lastDirectory === "string" ? parsed.lastDirectory : "",
     };
@@ -205,7 +207,8 @@ export function createBoard(ctx: Context, t: T) {
 
   const columns = createMemo<Column[]>(() => {
     const list = visible();
-    return columnKeys(list, view.grouping, statuses()).map((key) => {
+    const keys = view.filters.statuses.length ? view.filters.statuses : statuses();
+    return columnKeys(list, view.grouping, keys).map((key) => {
       const items = list.filter((task) => groupKey(task, view.grouping) === key);
       return {
         key,
