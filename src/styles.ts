@@ -31,6 +31,7 @@ export const CSS = `
 .ysb-headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .ysb-title { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .ysb-sub { margin: 4px 0 0; color: var(--ysb-muted); font-size: 12px; }
+.ysb-build { margin-left: 6px; opacity: 0.55; }
 .ysb-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ysb-search { width: 280px; max-width: 46vw; }
 .ysb-sep { width: 1px; height: 18px; background: var(--ysb-border); flex: none; }

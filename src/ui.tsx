@@ -12,6 +12,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { Board, Column } from "./board";
+import { BUILD } from "./host";
 import type { T } from "./i18n";
 import {
   basename,
@@ -129,6 +130,7 @@ export function BoardPage(props: { board: Board; t: T }) {
             <h1 class="ysb-title">{t("page.title")}</h1>
             <p class="ysb-sub">
               {summary(t, board.total(), board.visible().length, board.runningCount())}
+              <span class="ysb-build">v{BUILD}</span>
             </p>
           </div>
           <div class="ysb-actions">
@@ -623,10 +625,10 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
         labels: form.labels,
         send: form.send,
       });
-      props.onClose();
-      board.notice("toast.created", "success");
       if (result.sendError) board.fail(result.sendError, "error.send");
+      board.notice("toast.created", "success");
       if (form.send) board.open(result.id);
+      props.onClose();
     } catch (caught) {
       board.fail(caught, "error.create");
     } finally {
@@ -930,8 +932,8 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
               type="button"
               disabled={!task()}
               onClick={() => {
-                props.onClose();
                 board.open(props.id);
+                props.onClose();
               }}
             >
               {t("action.chat")}

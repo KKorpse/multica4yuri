@@ -209,6 +209,22 @@ assert.equal(doneColumn?.textContent.includes("Plain session"), false);
 assert.ok(!cards.some((text) => text.includes("Hidden child")), "child session hidden");
 assert.match(dom.window.document.body.textContent, /page\.title/, "page title rendered");
 
+// The detail dialog's “open chat” action must reach Yuri's session route.
+const pushes = [];
+dom.window.history.pushState = (_state, _title, url) => pushes.push(String(url));
+dom.window.document.querySelector("[data-ysb-card]").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+const chatButton = [...dom.window.document.querySelectorAll("button")].find((button) =>
+  button.textContent.includes("action.chat"),
+);
+assert.ok(chatButton, "open chat button rendered");
+chatButton.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.ok(
+  pushes.some((url) => url.includes("/session/")),
+  `open chat reached the session route (${pushes.join(", ")})`,
+);
+
 dispose();
 if (typeof cleanup === "function") cleanup();
 console.log("smoke: ok, rendered", cards.length, "cards");

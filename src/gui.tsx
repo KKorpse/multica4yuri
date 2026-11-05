@@ -1,6 +1,6 @@
 import { Command, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
-import { openPluginPage, PAGE_ID, YuriPage } from "./host";
+import { BUILD, openPluginPage, PAGE_ID, YuriPage } from "./host";
 import { messages } from "./i18n";
 import { CSS } from "./styles";
 import { BoardPage } from "./ui";
@@ -9,6 +9,7 @@ export default Plugin.define({
   i18n: { en: messages.en, zh: messages.zh },
   setup(ctx) {
     const board = createBoard(ctx, ctx.t);
+    console.info(`[session-board] build ${BUILD}`);
 
     ctx.add(Style, CSS);
     ctx.add(YuriPage, {

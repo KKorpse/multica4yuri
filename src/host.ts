@@ -3,6 +3,7 @@ import type { JSX } from "solid-js";
 
 export const PLUGIN_ID = "yuri-session-board";
 export const PAGE_ID = "board";
+export const BUILD = "0.1.1";
 
 export const YuriPage = Registry.define<{
   id: string;
@@ -20,9 +21,38 @@ export const YuriPages = Contract.define<
   "yuri.pages"
 >("yuri.pages");
 
-/** Yuri 0.2.28 does not expose ctx.tabs; a real navigation to its session route is reliable. */
+/** Yuri 0.2.28 does not expose ctx.tabs; this uses its own route, then verifies the switch. */
 export function openSession(sessionID: string): void {
-  window.location.assign(`/session/${encodeURIComponent(sessionID)}`);
+  const path = `/session/${encodeURIComponent(sessionID)}`;
+  const route = {
+    sessionId: sessionID,
+    isNewSession: false,
+    tab: "chat",
+    settingsPath: null,
+    settingsEntityId: null,
+    diffFile: null,
+    diffScope: null,
+    scheduleView: null,
+    scheduleProjectId: null,
+    scheduleTaskId: null,
+    assistantId: null,
+    focusSessionId: null,
+  };
+  try {
+    window.history.pushState({ ...(window.history.state ?? {}), route }, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
+  } catch {
+    window.location.assign(path);
+    return;
+  }
+  // A popstate handler may switch tabs without selecting the session. If the
+  // chat surface does not show the target, fall back to a real navigation.
+  window.setTimeout(() => {
+    const open = [...document.querySelectorAll<HTMLElement>("[data-context-session-surface]")].some(
+      (element) => element.dataset.sessionId === sessionID,
+    );
+    if (!open) window.location.assign(path);
+  }, 700);
 }
 
 export function openPluginPage(ctx: Context): void {
