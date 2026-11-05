@@ -1,4 +1,4 @@
-import { Registry, type Context } from "@opencode/plugin/gui";
+import { Contract, Registry, type Context } from "@opencode/plugin/gui";
 import type { JSX } from "solid-js";
 
 export const PLUGIN_ID = "yuri-session-board";
@@ -10,6 +10,12 @@ export const YuriPage = Registry.define<{
   icon?: string;
   render(): JSX.Element;
 }>("yuri.page");
+
+/** Host-provided page navigator: switches the shell to the plugin main tab. */
+export const YuriPages = Contract.define<{
+  open(id: string): boolean;
+  current(): string | undefined;
+}, "yuri.pages">("yuri.pages");
 
 function navigate(path: string) {
   if (window.location.pathname === path) return;
@@ -23,7 +29,13 @@ export function openSession(ctx: Context, sessionID: string): void {
   navigate(`/session/${encodeURIComponent(sessionID)}`);
 }
 
-export function openPluginPage(): void {
+export function openPluginPage(ctx: Context): void {
+  try {
+    const live = ctx.use(YuriPages)();
+    if (live.status === "active" && live.value.open(PAGE_ID)) return;
+  } catch {
+    /* fall through to the URL route */
+  }
   navigate(`/plugins/${PLUGIN_ID}/${PAGE_ID}`);
 }
 

@@ -42,7 +42,9 @@ export function BoardPage(props: { board: Board; t: T }) {
   const [drop, setDrop] = createSignal<DropTarget>();
   let draggedAt = 0;
 
-  onMount(() => board.activate());
+  onMount(() => {
+    board.activate();
+  });
   onCleanup(() => board.deactivate());
 
   const labelChips = createMemo(() => {

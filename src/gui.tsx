@@ -24,7 +24,7 @@ export default Plugin.define({
       description: ctx.t("page.subtitle"),
       keywords: "session board kanban task 看板 任务",
       bind: "mod+shift+b",
-      run: () => openPluginPage(),
+      run: () => openPluginPage(ctx),
     }));
 
     ctx.add(Command, (): Command => ({
@@ -32,7 +32,7 @@ export default Plugin.define({
       title: ctx.t("command.new"),
       keywords: "new task create 新建 任务",
       run: () => {
-        openPluginPage();
+        openPluginPage(ctx);
         board.requestCreate();
       },
     }));
@@ -42,7 +42,7 @@ export default Plugin.define({
       label: ctx.t("titlebar.label"),
       title: ctx.t("page.title"),
       icon: "task",
-      run: () => openPluginPage(),
+      run: () => openPluginPage(ctx),
     }));
 
     return () => board.dispose();

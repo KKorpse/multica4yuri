@@ -304,8 +304,11 @@ export function createBoard(ctx: Context, t: T) {
       if (request !== generation) return;
       const merged = new Map<string, SessionInfo>();
       for (const session of [...active, ...archived]) merged.set(session.id, session);
+      const live = await ctx.client.session.active({ signal: ctx.signal }).catch(() => ({}));
+      if (request !== generation) return;
       batch(() => {
         setSessions([...merged.values()]);
+        setRunning(new Set(Object.keys(live)));
         setLoading(false);
         setRefreshedAt(Date.now());
       });
