@@ -1,7 +1,8 @@
-import { Command, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
+import { Command, MenuItem, Panel, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
 import { BUILD, openPluginPage, PAGE_ID, YuriPage } from "./host";
 import { messages } from "./i18n";
+import { TaskPanel } from "./panel";
 import { CSS } from "./styles";
 import { BoardPage } from "./ui";
 
@@ -11,12 +12,47 @@ export default Plugin.define({
     const board = createBoard(ctx, ctx.t);
     console.info(`[session-board] build ${BUILD}`);
 
+    const openTaskPanel = () => {
+      const session = ctx.sessions.current();
+      if (!session) {
+        ctx.toast.show({ title: ctx.t("panel.noSession") });
+        return;
+      }
+      ctx.layout.open(`${ctx.id}:task`, session);
+    };
+
     ctx.add(Style, CSS);
     ctx.add(YuriPage, {
       id: PAGE_ID,
       title: ctx.t("page.title"),
       icon: "task",
       render: () => <BoardPage board={board} t={ctx.t} />,
+    });
+
+    ctx.add(Panel, {
+      id: "task",
+      region: "side",
+      mobile: {
+        title: ctx.t("panel.title"),
+        order: 40,
+        kind: "menu",
+        icon: "task",
+      },
+      list: () => [
+        {
+          id: "task",
+          title: ctx.t("panel.title"),
+          pinned: true,
+        },
+      ],
+      render: (panel) => (
+        <TaskPanel
+          board={board}
+          t={ctx.t}
+          session={panel.session}
+          onOpenBoard={() => openPluginPage(ctx)}
+        />
+      ),
     });
 
     ctx.add(Command, (): Command => ({
@@ -37,6 +73,27 @@ export default Plugin.define({
         board.requestCreate();
       },
     }));
+
+    ctx.add(Command, (): Command => ({
+      id: "panel",
+      title: ctx.t("command.panel"),
+      keywords: "task panel side 任务 面板 侧栏",
+      run: openTaskPanel,
+    }));
+
+    ctx.add(MenuItem, (): MenuItem => {
+      const session = ctx.sessions.current();
+      const state = session ? ctx.layout.state(`${ctx.id}:task`, session) : "closed";
+      return {
+        menu: "session.panel",
+        id: "task",
+        title: ctx.t("panel.title"),
+        icon: "task",
+        order: 20,
+        opened: state !== "closed",
+        run: openTaskPanel,
+      };
+    });
 
     ctx.add(TitlebarItem, (): TitlebarItem => ({
       id: "open",

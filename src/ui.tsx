@@ -90,7 +90,7 @@ function IconFilter() {
   );
 }
 
-function StatusIcon(props: { status: string; size?: number }) {
+export function StatusIcon(props: { status: string; size?: number }) {
   const color = () => statusColor(props.status);
   const shape = (): JSX.Element => {
     switch (props.status) {
@@ -638,7 +638,7 @@ function Card(props: {
   );
 }
 
-function TagEditor(props: {
+export function TagEditor(props: {
   value: string[];
   suggestions: Array<{ name: string; count: number }>;
   placeholder: string;
