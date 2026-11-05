@@ -1,11 +1,6 @@
 import type { AgentInfo, SessionInfo } from "@opencode/client";
 import type { Context } from "@opencode/plugin/gui";
-import {
-  createEffect,
-  createMemo,
-  createSignal,
-  batch,
-} from "solid-js";
+import { createEffect, createMemo, createSignal, batch } from "solid-js";
 import { createStore } from "solid-js/store";
 import * as api from "./data";
 import { openSession } from "./host";
@@ -82,11 +77,14 @@ function loadView(): ViewState {
     const text = (key: keyof Filters, fallback: string) =>
       typeof filters[key] === "string" ? (filters[key] as string) : fallback;
     const list = (key: keyof Filters) =>
-      Array.isArray(filters[key]) ? (filters[key] as string[]).filter((s) => typeof s === "string") : [];
+      Array.isArray(filters[key])
+        ? (filters[key] as string[]).filter((s) => typeof s === "string")
+        : [];
     const bool = (key: keyof Filters, fallback: boolean) =>
       typeof filters[key] === "boolean" ? (filters[key] as boolean) : fallback;
     return {
-      grouping: parsed.grouping === "agent" || parsed.grouping === "directory" ? parsed.grouping : "status",
+      grouping:
+        parsed.grouping === "agent" || parsed.grouping === "directory" ? parsed.grouping : "status",
       sort:
         parsed.sort === "updated" || parsed.sort === "created" || parsed.sort === "title"
           ? parsed.sort
@@ -158,7 +156,8 @@ export function createBoard(ctx: Context, t: T) {
 
   const statuses = createMemo(() => {
     const seen = new Set<string>();
-    for (const status of ["待规划", "待开始", "执行中", "待确认", "已完成", "已搁置"]) seen.add(status);
+    for (const status of ["待规划", "待开始", "执行中", "待确认", "已完成", "已搁置"])
+      seen.add(status);
     for (const task of tasks()) seen.add(task.status);
     return [...seen];
   });
@@ -169,7 +168,8 @@ export function createBoard(ctx: Context, t: T) {
 
   const statusCounts = createMemo(() => {
     const counts = new Map<string, number>();
-    for (const task of filteredForFacets()) counts.set(task.status, (counts.get(task.status) ?? 0) + 1);
+    for (const task of filteredForFacets())
+      counts.set(task.status, (counts.get(task.status) ?? 0) + 1);
     return counts;
   });
 
@@ -192,10 +192,12 @@ export function createBoard(ctx: Context, t: T) {
   const directoryOptions = createMemo(() => {
     const map = new Map<string, string>();
     for (const project of projects()) map.set(project.path, project.label);
-    for (const task of tasks()) if (!map.has(task.directory)) map.set(task.directory, basename(task.directory));
+    for (const task of tasks())
+      if (!map.has(task.directory)) map.set(task.directory, basename(task.directory));
     const current = currentDirectory();
     if (current && !map.has(current)) map.set(current, current);
-    if (view.lastDirectory && !map.has(view.lastDirectory)) map.set(view.lastDirectory, view.lastDirectory);
+    if (view.lastDirectory && !map.has(view.lastDirectory))
+      map.set(view.lastDirectory, view.lastDirectory);
     return [...map.entries()]
       .map(([path, label]) => ({ path, label: label === path ? basename(path) : label }))
       .sort((a, b) => a.label.localeCompare(b.label, "zh-CN"));
@@ -346,7 +348,11 @@ export function createBoard(ctx: Context, t: T) {
       }
       case "session.metadata.updated": {
         const metadata = record(event.data?.metadata);
-        if (id) patchSession(id, (session) => ({ ...session, metadata: metadata as SessionInfo["metadata"] }));
+        if (id)
+          patchSession(id, (session) => ({
+            ...session,
+            metadata: metadata as SessionInfo["metadata"],
+          }));
         return;
       }
       case "session.agent.selected": {
@@ -406,7 +412,9 @@ export function createBoard(ctx: Context, t: T) {
     refreshTimers.clear();
   }
 
-  async function create(input: CreateInput): Promise<{ id: string; sent: boolean; sendError?: unknown }> {
+  async function create(
+    input: CreateInput,
+  ): Promise<{ id: string; sent: boolean; sendError?: unknown }> {
     const meta: TaskMeta = {
       version: 1,
       description: input.description.trim(),
@@ -553,7 +561,9 @@ export function createBoard(ctx: Context, t: T) {
 
   function toggleIn(key: "statuses" | "labels", value: string) {
     const list = view.filters[key];
-    setFilters({ [key]: list.includes(value) ? list.filter((item) => item !== value) : [...list, value] } as Partial<Filters>);
+    setFilters({
+      [key]: list.includes(value) ? list.filter((item) => item !== value) : [...list, value],
+    } as Partial<Filters>);
   }
 
   function setAgentFilter(agent: string) {

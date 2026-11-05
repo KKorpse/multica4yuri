@@ -82,13 +82,17 @@ test("system sessions are not board tasks", () => {
   assert.equal(isSystemSession(session()), false);
   assert.equal(
     isSystemSession(
-      session({ metadata: { yuri: { llm: { purpose: "chat-completions" } } } } as Partial<SessionInfo>),
+      session({
+        metadata: { yuri: { llm: { purpose: "chat-completions" } } },
+      } as Partial<SessionInfo>),
     ),
     true,
   );
   assert.equal(
     isSystemSession(
-      session({ metadata: { yuri: { scheduledTask: { taskID: "task" } } } } as Partial<SessionInfo>),
+      session({
+        metadata: { yuri: { scheduledTask: { taskID: "task" } } },
+      } as Partial<SessionInfo>),
     ),
     true,
   );
@@ -130,7 +134,9 @@ test("filters compose: any status, any label, and every search word", () => {
     ["b", "c"],
   );
   assert.deepEqual(
-    filterTasks(tasks, filters({ labels: ["frontend"], statuses: ["已完成"] })).map((item) => item.id),
+    filterTasks(tasks, filters({ labels: ["frontend"], statuses: ["已完成"] })).map(
+      (item) => item.id,
+    ),
     ["c"],
   );
   assert.deepEqual(
@@ -151,11 +157,10 @@ test("filters hide children, unplanned and archived tasks by default", () => {
     task({ id: "archived", archived: true }),
     task({ id: "running", running: true }),
   ];
-  assert.deepEqual(filterTasks(tasks, filters()).map((item) => item.id), [
-    "root",
-    "plain",
-    "running",
-  ]);
+  assert.deepEqual(
+    filterTasks(tasks, filters()).map((item) => item.id),
+    ["root", "plain", "running"],
+  );
   assert.deepEqual(
     filterTasks(tasks, filters({ showChildren: true })).map((item) => item.id),
     ["root", "child", "plain", "running"],
@@ -182,7 +187,11 @@ test("rankBetween keeps ordering and detects exhausted precision", () => {
 });
 
 test("columns keep the default status order and append custom statuses", () => {
-  const tasks = [task({ status: "待规划" }), task({ status: "稍后处理" }), task({ status: "执行中" })];
+  const tasks = [
+    task({ status: "待规划" }),
+    task({ status: "稍后处理" }),
+    task({ status: "执行中" }),
+  ];
   assert.deepEqual(columnKeys(tasks, "status", ["待规划", "待开始", "执行中", "已完成"]), [
     "待规划",
     "待开始",
@@ -193,8 +202,14 @@ test("columns keep the default status order and append custom statuses", () => {
 });
 
 test("sorting is stable and tag colours are deterministic", () => {
-  const tasks = [task({ id: "b", title: "B", updated: 1 }), task({ id: "a", title: "A", updated: 2 })];
-  assert.deepEqual(sortTasks(tasks, "updated").map((item) => item.id), ["a", "b"]);
+  const tasks = [
+    task({ id: "b", title: "B", updated: 1 }),
+    task({ id: "a", title: "A", updated: 2 }),
+  ];
+  assert.deepEqual(
+    sortTasks(tasks, "updated").map((item) => item.id),
+    ["a", "b"],
+  );
   assert.equal(labelColor("backend"), labelColor("backend"));
   assert.notEqual(labelColor("backend"), labelColor("frontend"));
 });

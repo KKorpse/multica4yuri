@@ -132,11 +132,10 @@ export async function setArchived(
   archived: boolean,
   signal: AbortSignal,
 ): Promise<void> {
-  await hostRequest(
-    ctx,
-    `/api/yuri/sessions/${encodeURIComponent(session.id)}/archive`,
-    { archivedAt: archived ? Date.now() : 0, directory: session.location.directory },
-  );
+  await hostRequest(ctx, `/api/yuri/sessions/${encodeURIComponent(session.id)}/archive`, {
+    archivedAt: archived ? Date.now() : 0,
+    directory: session.location.directory,
+  });
   signal.throwIfAborted();
 }
 

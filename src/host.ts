@@ -12,10 +12,13 @@ export const YuriPage = Registry.define<{
 }>("yuri.page");
 
 /** Host-provided page navigator: switches the shell to the plugin main tab. */
-export const YuriPages = Contract.define<{
-  open(id: string): boolean;
-  current(): string | undefined;
-}, "yuri.pages">("yuri.pages");
+export const YuriPages = Contract.define<
+  {
+    open(id: string): boolean;
+    current(): string | undefined;
+  },
+  "yuri.pages"
+>("yuri.pages");
 
 function navigate(path: string) {
   if (window.location.pathname === path) return;
@@ -40,11 +43,7 @@ export function openPluginPage(ctx: Context): void {
 }
 
 /** Yuri's installed window.fetch bridge supplies the selected host's transport and authentication. */
-export async function hostRequest<T>(
-  ctx: Context,
-  path: string,
-  body: unknown,
-): Promise<T> {
+export async function hostRequest<T>(ctx: Context, path: string, body: unknown): Promise<T> {
   ctx.signal.throwIfAborted();
   const response = await fetch(path, {
     method: "PUT",

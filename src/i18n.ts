@@ -56,7 +56,8 @@ export const messages = {
     "field.title": "Title",
     "field.titlePlaceholder": "What should this task accomplish?",
     "field.description": "Description",
-    "field.descriptionPlaceholder": "Describe the goal. It is sent to the agent when you keep the option below.",
+    "field.descriptionPlaceholder":
+      "Describe the goal. It is sent to the agent when you keep the option below.",
     "field.directory": "Directory",
     "field.directoryPlaceholder": "/path/to/project",
     "field.agent": "Agent",

@@ -64,12 +64,14 @@ export function record(value: unknown): Record<string, unknown> {
 
 export function uniqueLabels(values: readonly string[]): string[] {
   const seen = new Set<string>();
-  return values.map((s) => s.trim()).filter((s) => {
-    const key = s.toLocaleLowerCase();
-    if (!s || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return values
+    .map((s) => s.trim())
+    .filter((s) => {
+      const key = s.toLocaleLowerCase();
+      if (!s || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 export function taskMeta(session: SessionInfo): TaskMeta {
@@ -78,7 +80,9 @@ export function taskMeta(session: SessionInfo): TaskMeta {
     version: typeof m.version === "number" ? m.version : 1,
     description: typeof m.description === "string" ? m.description : "",
     status: typeof m.status === "string" && m.status.trim() ? m.status : DEFAULT_STATUSES[0],
-    labels: Array.isArray(m.labels) ? uniqueLabels(m.labels.filter((s) => typeof s === "string")) : [],
+    labels: Array.isArray(m.labels)
+      ? uniqueLabels(m.labels.filter((s) => typeof s === "string"))
+      : [],
     rank: typeof m.rank === "number" && Number.isFinite(m.rank) ? m.rank : -session.time.created,
   };
 }
@@ -124,18 +128,25 @@ export function filterTasks(tasks: readonly Task[], filters: Filters): Task[] {
     if (filters.statuses.length && !filters.statuses.includes(task.status)) return false;
     if (filters.agents.length && !filters.agents.includes(task.agent)) return false;
     if (filters.directories.length && !filters.directories.includes(task.directory)) return false;
-    if (labels.size && !task.labels.some((label) => labels.has(label.toLocaleLowerCase()))) return false;
-    const text = [task.title, task.description, task.id, ...task.labels].join("\n").toLocaleLowerCase();
+    if (labels.size && !task.labels.some((label) => labels.has(label.toLocaleLowerCase())))
+      return false;
+    const text = [task.title, task.description, task.id, ...task.labels]
+      .join("\n")
+      .toLocaleLowerCase();
     return words.every((word) => text.includes(word));
   });
 }
 
 export function sortTasks(tasks: readonly Task[], sort: Sort): Task[] {
   return [...tasks].sort((a, b) => {
-    const delta = sort === "manual" ? a.rank - b.rank
-      : sort === "updated" ? b.updated - a.updated
-      : sort === "created" ? b.created - a.created
-      : a.title.localeCompare(b.title, "zh-CN", { numeric: true });
+    const delta =
+      sort === "manual"
+        ? a.rank - b.rank
+        : sort === "updated"
+          ? b.updated - a.updated
+          : sort === "created"
+            ? b.created - a.created
+            : a.title.localeCompare(b.title, "zh-CN", { numeric: true });
     return delta || a.id.localeCompare(b.id);
   });
 }
@@ -144,24 +155,40 @@ export function groupKey(task: Task, grouping: Grouping): string {
   return task[grouping];
 }
 
-export function columnKeys(tasks: readonly Task[], grouping: Grouping, statuses: readonly string[]): string[] {
+export function columnKeys(
+  tasks: readonly Task[],
+  grouping: Grouping,
+  statuses: readonly string[],
+): string[] {
   if (grouping === "status") return [...new Set([...statuses, ...tasks.map((t) => t.status)])];
-  return [...new Set(tasks.map((t) => groupKey(t, grouping)))].sort((a, b) => a.localeCompare(b, "zh-CN"));
+  return [...new Set(tasks.map((t) => groupKey(t, grouping)))].sort((a, b) =>
+    a.localeCompare(b, "zh-CN"),
+  );
 }
 
 /** Fractional ordering changes only the moved card. Tie/precision exhaustion is rebased by the caller. */
 export function rankBetween(before?: number, after?: number): number | undefined {
-  const rank = before === undefined ? (after ?? 0) - 1024
-    : after === undefined ? before + 1024
-    : before + (after - before) / 2;
-  return Number.isFinite(rank) && (before === undefined || rank > before) && (after === undefined || rank < after)
-    ? rank : undefined;
+  const rank =
+    before === undefined
+      ? (after ?? 0) - 1024
+      : after === undefined
+        ? before + 1024
+        : before + (after - before) / 2;
+  return Number.isFinite(rank) &&
+    (before === undefined || rank > before) &&
+    (after === undefined || rank < after)
+    ? rank
+    : undefined;
 }
 
 const PALETTE = ["#8b8cdd", "#c586c0", "#5b9bd5", "#46a99a", "#b79b5a", "#d4836a", "#8599c2"];
 const STATUS_COLORS: Record<string, string> = {
-  待规划: "#8b94a5", 待开始: "#73a3dc", 执行中: "#d5a653",
-  待确认: "#b395dc", 已完成: "#66b394", 已搁置: "#b38086",
+  待规划: "#8b94a5",
+  待开始: "#73a3dc",
+  执行中: "#d5a653",
+  待确认: "#b395dc",
+  已完成: "#66b394",
+  已搁置: "#b38086",
 };
 
 export function labelColor(label: string): string {

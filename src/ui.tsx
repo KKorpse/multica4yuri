@@ -337,15 +337,9 @@ export function BoardPage(props: { board: Board; t: T }) {
               }}
             >
               <div class="ysb-col-head">
-                <span
-                  class="ysb-dot"
-                  style={{ background: column().color }}
-                  aria-hidden="true"
-                />
+                <span class="ysb-dot" style={{ background: column().color }} aria-hidden="true" />
                 <span class="ysb-col-title">
-                  {board.view.grouping === "directory"
-                    ? basename(column().key)
-                    : column().key}
+                  {board.view.grouping === "directory" ? basename(column().key) : column().key}
                 </span>
                 <span class="ysb-col-count">{column().tasks.length}</span>
                 <button
@@ -380,11 +374,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                     </>
                   )}
                 </Index>
-                <Show
-                  when={
-                    insertionIndex(column(), dragging(), drop()) === column().tasks.length
-                  }
-                >
+                <Show when={insertionIndex(column(), dragging(), drop()) === column().tasks.length}>
                   <div class="ysb-insert" />
                 </Show>
                 <Show when={column().tasks.length === 0}>
@@ -408,7 +398,11 @@ export function BoardPage(props: { board: Board; t: T }) {
   );
 }
 
-function insertionIndex(column: Column, dragging: string | undefined, drop: DropTarget | undefined): number {
+function insertionIndex(
+  column: Column,
+  dragging: string | undefined,
+  drop: DropTarget | undefined,
+): number {
   if (!drop || drop.column !== column.key) return -1;
   const index = column.tasks.findIndex((task) => task.id === dragging);
   return index !== -1 && index < drop.index ? drop.index + 1 : drop.index;
@@ -476,10 +470,7 @@ function Card(props: {
       </Show>
       <div class="ysb-card-foot">
         <span class="ysb-agent" title={props.task.agent}>
-          <span
-            class="ysb-agent-dot"
-            style={`--ysb-agent:${labelColor(props.task.agent)}`}
-          />
+          <span class="ysb-agent-dot" style={`--ysb-agent:${labelColor(props.task.agent)}`} />
           <span class="ysb-agent-name">{props.task.agent}</span>
         </span>
         <span class="ysb-dir">{basename(props.task.directory)}</span>
@@ -836,12 +827,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
         if (event.target === event.currentTarget) props.onClose();
       }}
     >
-      <div
-        class="ysb-modal wide"
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("edit.title")}
-      >
+      <div class="ysb-modal wide" role="dialog" aria-modal="true" aria-label={t("edit.title")}>
         <div class="ysb-modal-head">
           <div>
             <h2 class="ysb-modal-title">{t("edit.title")}</h2>
@@ -895,10 +881,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
               <div class="ysb-form-item">
                 <span>{t("field.agent")}</span>
                 <div class="ysb-tags">
-                  <span
-                    class="ysb-tag"
-                    style={`--ysb-label:${labelColor(task()!.agent)}`}
-                  >
+                  <span class="ysb-tag" style={`--ysb-label:${labelColor(task()!.agent)}`}>
                     {task()!.agent}
                   </span>
                 </div>
