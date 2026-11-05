@@ -28,11 +28,6 @@ Yuri chat.
 - **Open chat** — single click opens task details, double-click (or “打开对话”)
   goes to the native session. The board is reachable again from the titlebar
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
-- **Right-side task panel** — the same task data next to the chat: current
-  session task, status, description, tags, agent, related tasks, inline editing,
-  archive and “open full board”. Open it with the **任务** button in the window
-  titlebar, **Command palette → 打开任务面板**, or the side panel's **+** menu; it
-  is a pinned tab and never replaces the chat.
 - **Live** — running badges follow `session.execution.*` events; renames,
   metadata, archive and agent changes update without a reload.
 
@@ -118,15 +113,14 @@ list agree.
 
 ## Code map
 
-| File            | Responsibility                                                |
-| --------------- | ------------------------------------------------------------- |
-| `src/model.ts`  | Pure task model, metadata parsing, filtering, sorting, colors |
-| `src/data.ts`   | Session/agent/project calls and Host metadata/archive writes  |
-| `src/board.ts`  | Reactive board state, events, optimistic updates              |
-| `src/ui.tsx`    | Page, columns, cards, filters, create/edit dialogs            |
-| `src/panel.tsx` | Right-side session task panel                                 |
-| `src/host.ts`   | Yuri page registration and native URL navigation              |
-| `src/gui.tsx`   | Plugin definition: page, panel, commands, titlebar item       |
+| File           | Responsibility                                                |
+| -------------- | ------------------------------------------------------------- |
+| `src/model.ts` | Pure task model, metadata parsing, filtering, sorting, colors |
+| `src/data.ts`  | Session/agent/project calls and Host metadata/archive writes  |
+| `src/board.ts` | Reactive board state, events, optimistic updates              |
+| `src/ui.tsx`   | Page, columns, cards, filters, create/edit dialogs            |
+| `src/host.ts`  | Yuri page registration and native URL navigation              |
+| `src/gui.tsx`  | Plugin definition: page, commands, titlebar item, styles      |
 
 ## Design notes / limits
 
@@ -147,10 +141,6 @@ list agree.
   refresh** if you want hand-written task titles to stay untouched.
 - Plugin pages are mounted on wide layouts. Narrow/mobile windows do not mount
   them (a host restriction), so use the desktop app or a desktop browser.
-- The right panel is session-scoped: it appears while a session is open and
-  follows the routed session. It shares the board controller, so edits from
-  either surface update both. The installed GUI SDK has no per-panel width
-  option, so the host owns the side region width.
 
 ## Roadmap
 

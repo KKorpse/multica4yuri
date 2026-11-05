@@ -225,32 +225,6 @@ assert.ok(
   `open chat reached the session route (${pushes.join(", ")})`,
 );
 
-const panel = added.find(([id]) => id === "panel")?.[1];
-assert.ok(panel, "task panel registered");
-const panelSession = {
-  id: "ses_board_a",
-  key: "sidecar\nses_board_a",
-  tab: "ses_board_a",
-  directory: "/work/project",
-  local: false,
-  pending: false,
-  server: { id: "sidecar" },
-};
-const panelTabs = panel.list({ session: panelSession, screen: {}, open: [] });
-assert.equal(panelTabs.length, 1);
-assert.equal(panelTabs[0].pinned, true);
-const panelRoot = dom.window.document.createElement("div");
-dom.window.document.body.append(panelRoot);
-const panelDispose = solidWeb.render(
-  () => panel.render({ tab: panelTabs[0], session: panelSession, screen: {} }),
-  panelRoot,
-);
-await new Promise((resolve) => setTimeout(resolve, 100));
-assert.match(panelRoot.textContent, /panel\.title/, "panel title rendered");
-assert.match(panelRoot.textContent, /Example task/, "panel shows the current task");
-assert.match(panelRoot.textContent, /Plain session/, "panel lists related tasks");
-panelDispose();
-
 dispose();
 if (typeof cleanup === "function") cleanup();
 console.log("smoke: ok, rendered", cards.length, "cards");

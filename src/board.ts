@@ -508,49 +508,6 @@ export function createBoard(ctx: Context, t: T) {
     }
   }
 
-  /** Change status without depending on the board's current grouping/sort. */
-  async function setStatus(id: string, status: string): Promise<void> {
-    const session = sessionById(id);
-    const task = taskById(id);
-    if (!session || !task) return;
-    const previous = taskMeta(session);
-    const next: TaskMeta = {
-      ...previous,
-      status,
-      description: task.description || previous.description,
-      labels: task.labels.length ? [...task.labels] : previous.labels,
-      rank: task.rank,
-    };
-    patchMeta(id, next);
-    try {
-      await api.writeBoardMeta(ctx, session, next, ctx.signal);
-    } catch (caught) {
-      patchMeta(id, previous);
-      throw caught;
-    }
-  }
-
-  /** Persist currently derived task data, adopting an old session into the board. */
-  async function adopt(id: string): Promise<void> {
-    const session = sessionById(id);
-    const task = taskById(id);
-    if (!session || !task) return;
-    const next: TaskMeta = {
-      version: 1,
-      description: task.description,
-      status: task.status,
-      labels: [...task.labels],
-      rank: task.rank,
-    };
-    patchMeta(id, next);
-    try {
-      await api.writeBoardMeta(ctx, session, next, ctx.signal);
-    } catch (caught) {
-      void reload(true);
-      throw caught;
-    }
-  }
-
   async function archive(id: string, archived: boolean): Promise<void> {
     const session = sessionById(id);
     if (!session) return;
@@ -676,8 +633,6 @@ export function createBoard(ctx: Context, t: T) {
     create,
     save,
     move,
-    setStatus,
-    adopt,
     archive,
     open,
     loadAgents,

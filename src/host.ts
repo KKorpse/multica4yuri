@@ -3,7 +3,7 @@ import type { JSX } from "solid-js";
 
 export const PLUGIN_ID = "yuri-session-board";
 export const PAGE_ID = "board";
-export const BUILD = "0.3.2";
+export const BUILD = "0.3.3";
 
 export const YuriPage = Registry.define<{
   id: string;
