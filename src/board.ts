@@ -5,7 +5,6 @@ import {
   createMemo,
   createSignal,
   batch,
-  onCleanup,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import * as api from "./data";
@@ -208,7 +207,7 @@ export function createBoard(ctx: Context, t: T) {
       const items = list.filter((task) => groupKey(task, view.grouping) === key);
       return {
         key,
-        label: view.grouping === "status" ? key : key,
+        label: key,
         color: view.grouping === "status" ? statusColor(key) : labelColor(key),
         tasks: items,
       };
@@ -344,7 +343,7 @@ export function createBoard(ctx: Context, t: T) {
       }
       case "session.metadata.updated": {
         const metadata = record(event.data?.metadata);
-        if (id) patchSession(id, (session) => ({ ...session, metadata }));
+        if (id) patchSession(id, (session) => ({ ...session, metadata: metadata as SessionInfo["metadata"] }));
         return;
       }
       case "session.agent.selected": {
@@ -404,7 +403,7 @@ export function createBoard(ctx: Context, t: T) {
     refreshTimers.clear();
   }
 
-  async function create(input: CreateInput): Promise<{ id: string; sent: boolean }> {
+  async function create(input: CreateInput): Promise<{ id: string; sent: boolean; sendError?: unknown }> {
     const meta: TaskMeta = {
       version: 1,
       description: input.description.trim(),
@@ -432,12 +431,17 @@ export function createBoard(ctx: Context, t: T) {
       /* the record copy still carries the task data */
     }
     let sent = false;
+    let sendError: unknown;
     if (input.send && meta.description) {
-      await api.sendPrompt(ctx, session.id, meta.description, ctx.signal);
-      sent = true;
+      try {
+        await api.sendPrompt(ctx, session.id, meta.description, ctx.signal);
+        sent = true;
+      } catch (caught) {
+        sendError = caught;
+      }
     }
     void reload(true);
-    return { id: session.id, sent };
+    return { id: session.id, sent, sendError };
   }
 
   async function save(id: string, input: SaveInput): Promise<void> {
@@ -621,8 +625,6 @@ export function createBoard(ctx: Context, t: T) {
     closeCreate: () => setCreateOpen(false),
     edit: (id: string) => setEditingId(id),
     closeEdit: () => setEditingId(undefined),
-    upsert,
-    publish: (id: string) => void reload(true),
     notice,
     fail,
     dispose,

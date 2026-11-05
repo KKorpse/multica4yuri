@@ -1,5 +1,8 @@
-import { Contract, Registry, type Context } from "@opencode/plugin/gui";
+import { Registry, type Context } from "@opencode/plugin/gui";
 import type { JSX } from "solid-js";
+
+export const PLUGIN_ID = "yuri-session-board";
+export const PAGE_ID = "board";
 
 export const YuriPage = Registry.define<{
   id: string;
@@ -8,17 +11,20 @@ export const YuriPage = Registry.define<{
   render(): JSX.Element;
 }>("yuri.page");
 
-export const YuriPages = Contract.define<{
-  open(id: string): boolean;
-  current(): string | undefined;
-}, "yuri.pages">("yuri.pages");
-
-/** Yuri 0.2.28 exposes page contributions and native URL routing, but not ctx.tabs. */
-export function openSession(ctx: Context, sessionID: string): void {
-  ctx.signal.throwIfAborted();
-  const path = `/session/${encodeURIComponent(sessionID)}`;
+function navigate(path: string) {
+  if (window.location.pathname === path) return;
   window.history.pushState(null, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+/** Yuri 0.2.28 does not expose ctx.tabs; its router reacts to this URL change. */
+export function openSession(ctx: Context, sessionID: string): void {
+  ctx.signal.throwIfAborted();
+  navigate(`/session/${encodeURIComponent(sessionID)}`);
+}
+
+export function openPluginPage(): void {
+  navigate(`/plugins/${PLUGIN_ID}/${PAGE_ID}`);
 }
 
 /** Yuri's installed window.fetch bridge supplies the selected host's transport and authentication. */

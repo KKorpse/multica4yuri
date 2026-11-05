@@ -4,13 +4,13 @@ export const METADATA_KEY = "sessionBoard";
 export const DESCRIPTION_KEY = "session-board.task";
 export const DEFAULT_STATUSES = ["待规划", "待开始", "执行中", "待确认", "已完成", "已搁置"];
 
-export interface TaskMeta {
+export type TaskMeta = {
   version: number;
   description: string;
   status: string;
   labels: string[];
   rank: number;
-}
+};
 
 export interface Task extends TaskMeta {
   id: string;
