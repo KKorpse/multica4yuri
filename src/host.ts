@@ -3,7 +3,7 @@ import type { JSX } from "solid-js";
 
 export const PLUGIN_ID = "yuri-session-board";
 export const PAGE_ID = "board";
-export const BUILD = "0.1.1";
+export const BUILD = "0.1.2";
 
 export const YuriPage = Registry.define<{
   id: string;
@@ -45,14 +45,17 @@ export function openSession(sessionID: string): void {
     window.location.assign(path);
     return;
   }
-  // A popstate handler may switch tabs without selecting the session. If the
-  // chat surface does not show the target, fall back to a real navigation.
+  // A popstate handler may switch tabs without selecting the session. Only
+  // reload when the board is still on screen (the SPA route did not take over),
+  // or when a different session surface is showing.
   window.setTimeout(() => {
-    const open = [...document.querySelectorAll<HTMLElement>("[data-context-session-surface]")].some(
-      (element) => element.dataset.sessionId === sessionID,
-    );
-    if (!open) window.location.assign(path);
-  }, 700);
+    const page = document.querySelector<HTMLElement>("[data-ysb-page]");
+    const boardVisible = !!page && page.getClientRects().length > 0;
+    const surfaces = [...document.querySelectorAll<HTMLElement>("[data-context-session-surface]")];
+    const wrongSession =
+      surfaces.length > 0 && !surfaces.some((element) => element.dataset.sessionId === sessionID);
+    if (boardVisible || wrongSession) window.location.assign(path);
+  }, 800);
 }
 
 export function openPluginPage(ctx: Context): void {
