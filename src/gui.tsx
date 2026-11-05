@@ -20,6 +20,13 @@ export default Plugin.define({
       }
       ctx.layout.open(`${ctx.id}:task`, session);
     };
+    const taskTab = {
+      id: "task",
+      get title() {
+        return ctx.t("panel.title");
+      },
+      pinned: true,
+    };
 
     ctx.add(Style, CSS);
     ctx.add(YuriPage, {
@@ -38,13 +45,7 @@ export default Plugin.define({
         kind: "menu",
         icon: "task",
       },
-      list: () => [
-        {
-          id: "task",
-          title: ctx.t("panel.title"),
-          pinned: true,
-        },
-      ],
+      list: () => [taskTab],
       render: (panel) => (
         <TaskPanel
           board={board}

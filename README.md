@@ -30,9 +30,8 @@ Yuri chat.
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
 - **Right-side task panel** — the same task data next to the chat: current
   session task, status, description, tags, agent, related tasks, inline editing,
-  archive and “open full board”. Open it from the command palette
-  (**打开任务面板**) or the side panel's **+** menu. It is a pinned tab and never
-  replaces the chat.
+  archive and “open full board”. Open it with **Command palette → 打开任务面板**
+  or the side panel's **+** menu; it is a pinned tab and never replaces the chat.
 - **Live** — running badges follow `session.execution.*` events; renames,
   metadata, archive and agent changes update without a reload.
 
@@ -118,14 +117,15 @@ list agree.
 
 ## Code map
 
-| File           | Responsibility                                                |
-| -------------- | ------------------------------------------------------------- |
-| `src/model.ts` | Pure task model, metadata parsing, filtering, sorting, colors |
-| `src/data.ts`  | Session/agent/project calls and Host metadata/archive writes  |
-| `src/board.ts` | Reactive board state, events, optimistic updates              |
-| `src/ui.tsx`   | Page, columns, cards, filters, create/edit dialogs            |
-| `src/host.ts`  | Yuri page registration and native URL navigation              |
-| `src/gui.tsx`  | Plugin definition: page, commands, titlebar item, styles      |
+| File            | Responsibility                                                |
+| --------------- | ------------------------------------------------------------- |
+| `src/model.ts`  | Pure task model, metadata parsing, filtering, sorting, colors |
+| `src/data.ts`   | Session/agent/project calls and Host metadata/archive writes  |
+| `src/board.ts`  | Reactive board state, events, optimistic updates              |
+| `src/ui.tsx`    | Page, columns, cards, filters, create/edit dialogs            |
+| `src/panel.tsx` | Right-side session task panel                                 |
+| `src/host.ts`   | Yuri page registration and native URL navigation              |
+| `src/gui.tsx`   | Plugin definition: page, panel, commands, titlebar item       |
 
 ## Design notes / limits
 
