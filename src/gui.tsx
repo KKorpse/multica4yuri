@@ -1,10 +1,11 @@
-import { Command, MenuItem, Panel, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
+import { Command, MenuItem, Panel, Plugin, Slot, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
 import { BUILD, openPluginPage, PAGE_ID, YuriPage } from "./host";
 import { messages } from "./i18n";
 import { TaskPanel } from "./panel";
 import { CSS } from "./styles";
 import { BoardPage } from "./ui";
+import { StatusIcon } from "./ui";
 
 export default Plugin.define({
   i18n: { en: messages.en, zh: messages.zh },
@@ -94,6 +95,26 @@ export default Plugin.define({
         opened: state !== "closed",
         run: openTaskPanel,
       };
+    });
+
+    ctx.add(Slot, {
+      at: "session.header",
+      order: 10,
+      render: (input) => {
+        const task = board.task(input.session.id);
+        return (
+          <button
+            class="ysb-headerentry"
+            type="button"
+            title={ctx.t("command.panel")}
+            onClick={() => ctx.layout.open(`${ctx.id}:task`, input.session)}
+          >
+            <StatusIcon status={task?.status ?? "待规划"} size={12} />
+            <span>{ctx.t("panel.title")}</span>
+            <span class="ysb-headerentry-state">{task?.status ?? ctx.t("panel.join")}</span>
+          </button>
+        );
+      },
     });
 
     ctx.add(TitlebarItem, (): TitlebarItem => ({
