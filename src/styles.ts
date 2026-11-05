@@ -695,23 +695,6 @@ export const CSS = `
 }
 .ysb-panelfoot .ysb-btn { width: 100%; }
 .ysb-panelform .ysb-textarea { min-height: 88px; }
-.ysb-headerentry {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--border, rgba(127, 127, 127, 0.22));
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted-foreground, #8b8f98);
-  font: inherit;
-  font-size: 11.5px;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.ysb-headerentry:hover { background: var(--interactive-hover, rgba(127, 127, 127, 0.08)); color: var(--foreground, #e7e7ea); }
-.ysb-headerentry-state { color: var(--muted-foreground, #8b8f98); }
 
 @keyframes ysb-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }

@@ -30,9 +30,9 @@ Yuri chat.
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
 - **Right-side task panel** — the same task data next to the chat: current
   session task, status, description, tags, agent, related tasks, inline editing,
-  archive and “open full board”. Open it with the **任务** pill in the session
-  header, **Command palette → 打开任务面板**, or the side panel's **+** menu; it is
-  a pinned tab and never replaces the chat.
+  archive and “open full board”. Open it with the **任务** button in the window
+  titlebar, **Command palette → 打开任务面板**, or the side panel's **+** menu; it
+  is a pinned tab and never replaces the chat.
 - **Live** — running badges follow `session.execution.*` events; renames,
   metadata, archive and agent changes update without a reload.
 
