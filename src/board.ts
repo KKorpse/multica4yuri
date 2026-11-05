@@ -522,7 +522,7 @@ export function createBoard(ctx: Context, t: T) {
   }
 
   function open(id: string) {
-    openSession(ctx, id);
+    openSession(id);
   }
 
   function loadAgents(directory: string, force = false): Promise<AgentInfo[]> {

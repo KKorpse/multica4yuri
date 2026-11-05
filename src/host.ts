@@ -20,16 +20,9 @@ export const YuriPages = Contract.define<
   "yuri.pages"
 >("yuri.pages");
 
-function navigate(path: string) {
-  if (window.location.pathname === path) return;
-  window.history.pushState(null, "", path);
-  window.dispatchEvent(new PopStateEvent("popstate"));
-}
-
-/** Yuri 0.2.28 does not expose ctx.tabs; its router reacts to this URL change. */
-export function openSession(ctx: Context, sessionID: string): void {
-  ctx.signal.throwIfAborted();
-  navigate(`/session/${encodeURIComponent(sessionID)}`);
+/** Yuri 0.2.28 does not expose ctx.tabs; a real navigation to its session route is reliable. */
+export function openSession(sessionID: string): void {
+  window.location.assign(`/session/${encodeURIComponent(sessionID)}`);
 }
 
 export function openPluginPage(ctx: Context): void {
@@ -39,7 +32,7 @@ export function openPluginPage(ctx: Context): void {
   } catch {
     /* fall through to the URL route */
   }
-  navigate(`/plugins/${PLUGIN_ID}/${PAGE_ID}`);
+  window.location.assign(`/plugins/${PLUGIN_ID}/${PAGE_ID}`);
 }
 
 /** Yuri's installed window.fetch bridge supplies the selected host's transport and authentication. */

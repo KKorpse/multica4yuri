@@ -124,8 +124,8 @@ list agree.
 
 ## Design notes / limits
 
-- Yuri 0.2.28 does not expose `ctx.tabs`; opening a session uses Yuri's own
-  `/session/:id` route, so the native chat keeps all of its features. Plugin
+- Yuri 0.2.28 does not expose `ctx.tabs`; opening a session navigates to Yuri's
+  own `/session/:id` route, so the native chat keeps all of its features. Plugin
   pages are opened through Yuri's `yuri.pages` contract.
 - The GUI API has no multi-line input; the description uses a native textarea
   styled from the host theme tokens.
