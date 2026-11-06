@@ -3,7 +3,35 @@ import type { JSX } from "solid-js";
 
 export const PLUGIN_ID = "yuri-session-board";
 export const PAGE_ID = "board";
-export const BUILD = "0.3.3";
+export const BUILD = "0.4.0";
+
+/** Touch devices never mount the board page at all. */
+export function isTouchDevice(): boolean {
+  try {
+    return window.matchMedia("(pointer: coarse)").matches;
+  } catch {
+    return (navigator.maxTouchPoints || 0) > 0;
+  }
+}
+
+/** The board is a wide, card-heavy surface; touch devices must not mount it. */
+export function isMobileSurface(): boolean {
+  try {
+    if (window.matchMedia("(pointer: coarse)").matches) return true;
+    return window.matchMedia("(max-width: 760px)").matches;
+  } catch {
+    return (window.innerWidth || 0) <= 760 || (navigator.maxTouchPoints || 0) > 0;
+  }
+}
+
+/** HTML5 drag is unreliable on touch devices and can trigger WebKit drag bugs. */
+export function isCoarsePointer(): boolean {
+  try {
+    return window.matchMedia("(pointer: coarse)").matches;
+  } catch {
+    return (navigator.maxTouchPoints || 0) > 0;
+  }
+}
 
 export const YuriPage = Registry.define<{
   id: string;
@@ -59,6 +87,10 @@ export function openSession(sessionID: string): void {
 }
 
 export function openPluginPage(ctx: Context): void {
+  if (isMobileSurface()) {
+    ctx.toast.show({ title: ctx.t("board.desktopOnly") });
+    return;
+  }
   try {
     const live = ctx.use(YuriPages)();
     if (live.status === "active" && live.value.open(PAGE_ID)) return;

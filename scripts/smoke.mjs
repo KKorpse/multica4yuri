@@ -225,6 +225,37 @@ assert.ok(
   `open chat reached the session route (${pushes.join(", ")})`,
 );
 
+Object.defineProperty(dom.window, "matchMedia", {
+  configurable: true,
+  value: (query) => ({
+    matches: query.includes("pointer: coarse") || query.includes("max-width"),
+    media: query,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent() {
+      return false;
+    },
+  }),
+});
+const mobileRoot = dom.window.document.createElement("div");
+dom.window.document.body.append(mobileRoot);
+const mobilePage = solidWeb.render(() => page.render(), mobileRoot);
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.match(
+  mobileRoot.textContent,
+  /board\.desktopOnly/,
+  "touch devices get the desktop-only message",
+);
+assert.equal(
+  mobileRoot.querySelectorAll("[data-ysb-card]").length,
+  0,
+  "touch devices do not render cards",
+);
+mobilePage();
+
 dispose();
 if (typeof cleanup === "function") cleanup();
 console.log("smoke: ok, rendered", cards.length, "cards");

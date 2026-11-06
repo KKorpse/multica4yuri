@@ -1,6 +1,6 @@
 import { Command, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
-import { BUILD, openPluginPage, PAGE_ID, YuriPage } from "./host";
+import { BUILD, isTouchDevice, openPluginPage, PAGE_ID, YuriPage } from "./host";
 import { messages } from "./i18n";
 import { CSS } from "./styles";
 import { BoardPage } from "./ui";
@@ -12,12 +12,14 @@ export default Plugin.define({
     console.info(`[session-board] build ${BUILD}`);
 
     ctx.add(Style, CSS);
-    ctx.add(YuriPage, {
-      id: PAGE_ID,
-      title: ctx.t("page.title"),
-      icon: "task",
-      render: () => <BoardPage board={board} t={ctx.t} />,
-    });
+    if (!isTouchDevice()) {
+      ctx.add(YuriPage, {
+        id: PAGE_ID,
+        title: ctx.t("page.title"),
+        icon: "task",
+        render: () => <BoardPage board={board} t={ctx.t} />,
+      });
+    }
 
     ctx.add(Command, (): Command => ({
       id: "open",

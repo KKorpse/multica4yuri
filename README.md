@@ -139,8 +139,11 @@ list agree.
 - Yuri can refresh session titles from the first message. If that renames a
   task, the board follows the session. Disable **Settings → Chat → session title
   refresh** if you want hand-written task titles to stay untouched.
-- Plugin pages are mounted on wide layouts. Narrow/mobile windows do not mount
-  them (a host restriction), so use the desktop app or a desktop browser.
+- Plugin pages are mounted on wide layouts. The board is desktop-only: phones and
+  coarse-pointer devices show a short message instead of mounting it, because a
+  card-heavy board can exhaust a mobile WebKit process.
+- Each column renders 40 cards at a time with **再显示** / **Show more**, so a
+  large history never creates thousands of DOM nodes at once.
 
 ## Roadmap
 

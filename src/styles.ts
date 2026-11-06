@@ -292,6 +292,26 @@ export const CSS = `
   gap: 8px;
   padding: 4px 6px 8px;
 }
+.ysb-loadmore {
+  flex: none;
+  height: 28px;
+  margin: 2px 4px 4px;
+  border: 1px dashed var(--ysb-border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ysb-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.ysb-loadmore:hover { color: var(--ysb-fg); border-color: color-mix(in srgb, var(--ysb-fg) 30%, transparent); }
+.ysb-mobile {
+  padding: 28px 20px;
+  color: var(--ysb-muted);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: center;
+}
 .ysb-colempty { padding: 32px 8px; text-align: center; color: var(--ysb-muted); font-size: 12px; }
 .ysb-insert { height: 2px; margin: 1px 2px; border-radius: 2px; background: var(--ysb-accent); flex: none; }
 
