@@ -139,11 +139,13 @@ list agree.
 - Yuri can refresh session titles from the first message. If that renames a
   task, the board follows the session. Disable **Settings → Chat → session title
   refresh** if you want hand-written task titles to stay untouched.
-- Plugin pages are mounted on wide layouts. The board is desktop-only: phones and
-  coarse-pointer devices show a short message instead of mounting it, because a
-  card-heavy board can exhaust a mobile WebKit process.
-- Each column renders 40 cards at a time with **再显示** / **Show more**, so a
-  large history never creates thousands of DOM nodes at once.
+- The board is desktop/web only. Yuri 0.2.28 does not mount plugin pages on
+  narrow surfaces, does not expose `ctx.dialogs`/`ctx.ui`, and its mobile
+  renderer does not load the GUI plugin host at all, so there is no supported
+  plugin surface to host a mobile board.
+- Each column renders 40 cards at a time with **再显示** / **Show more**, and a
+  page-level error boundary catches render failures, so a large history does not
+  create thousands of DOM nodes at once.
 
 ## Roadmap
 

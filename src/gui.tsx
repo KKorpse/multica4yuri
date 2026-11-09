@@ -1,6 +1,6 @@
 import { Command, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
-import { BUILD, isTouchDevice, openPluginPage, PAGE_ID, YuriPage } from "./host";
+import { BUILD, isMobileSurface, isTouchDevice, openPluginPage, PAGE_ID, YuriPage } from "./host";
 import { messages } from "./i18n";
 import { CSS } from "./styles";
 import { BoardPage } from "./ui";
@@ -21,13 +21,21 @@ export default Plugin.define({
       });
     }
 
+    const openBoard = () => {
+      if (isMobileSurface()) {
+        ctx.toast.show({ title: ctx.t("board.desktopOnly") });
+        return;
+      }
+      openPluginPage(ctx);
+    };
+
     ctx.add(Command, (): Command => ({
       id: "open",
       title: ctx.t("command.open"),
       description: ctx.t("page.subtitle"),
       keywords: "session board kanban task 看板 任务",
       bind: "mod+shift+b",
-      run: () => openPluginPage(ctx),
+      run: () => openBoard(),
     }));
 
     ctx.add(Command, (): Command => ({
@@ -35,6 +43,10 @@ export default Plugin.define({
       title: ctx.t("command.new"),
       keywords: "new task create 新建 任务",
       run: () => {
+        if (isMobileSurface()) {
+          ctx.toast.show({ title: ctx.t("board.desktopOnly") });
+          return;
+        }
         openPluginPage(ctx);
         board.requestCreate();
       },
@@ -45,7 +57,7 @@ export default Plugin.define({
       label: ctx.t("titlebar.label"),
       title: ctx.t("page.title"),
       icon: "checklist",
-      run: () => openPluginPage(ctx),
+      run: () => openBoard(),
     }));
 
     return () => board.dispose();
