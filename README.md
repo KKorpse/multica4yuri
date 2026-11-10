@@ -28,12 +28,6 @@ Yuri chat.
 - **Open chat** — single click opens task details, double-click (or “打开对话”)
   goes to the native session. The board is reachable again from the titlebar
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
-- **Task panel** — a minimal session panel with the current task's status, title,
-  description, tags and agent. Open it from the **任务面板** entry in the left
-  sidebar header, `mod+shift+t`, or **Command palette → 打开任务面板**. The
-  panel opens for a task session automatically once; after that the entry
-  toggles it. On Yuri 0.2.x the host draws plugin panels in a floating window,
-  not as a tab of the native right sidebar.
 - **Live** — running badges follow `session.execution.*` events; renames,
   metadata, archive and agent changes update without a reload.
 
