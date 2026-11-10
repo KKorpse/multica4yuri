@@ -100,6 +100,7 @@ export const messages = {
     "panel.noTask": "This session is not on the board yet.",
     "panel.noSession": "Open a session first.",
     "command.panel": "Open task panel",
+    "titlebar.panel": "Task panel",
   },
   zh: {
     "page.title": "会话看板",
@@ -199,5 +200,6 @@ export const messages = {
     "panel.noTask": "当前会话还没有加入看板。",
     "panel.noSession": "请先打开一个会话。",
     "command.panel": "打开任务面板",
+    "titlebar.panel": "任务面板",
   },
 } as const;
