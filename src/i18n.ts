@@ -95,6 +95,11 @@ export const messages = {
     "error.load": "Could not load sessions",
     "error.directory": "Choose a directory first.",
     "label.remove": "Remove tag",
+    "panel.title": "Tasks",
+    "panel.openBoard": "Open full board",
+    "panel.noTask": "This session is not on the board yet.",
+    "panel.noSession": "Open a session first.",
+    "command.panel": "Open task panel",
   },
   zh: {
     "page.title": "会话看板",
@@ -189,5 +194,10 @@ export const messages = {
     "error.load": "加载会话失败",
     "error.directory": "请先选择工作目录。",
     "label.remove": "移除标签",
+    "panel.title": "任务",
+    "panel.openBoard": "打开完整看板",
+    "panel.noTask": "当前会话还没有加入看板。",
+    "panel.noSession": "请先打开一个会话。",
+    "command.panel": "打开任务面板",
   },
 } as const;
