@@ -1,3 +1,4 @@
+import { createEffect } from "solid-js";
 import { Command, MenuItem, Panel, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
 import { BUILD, isMobileSurface, isTouchDevice, openPluginPage, PAGE_ID, YuriPage } from "./host";
@@ -58,6 +59,22 @@ export default Plugin.define({
           onOpenBoard={() => openBoard()}
         />
       ),
+    });
+
+    const autoOpened = new Set<string>();
+    createEffect(() => {
+      const session = ctx.sessions.current();
+      if (!session || autoOpened.has(session.key)) return;
+      const task = board.task(session.id);
+      if (!task) {
+        board.activate();
+        return;
+      }
+      autoOpened.add(session.key);
+      const key = `${ctx.id}:task`;
+      if (ctx.layout.state(key, session) === "closed") {
+        ctx.layout.open(key, session);
+      }
     });
 
     ctx.add(Command, (): Command => ({

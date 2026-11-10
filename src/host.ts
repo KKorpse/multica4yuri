@@ -3,7 +3,7 @@ import type { JSX } from "solid-js";
 
 export const PLUGIN_ID = "yuri-session-board";
 export const PAGE_ID = "board";
-export const BUILD = "0.6.0";
+export const BUILD = "0.6.1";
 
 /** Touch devices never mount the board page at all. */
 export function isTouchDevice(): boolean {
