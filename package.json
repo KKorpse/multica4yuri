@@ -1,7 +1,7 @@
 {
-  "name": "yuri-session-board",
-  "version": "0.9.3",
-  "description": "A session-backed task board for Yuri",
+  "name": "zmultica",
+  "version": "0.10.0",
+  "description": "ZMultica — a session-backed task board for Yuri",
   "type": "module",
   "private": true,
   "exports": {

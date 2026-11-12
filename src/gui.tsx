@@ -18,7 +18,7 @@ export default Plugin.define({
   i18n: { en: messages.en, zh: messages.zh },
   setup(ctx) {
     const board = createBoard(ctx, ctx.t);
-    console.info(`[session-board] build ${BUILD}`);
+    console.info(`[zmultica] build ${BUILD}`);
 
     ctx.add(Style, CSS);
     if (!isTouchDevice()) {

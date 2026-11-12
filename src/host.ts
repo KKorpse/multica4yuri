@@ -1,9 +1,8 @@
 import { Contract, Registry, type Context } from "@opencode/plugin/gui";
 import type { JSX } from "solid-js";
 
-export const PLUGIN_ID = "yuri-session-board";
 export const PAGE_ID = "board";
-export const BUILD = "0.9.3";
+export const BUILD = "0.10.0";
 
 /** Touch devices never mount the board page at all. */
 export function isTouchDevice(): boolean {
@@ -112,7 +111,7 @@ export function openPluginPage(ctx: Context): void {
   } catch {
     /* fall through to the URL route */
   }
-  window.location.assign(`/plugins/${PLUGIN_ID}/${PAGE_ID}`);
+  window.location.assign(`/plugins/${ctx.id}/${PAGE_ID}`);
 }
 
 /** Yuri's installed window.fetch bridge supplies the selected host's transport and authentication. */

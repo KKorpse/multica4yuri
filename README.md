@@ -1,6 +1,6 @@
-# Yuri Session Board
+# ZMultica
 
-A Yuri plugin that turns **sessions into a task board**: statuses, tags, search,
+ZMultica is a Yuri plugin that turns **sessions into a task board**: statuses, tags, search,
 filtering and a create-task flow, while the conversation itself stays the native
 Yuri chat.
 

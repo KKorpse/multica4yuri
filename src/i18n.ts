@@ -2,9 +2,9 @@ export type T = (key: string, params?: Record<string, string | number | boolean>
 
 export const messages = {
   en: {
-    "page.title": "Session board",
+    "page.title": "ZMultica",
     "page.subtitle": "Turn Yuri sessions into tagged, status-aware tasks.",
-    "titlebar.label": "Board",
+    "titlebar.label": "ZMultica",
     "widget.noTask": "Not on the board",
     "widget.openBoard": "Open board",
     "widget.expand": "Show more",
@@ -104,9 +104,9 @@ export const messages = {
     "label.remove": "Remove tag",
   },
   zh: {
-    "page.title": "会话看板",
+    "page.title": "ZMultica",
     "page.subtitle": "把 Yuri 会话组织成带标签和状态的任务。",
-    "titlebar.label": "看板",
+    "titlebar.label": "ZMultica",
     "widget.noTask": "未加入看板",
     "widget.openBoard": "打开看板",
     "widget.expand": "展开全文",
