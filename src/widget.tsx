@@ -157,19 +157,19 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
         {(task) => (
           <Portal mount={document.body}>
             <div
-              class="ysb-modal-backdrop"
+              class="ysb-detail-backdrop"
               onClick={(event) => {
                 if (event.target === event.currentTarget) setDetails(false);
               }}
             >
-              <section class="ysb-modal" role="dialog" aria-modal="true" aria-label={task().title}>
-                <header class="ysb-modal-head">
-                  <div class="ysb-modal-heading">
+              <section class="ysb-detail" role="dialog" aria-modal="true" aria-label={task().title}>
+                <header class="ysb-detail-head">
+                  <div class="ysb-detail-heading">
                     <StatusIcon status={task().status} size={14} />
-                    <h2 class="ysb-modal-title">{task().title}</h2>
+                    <h2 class="ysb-detail-title">{task().title}</h2>
                   </div>
                   <button
-                    class="ysb-modal-close"
+                    class="ysb-detail-close"
                     type="button"
                     aria-label={props.t("action.close")}
                     onClick={() => setDetails(false)}
@@ -178,17 +178,17 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                   </button>
                 </header>
 
-                <div class="ysb-modal-body">
-                  <div class="ysb-modal-statusline">
+                <div class="ysb-detail-body">
+                  <div class="ysb-detail-statusline">
                     <span>{task().status}</span>
-                    <span class="ysb-modal-dot" aria-hidden="true">
+                    <span class="ysb-detail-dot" aria-hidden="true">
                       ·
                     </span>
                     <span>{relativeTime(task().updated)}</span>
                   </div>
 
                   <Show when={task().description}>
-                    <p class="ysb-modal-desc">{rich(task().description)}</p>
+                    <p class="ysb-detail-desc">{rich(task().description)}</p>
                   </Show>
 
                   <Show when={task().labels.length > 0}>
@@ -207,7 +207,7 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                     </div>
                   </Show>
 
-                  <dl class="ysb-modal-meta">
+                  <dl class="ysb-detail-meta">
                     <dt>{props.t("field.directory")}</dt>
                     <dd title={task().directory}>{task().directory}</dd>
                     <dt>{props.t("field.agent")}</dt>
@@ -221,7 +221,7 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                   </dl>
                 </div>
 
-                <footer class="ysb-modal-foot">
+                <footer class="ysb-detail-foot">
                   <button
                     class="ysb-widget-action"
                     type="button"

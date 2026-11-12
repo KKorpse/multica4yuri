@@ -169,6 +169,10 @@ const tracked = {
 };
 
 const bundle = require(project + "/dist/gui-experimental.cjs");
+const cssBundle = require("node:fs").readFileSync(project + "/dist/gui-experimental.cjs", "utf8");
+assert.ok(cssBundle.includes(".ysb-card {"), "board card styles are bundled");
+assert.ok(cssBundle.includes(".ysb-cardtitle"), "card title styles are bundled");
+assert.ok(cssBundle.includes(".ysb-modal {"), "board dialog styles are bundled");
 const plugin = bundle.default || bundle;
 let cleanup;
 solid.createRoot((dispose) => {

@@ -1,6 +1,6 @@
 {
   "name": "yuri-session-board",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "A session-backed task board for Yuri",
   "type": "module",
   "private": true,
