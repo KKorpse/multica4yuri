@@ -80,8 +80,23 @@ export default Plugin.define({
     async function mutate(taskId: string, update: (task: Task) => void): Promise<Task> {
       const task = await readTask(taskId);
       if (!task) throw new Error("任务不存在");
+      const previousTitle = task.title;
       update(task);
-      return putTask(task);
+      if (task.title !== previousTitle) {
+        const sub = task.sessions.filter((link) => link.role === "sub");
+        sub.forEach((link, index) => {
+          link.title = childTitle(task, link.goal, link.directory, index);
+        });
+      }
+      const updated = await putTask(task);
+      if (updated.title !== previousTitle) {
+        for (const link of updated.sessions.filter((entry) => entry.role === "sub")) {
+          await ctx.session
+            .update({ sessionID: link.sessionId, title: link.title })
+            .catch(() => undefined);
+        }
+      }
+      return updated;
     }
 
     async function refresh(sessionID: string): Promise<void> {
