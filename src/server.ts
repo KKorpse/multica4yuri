@@ -422,14 +422,23 @@ export default Plugin.define({
           if (event.type === "session.renamed") {
             await refresh(sessionID).catch(() => undefined);
             const link = links.get(sessionID);
-            if (link?.role === "main") {
+            if (link) {
               const session = await getSession(sessionID);
+              const title = session.title?.trim();
               const authority = (session.metadata?.yuri as any)?.titleAuthority;
-              if (authority?.source === "manual" && session.title) {
+              if (title) {
                 const task = await readTask(link.taskId);
-                if (task && task.title !== session.title) {
+                const self = task?.sessions.find((item) => item.sessionId === sessionID);
+                const shouldRenameTask =
+                  link.role === "main" &&
+                  authority?.source === "manual" &&
+                  task &&
+                  task.title !== title;
+                if (task && (self?.title !== title || shouldRenameTask)) {
                   await mutate(task.id, (draft) => {
-                    draft.title = session.title!;
+                    const current = draft.sessions.find((item) => item.sessionId === sessionID);
+                    if (current) current.title = title;
+                    if (shouldRenameTask) draft.title = title;
                   }).catch(() => undefined);
                 }
               }
