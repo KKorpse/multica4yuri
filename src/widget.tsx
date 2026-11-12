@@ -39,6 +39,24 @@ function Blocks(props: { text: string; onOpenLink?(href: string): void }) {
   );
 }
 
+function SpriteIcon(props: { name: string; size?: number }) {
+  return (
+    <svg
+      class="ysb-sprite"
+      width={props.size ?? 12}
+      height={props.size ?? 12}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <use href={`#yuri-${props.name}`} />
+    </svg>
+  );
+}
+
 function Chevron(props: { up?: boolean }) {
   return (
     <svg
@@ -270,7 +288,7 @@ export function TaskStatus(props: {
                     aria-label={props.t("action.close")}
                     onClick={() => setDetails(false)}
                   >
-                    ×
+                    <SpriteIcon name="close" size={14} />
                   </button>
                 </header>
 

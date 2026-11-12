@@ -556,7 +556,7 @@ export const CSS = `
   min-width: 0;
   margin: 0.25rem 0.5rem;
   padding: 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+  border: 1px solid var(--border, color-mix(in srgb, var(--foreground) 9%, transparent));
   border-radius: var(--radius-lg, 8px);
   background: color-mix(in srgb, var(--foreground) 3%, transparent);
   color: var(--muted-foreground);
@@ -752,7 +752,7 @@ export const CSS = `
   flex: none;
   gap: 3px;
   padding: 2px 6px;
-  border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+  border: 1px solid var(--border, color-mix(in srgb, var(--foreground) 14%, transparent));
   border-radius: 999px;
   background: color-mix(in srgb, var(--foreground) 4%, transparent);
   color: var(--muted-foreground);
@@ -766,6 +766,7 @@ export const CSS = `
   color: var(--foreground);
   border-color: color-mix(in srgb, var(--foreground) 24%, transparent);
 }
+.ysb-sprite { display: block; flex: none; }
 .ysb-widget-toggleicon {
   display: block;
   flex: none;
@@ -898,12 +899,12 @@ export const CSS = `
   background: var(--interactive-hover);
 }
 .ysb-widget-action.primary {
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: var(--foreground);
+  color: var(--background);
   border-color: transparent;
 }
 .ysb-widget-action.primary:hover {
-  background: var(--primary-hover, var(--primary));
+  background: color-mix(in srgb, var(--foreground) 88%, var(--background));
 }
 
 /* Task details dialog (portaled out of the narrow work-status column). */
@@ -923,7 +924,7 @@ export const CSS = `
   width: min(520px, 100%);
   max-height: min(80dvh, 720px);
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border: 1px solid var(--border, color-mix(in srgb, var(--foreground) 12%, transparent));
   border-radius: 12px;
   background: var(--popover, var(--background));
   color: var(--foreground);
@@ -1005,7 +1006,7 @@ export const CSS = `
   gap: 8px;
   min-width: 0;
   padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  border: 1px solid var(--border, color-mix(in srgb, var(--foreground) 10%, transparent));
   border-radius: 8px;
   background: color-mix(in srgb, var(--foreground) 2%, transparent);
 }
@@ -1217,6 +1218,19 @@ export const CSS = `
 .ysb-detail-foot .ysb-widget-action {
   flex: none;
   padding: 0.375rem 0.75rem;
+}
+
+
+.ysb-widget-action:focus-visible,
+.ysb-widget-sectiontoggle:focus-visible,
+.ysb-widget-output:focus-visible,
+.ysb-widget-title:focus-visible,
+.ysb-detail-session:focus-visible,
+.ysb-detail-output:focus-visible,
+.ysb-detail-close:focus-visible,
+.ysb-widget-more:focus-visible {
+  outline: 2px solid var(--interactive-focus-ring) !important;
+  outline-offset: 2px;
 }
 
 @keyframes ysb-pulse {
