@@ -928,6 +928,31 @@ export const CSS = `
   overflow-wrap: anywhere;
   word-break: break-all;
 }
+.ysb-preview-path {
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.ysb-preview-content {
+  max-height: 50dvh;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--foreground) 3%, transparent);
+  color: var(--foreground);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ysb-detail-error {
+  margin: 0;
+  color: var(--status-error, #e06c75);
+  font-size: 12px;
+  line-height: 1.5;
+}
 .ysb-detail-foot {
   display: flex;
   justify-content: flex-end;

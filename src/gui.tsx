@@ -10,7 +10,6 @@ import {
   YuriPage,
 } from "./host";
 import { messages } from "./i18n";
-import type { Output } from "./model";
 import { CSS } from "./styles";
 import { BoardPage } from "./ui";
 import { TaskStatus } from "./widget";
@@ -39,20 +38,6 @@ export default Plugin.define({
       openPluginPage(ctx);
     };
 
-    const openOutput = (output: Output) => {
-      if (output.type === "text") return;
-      if (output.type === "url") {
-        ctx.system.openExternal(output.value);
-        return;
-      }
-      const path = output.value;
-      if (ctx.desktop) {
-        void ctx.desktop.launch(path).catch(() => ctx.system.openExternal(`file://${path}`));
-      } else {
-        ctx.system.openExternal(`file://${path}`);
-      }
-    };
-
     ctx.add(WorkStatus, {
       id: "task",
       order: 0,
@@ -60,9 +45,9 @@ export default Plugin.define({
         <TaskStatus
           board={board}
           t={ctx.t}
+          ctx={ctx}
           sessionID={props.session?.id}
           onOpenBoard={openBoard}
-          onOpenOutput={openOutput}
         />
       ),
     });
