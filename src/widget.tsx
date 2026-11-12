@@ -51,6 +51,61 @@ function preview(text: string): { head: string; tail: string } {
   return { head: text, tail: "" };
 }
 
+function Block(props: { text: string }) {
+  const lines = props.text.split("\n").filter((line) => line.trim());
+  const first = lines[0] ?? "";
+  const rest = lines.slice(1);
+  const heading = !/^\s*[-*]\s+/.test(first) && /[:：]\s*$/.test(first) ? first : "";
+  const body = heading ? rest : lines;
+  const bullets = body.filter((line) => /^\s*[-*]\s+/.test(line));
+  const prose = body.filter((line) => !/^\s*[-*]\s+/.test(line));
+
+  return (
+    <div class="ysb-widget-block">
+      <Show when={heading}>
+        <div class="ysb-widget-blocktitle">{heading}</div>
+      </Show>
+      <Show when={prose.length > 0}>
+        <p class="ysb-widget-desc">{rich(prose.join("\n"))}</p>
+      </Show>
+      <Show when={bullets.length > 0}>
+        <ul class="ysb-widget-list">
+          <For each={bullets}>{(line) => <li>{rich(line.replace(/^\s*[-*]\s+/, ""))}</li>}</For>
+        </ul>
+      </Show>
+    </div>
+  );
+}
+
+function Blocks(props: { text: string }) {
+  const blocks = () =>
+    props.text
+      .trim()
+      .split(/\n\s*\n/)
+      .filter((block) => block.trim());
+  return <For each={blocks()}>{(block) => <Block text={block} />}</For>;
+}
+
+function Chevron(props: { up?: boolean }) {
+  return (
+    <svg
+      class="ysb-widget-toggleicon"
+      classList={{ up: !!props.up }}
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      fill="none"
+      stroke="currentColor"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      style="--yuri-icon-stroke: 2"
+      aria-hidden="true"
+    >
+      <use href="#yuri-arrow-down-s" />
+    </svg>
+  );
+}
+
 export function TaskStatus(props: {
   board: Board;
   t: T;
@@ -190,13 +245,11 @@ export function TaskStatus(props: {
                       onClick={() => setExpanded((value) => !value)}
                     >
                       {props.t(expanded() ? "widget.collapse" : "widget.expand")}
-                      <span class="ysb-widget-chevron" aria-hidden="true">
-                        {expanded() ? "▴" : "▾"}
-                      </span>
+                      <Chevron up={expanded()} />
                     </button>
                   </Show>
                 </header>
-                <p class="ysb-widget-desc">{rich(expanded() ? description() : parts().head)}</p>
+                <Blocks text={expanded() ? description() : parts().head} />
               </section>
             </Show>
 
@@ -235,9 +288,7 @@ export function TaskStatus(props: {
                       onClick={() => setOutputsExpanded((value) => !value)}
                     >
                       {props.t(outputsExpanded() ? "widget.collapse" : "widget.expand")}
-                      <span class="ysb-widget-chevron" aria-hidden="true">
-                        {outputsExpanded() ? "▴" : "▾"}
-                      </span>
+                      <Chevron up={outputsExpanded()} />
                     </button>
                   </Show>
                 </header>
@@ -314,7 +365,10 @@ export function TaskStatus(props: {
                   </div>
 
                   <Show when={task().description}>
-                    <p class="ysb-detail-desc">{rich(task().description)}</p>
+                    <section class="ysb-detail-section">
+                      <h3>{props.t("widget.goal")}</h3>
+                      <Blocks text={task().description} />
+                    </section>
                   </Show>
 
                   <Show when={task().labels.length > 0}>
@@ -334,43 +388,48 @@ export function TaskStatus(props: {
                   </Show>
 
                   <Show when={outputs().length > 0}>
-                    <section class="ysb-detail-outputs">
+                    <section class="ysb-detail-section">
                       <h3>{props.t("widget.outputs")}</h3>
-                      <For each={outputs()}>
-                        {(output) =>
-                          output.type === "text" ? (
-                            <div class="ysb-detail-outputtext">
-                              <strong>{output.title}</strong>
-                              <p>{output.value}</p>
-                            </div>
-                          ) : (
-                            <button
-                              class="ysb-detail-output"
-                              type="button"
-                              title={output.value}
-                              onClick={() => openOutput(output)}
-                            >
-                              <span>{output.title}</span>
-                              <span aria-hidden="true">↗</span>
-                            </button>
-                          )
-                        }
-                      </For>
+                      <div class="ysb-detail-outputlist">
+                        <For each={outputs()}>
+                          {(output) =>
+                            output.type === "text" ? (
+                              <div class="ysb-detail-outputtext">
+                                <strong>{output.title}</strong>
+                                <p>{output.value}</p>
+                              </div>
+                            ) : (
+                              <button
+                                class="ysb-detail-output"
+                                type="button"
+                                title={output.value}
+                                onClick={() => openOutput(output)}
+                              >
+                                <span>{output.title}</span>
+                                <span aria-hidden="true">↗</span>
+                              </button>
+                            )
+                          }
+                        </For>
+                      </div>
                     </section>
                   </Show>
 
-                  <dl class="ysb-detail-meta">
-                    <dt>{props.t("field.directory")}</dt>
-                    <dd title={task().directory}>{task().directory}</dd>
-                    <dt>{props.t("field.agent")}</dt>
-                    <dd>{task().agent}</dd>
-                    <dt>{props.t("edit.meta")}</dt>
-                    <dd>{task().id}</dd>
-                    <dt>{props.t("dialog.updated")}</dt>
-                    <dd>{new Date(task().updated).toLocaleString()}</dd>
-                    <dt>{props.t("dialog.cost")}</dt>
-                    <dd>${task().cost.toFixed(2)}</dd>
-                  </dl>
+                  <section class="ysb-detail-section">
+                    <h3>{props.t("dialog.info")}</h3>
+                    <dl class="ysb-detail-meta">
+                      <dt>{props.t("field.directory")}</dt>
+                      <dd title={task().directory}>{task().directory}</dd>
+                      <dt>{props.t("field.agent")}</dt>
+                      <dd>{task().agent}</dd>
+                      <dt>{props.t("edit.meta")}</dt>
+                      <dd>{task().id}</dd>
+                      <dt>{props.t("dialog.updated")}</dt>
+                      <dd>{new Date(task().updated).toLocaleString()}</dd>
+                      <dt>{props.t("dialog.cost")}</dt>
+                      <dd>${task().cost.toFixed(2)}</dd>
+                    </dl>
+                  </section>
                 </div>
 
                 <footer class="ysb-detail-foot">

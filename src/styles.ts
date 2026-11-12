@@ -625,6 +625,35 @@ export const CSS = `
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+.ysb-widget-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ysb-widget-block + .ysb-widget-block { margin-top: 8px; }
+.ysb-widget-blocktitle {
+  color: var(--foreground);
+  font-size: var(--text-meta, 11px);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.ysb-widget-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-left: 16px;
+  color: var(--muted-foreground);
+  font-size: var(--text-meta, 11px);
+  line-height: 1.45;
+}
+.ysb-widget-list li { padding-left: 2px; }
+.ysb-widget-list li::marker { color: var(--muted-foreground); }
+.ysb-widget-list a { color: var(--primary); }
+.ysb-detail-body .ysb-widget-blocktitle { font-size: 13px; }
+.ysb-detail-body .ysb-widget-list { font-size: 13px; line-height: 1.6; }
+.ysb-detail-body .ysb-widget-block + .ysb-widget-block { margin-top: 12px; }
 .ysb-widget-desc a {
   color: var(--primary);
   text-decoration: underline;
@@ -656,20 +685,28 @@ export const CSS = `
 .ysb-widget-sectiontoggle {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--primary);
+  flex: none;
+  gap: 3px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+  color: var(--muted-foreground);
   font: inherit;
-  font-size: var(--text-meta, 11px);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  font-size: var(--text-micro, 10px);
+  line-height: 1.3;
   cursor: pointer;
 }
 .ysb-widget-sectiontoggle:hover {
-  color: var(--primary-hover, var(--primary));
+  background: var(--interactive-hover);
+  color: var(--foreground);
+  border-color: color-mix(in srgb, var(--foreground) 24%, transparent);
 }
+.ysb-widget-toggleicon {
+  display: block;
+  flex: none;
+}
+.ysb-widget-toggleicon.up { transform: rotate(180deg); }
 .ysb-widget-divider {
   height: 1px;
   margin: 6px 0 2px;
@@ -680,10 +717,6 @@ export const CSS = `
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-}
-.ysb-widget-chevron {
-  font-size: 10px;
-  line-height: 1;
 }
 .ysb-widget-meta {
   display: flex;
@@ -875,7 +908,7 @@ export const CSS = `
 .ysb-detail-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   min-height: 0;
   padding: 16px;
   overflow-y: auto;
@@ -902,11 +935,28 @@ export const CSS = `
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.ysb-detail-outputs h3 {
-  margin: 0 0 6px;
-  color: var(--muted-foreground);
+.ysb-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--foreground) 2%, transparent);
+}
+.ysb-detail-section > h3 {
+  margin: 0;
+  color: var(--foreground);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.ysb-detail-outputlist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 .ysb-detail-output {
   display: flex;
