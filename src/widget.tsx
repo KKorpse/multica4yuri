@@ -62,6 +62,7 @@ export function TaskStatus(props: {
   onCleanup(() => props.board.deactivate());
 
   const [expanded, setExpanded] = createSignal(false);
+  const [outputsExpanded, setOutputsExpanded] = createSignal(false);
   const [details, setDetails] = createSignal(false);
   const task = () => (props.sessionID ? props.board.task(props.sessionID) : undefined);
   const description = () => task()?.description.trim() ?? "";
@@ -179,19 +180,24 @@ export function TaskStatus(props: {
             </button>
 
             <Show when={description()}>
-              <p class="ysb-widget-desc">{rich(expanded() ? description() : parts().head)}</p>
-              <Show when={canExpand()}>
-                <button
-                  class="ysb-widget-more"
-                  type="button"
-                  onClick={() => setExpanded((value) => !value)}
-                >
-                  {props.t(expanded() ? "widget.collapse" : "widget.expand")}
-                  <span class="ysb-widget-chevron" aria-hidden="true">
-                    {expanded() ? "▴" : "▾"}
-                  </span>
-                </button>
-              </Show>
+              <section class="ysb-widget-section">
+                <header class="ysb-widget-sectionhead">
+                  <span class="ysb-widget-sectiontitle">{props.t("widget.goal")}</span>
+                  <Show when={canExpand()}>
+                    <button
+                      class="ysb-widget-sectiontoggle"
+                      type="button"
+                      onClick={() => setExpanded((value) => !value)}
+                    >
+                      {props.t(expanded() ? "widget.collapse" : "widget.expand")}
+                      <span class="ysb-widget-chevron" aria-hidden="true">
+                        {expanded() ? "▴" : "▾"}
+                      </span>
+                    </button>
+                  </Show>
+                </header>
+                <p class="ysb-widget-desc">{rich(expanded() ? description() : parts().head)}</p>
+              </section>
             </Show>
 
             <div class="ysb-widget-meta">
@@ -218,33 +224,47 @@ export function TaskStatus(props: {
             </Show>
 
             <Show when={outputs().length > 0}>
-              <div class="ysb-widget-outputs">
-                <span class="ysb-widget-outputlabel">{props.t("widget.outputs")}</span>
-                <For each={outputs().slice(0, 2)}>
-                  {(output) =>
-                    output.type === "text" ? (
-                      <span class="ysb-widget-outputtext" title={output.value}>
-                        {output.title}
+              <div class="ysb-widget-divider" />
+              <section class="ysb-widget-section">
+                <header class="ysb-widget-sectionhead">
+                  <span class="ysb-widget-sectiontitle">{props.t("widget.outputs")}</span>
+                  <Show when={outputs().length > 2}>
+                    <button
+                      class="ysb-widget-sectiontoggle"
+                      type="button"
+                      onClick={() => setOutputsExpanded((value) => !value)}
+                    >
+                      {props.t(outputsExpanded() ? "widget.collapse" : "widget.expand")}
+                      <span class="ysb-widget-chevron" aria-hidden="true">
+                        {outputsExpanded() ? "▴" : "▾"}
                       </span>
-                    ) : (
-                      <button
-                        class="ysb-widget-output"
-                        type="button"
-                        title={output.value}
-                        onClick={() => openOutput(output)}
-                      >
-                        <span class="ysb-widget-outputicon" aria-hidden="true">
-                          {output.type === "url" ? "↗" : "▤"}
+                    </button>
+                  </Show>
+                </header>
+                <div class="ysb-widget-outputlist">
+                  <For each={outputsExpanded() ? outputs() : outputs().slice(0, 2)}>
+                    {(output) =>
+                      output.type === "text" ? (
+                        <span class="ysb-widget-outputtext" title={output.value}>
+                          {output.title}
                         </span>
-                        <span class="ysb-widget-outputtitle">{output.title}</span>
-                      </button>
-                    )
-                  }
-                </For>
-                <Show when={outputs().length > 2}>
-                  <span class="ysb-widget-outputmore">+{outputs().length - 2}</span>
-                </Show>
-              </div>
+                      ) : (
+                        <button
+                          class="ysb-widget-output"
+                          type="button"
+                          title={output.value}
+                          onClick={() => openOutput(output)}
+                        >
+                          <span class="ysb-widget-outputicon" aria-hidden="true">
+                            {output.type === "url" ? "↗" : "▤"}
+                          </span>
+                          <span class="ysb-widget-outputtitle">{output.title}</span>
+                        </button>
+                      )
+                    }
+                  </For>
+                </div>
+              </section>
             </Show>
           </>
         )}

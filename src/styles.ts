@@ -634,10 +634,28 @@ export const CSS = `
 .ysb-widget-desc a:hover {
   color: var(--primary-hover, var(--primary));
 }
-.ysb-widget-more {
+.ysb-widget-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  margin-top: 4px;
+}
+.ysb-widget-sectionhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.ysb-widget-sectiontitle {
+  color: var(--muted-foreground);
+  font-size: var(--text-meta, 11px);
+  font-weight: 500;
+}
+.ysb-widget-sectiontoggle {
   display: inline-flex;
   align-items: center;
-  align-self: flex-start;
   gap: 2px;
   padding: 0;
   border: 0;
@@ -649,8 +667,19 @@ export const CSS = `
   text-underline-offset: 2px;
   cursor: pointer;
 }
-.ysb-widget-more:hover {
+.ysb-widget-sectiontoggle:hover {
   color: var(--primary-hover, var(--primary));
+}
+.ysb-widget-divider {
+  height: 1px;
+  margin: 6px 0 2px;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.ysb-widget-outputlist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 .ysb-widget-chevron {
   font-size: 10px;
