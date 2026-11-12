@@ -382,16 +382,35 @@ export const CSS = `
   color: var(--primary);
 }
 .ysb-widget-desc {
-  display: -webkit-box;
-  overflow: hidden;
   margin: 0;
   color: var(--muted-foreground);
   font-size: var(--text-meta, 11px);
   line-height: 1.45;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
+}
+.ysb-widget-desc a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.ysb-widget-desc a:hover {
+  color: var(--primary-hover, var(--primary));
+}
+.ysb-widget-more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: var(--text-meta, 11px);
+  cursor: pointer;
+}
+.ysb-widget-more:hover {
+  text-decoration: underline;
 }
 .ysb-widget-meta {
   display: flex;
