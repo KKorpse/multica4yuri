@@ -128,6 +128,9 @@ id: ${task.id}
 状态: ${task.status}
 任务描述: ${task.description}
 
+[输出风格]
+任务描述和产出文档尽量用纯文本，不要用 Markdown 标题，保持版面整洁。
+
 [会话清单]
 ${roster(task)}
 
@@ -150,6 +153,9 @@ ${roster(task)}
 id: ${task.id}
 标题: ${task.title}
 状态: ${task.status}
+
+[输出风格]
+任务描述和产出文档尽量用纯文本，不要用 Markdown 标题，保持版面整洁。
 
 [会话清单]
 ${roster(task)}
