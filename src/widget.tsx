@@ -1,5 +1,6 @@
 import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
 import type { JSX } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { Board } from "./board";
 import type { T } from "./i18n";
 import { basename, labelColor, relativeTime } from "./model";
@@ -54,10 +55,20 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
   onCleanup(() => props.board.deactivate());
 
   const [expanded, setExpanded] = createSignal(false);
+  const [details, setDetails] = createSignal(false);
   const task = () => (props.sessionID ? props.board.task(props.sessionID) : undefined);
   const description = () => task()?.description.trim() ?? "";
   const parts = () => preview(description());
   const canExpand = () => !!parts().tail;
+
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && details()) {
+      event.stopPropagation();
+      setDetails(false);
+    }
+  };
+  document.addEventListener("keydown", onKey, true);
+  onCleanup(() => document.removeEventListener("keydown", onKey, true));
 
   return (
     <div class="ysb-widget" data-ysb-widget>
@@ -100,6 +111,9 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                   onClick={() => setExpanded((value) => !value)}
                 >
                   {props.t(expanded() ? "widget.collapse" : "widget.expand")}
+                  <span class="ysb-widget-chevron" aria-hidden="true">
+                    {expanded() ? "▴" : "▾"}
+                  </span>
                 </button>
               </Show>
             </Show>
@@ -130,9 +144,107 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
         )}
       </Show>
 
-      <button class="ysb-widget-open" type="button" onClick={props.onOpenBoard}>
-        {props.t("widget.openBoard")}
-      </button>
+      <div class="ysb-widget-actions">
+        <button class="ysb-widget-action" type="button" onClick={() => setDetails(true)}>
+          {props.t("widget.details")}
+        </button>
+        <button class="ysb-widget-action" type="button" onClick={props.onOpenBoard}>
+          {props.t("widget.openBoard")}
+        </button>
+      </div>
+
+      <Show when={details() ? task() : undefined}>
+        {(task) => (
+          <Portal mount={document.body}>
+            <div
+              class="ysb-modal-backdrop"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) setDetails(false);
+              }}
+            >
+              <section class="ysb-modal" role="dialog" aria-modal="true" aria-label={task().title}>
+                <header class="ysb-modal-head">
+                  <div class="ysb-modal-heading">
+                    <StatusIcon status={task().status} size={14} />
+                    <h2 class="ysb-modal-title">{task().title}</h2>
+                  </div>
+                  <button
+                    class="ysb-modal-close"
+                    type="button"
+                    aria-label={props.t("action.close")}
+                    onClick={() => setDetails(false)}
+                  >
+                    ×
+                  </button>
+                </header>
+
+                <div class="ysb-modal-body">
+                  <div class="ysb-modal-statusline">
+                    <span>{task().status}</span>
+                    <span class="ysb-modal-dot" aria-hidden="true">
+                      ·
+                    </span>
+                    <span>{relativeTime(task().updated)}</span>
+                  </div>
+
+                  <Show when={task().description}>
+                    <p class="ysb-modal-desc">{rich(task().description)}</p>
+                  </Show>
+
+                  <Show when={task().labels.length > 0}>
+                    <div class="ysb-widget-labels">
+                      <For each={task().labels}>
+                        {(label) => (
+                          <span
+                            class="ysb-widget-label"
+                            style={{ "--ysb-label": labelColor(label) }}
+                          >
+                            <span class="ysb-widget-chipdot" />
+                            {label}
+                          </span>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
+
+                  <dl class="ysb-modal-meta">
+                    <dt>{props.t("field.directory")}</dt>
+                    <dd title={task().directory}>{task().directory}</dd>
+                    <dt>{props.t("field.agent")}</dt>
+                    <dd>{task().agent}</dd>
+                    <dt>{props.t("edit.meta")}</dt>
+                    <dd>{task().id}</dd>
+                    <dt>{props.t("dialog.updated")}</dt>
+                    <dd>{new Date(task().updated).toLocaleString()}</dd>
+                    <dt>{props.t("dialog.cost")}</dt>
+                    <dd>${task().cost.toFixed(2)}</dd>
+                  </dl>
+                </div>
+
+                <footer class="ysb-modal-foot">
+                  <button
+                    class="ysb-widget-action"
+                    type="button"
+                    onClick={() => {
+                      setDetails(false);
+                      props.onOpenBoard();
+                    }}
+                  >
+                    {props.t("widget.openBoard")}
+                  </button>
+                  <button
+                    class="ysb-widget-action primary"
+                    type="button"
+                    onClick={() => setDetails(false)}
+                  >
+                    {props.t("action.close")}
+                  </button>
+                </footer>
+              </section>
+            </div>
+          </Portal>
+        )}
+      </Show>
     </div>
   );
 }

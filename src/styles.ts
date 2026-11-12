@@ -400,17 +400,26 @@ export const CSS = `
   color: var(--primary-hover, var(--primary));
 }
 .ysb-widget-more {
+  display: inline-flex;
+  align-items: center;
   align-self: flex-start;
+  gap: 2px;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--primary);
   font: inherit;
   font-size: var(--text-meta, 11px);
+  text-decoration: underline;
+  text-underline-offset: 2px;
   cursor: pointer;
 }
 .ysb-widget-more:hover {
-  text-decoration: underline;
+  color: var(--primary-hover, var(--primary));
+}
+.ysb-widget-chevron {
+  font-size: 10px;
+  line-height: 1;
 }
 .ysb-widget-meta {
   display: flex;
@@ -464,17 +473,157 @@ export const CSS = `
   border-radius: 999px;
   background: currentColor;
 }
-.ysb-widget-open {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--muted-foreground);
+.ysb-widget-actions {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  margin-top: 2px;
+}
+.ysb-widget-action {
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: var(--radius-md, 6px);
+  background: var(--surface-muted, color-mix(in srgb, var(--foreground) 5%, transparent));
+  color: var(--foreground);
   font: inherit;
   font-size: var(--text-meta, 11px);
-  text-align: left;
+  line-height: 1.4;
+  text-align: center;
   cursor: pointer;
 }
-.ysb-widget-open:hover { color: var(--foreground); }
+.ysb-widget-action:hover {
+  background: var(--interactive-hover);
+}
+.ysb-widget-action.primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: transparent;
+}
+.ysb-widget-action.primary:hover {
+  background: var(--primary-hover, var(--primary));
+}
+
+/* Task details dialog (portaled out of the narrow work-status column). */
+.ysb-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, #000 40%, transparent);
+}
+.ysb-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  max-height: min(80dvh, 720px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  border-radius: 12px;
+  background: var(--popover, var(--background));
+  color: var(--foreground);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  box-shadow: 0 16px 48px color-mix(in srgb, #000 35%, transparent);
+}
+.ysb-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.ysb-modal-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ysb-modal-title {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 16px;
+  line-height: 1.4;
+  font-weight: 600;
+  word-break: break-word;
+}
+.ysb-modal-close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ysb-modal-close:hover {
+  background: var(--interactive-hover);
+  color: var(--foreground);
+}
+.ysb-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 16px;
+  overflow-y: auto;
+}
+.ysb-modal-statusline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.ysb-modal-dot { opacity: 0.5; }
+.ysb-modal-desc {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.ysb-modal-desc a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ysb-modal-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ysb-modal-meta dt { font-weight: 500; }
+.ysb-modal-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.ysb-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+.ysb-modal-foot .ysb-widget-action {
+  flex: none;
+  padding: 0.375rem 0.75rem;
+}
 
 @keyframes ysb-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }

@@ -30,8 +30,9 @@ Yuri chat.
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
 - **Right-side task widget** — the open conversation's right work-status column
   (`yuri.work-status`, below Changes) shows the task status, title, directory,
-  agent and tags, plus a shortcut to the full board. It shares the board state,
-  so status and rename changes update live.
+  agent and tags. Descriptions support Markdown/bare-URL links and an expand
+  toggle; **详情** opens a wider dialog with the full task details. It shares
+  the board state, so status and rename changes update live.
 - **Live** — running badges follow `session.execution.*` events; renames,
   metadata, archive and agent changes update without a reload.
 
