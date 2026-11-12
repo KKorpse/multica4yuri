@@ -95,7 +95,10 @@ export function TaskStatus(props: {
   const parts = () => preview(description());
   const canExpand = () => !!parts().tail;
   const doc = () => task()?.record?.document?.content ?? "";
-  const docParts = () => preview(doc());
+  const docParts = () => {
+    const text = doc();
+    return text.length <= 800 ? { head: text, tail: "" } : preview(text);
+  };
   const canExpandDoc = () => !!docParts().tail;
   const [docEditing, setDocEditing] = createSignal(false);
   const [docDraft, setDocDraft] = createSignal("");
