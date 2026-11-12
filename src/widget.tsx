@@ -42,6 +42,12 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
               {task().title}
             </button>
 
+            <Show when={task().description}>
+              <p class="ysb-widget-desc" title={task().description}>
+                {task().description}
+              </p>
+            </Show>
+
             <div class="ysb-widget-meta">
               <span class="ysb-widget-dir" title={task().directory}>
                 {basename(task().directory)}

@@ -377,6 +377,18 @@ export const CSS = `
 .ysb-widget-title:hover {
   color: var(--primary);
 }
+.ysb-widget-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-meta, 11px);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
 .ysb-widget-meta {
   display: flex;
   align-items: center;
