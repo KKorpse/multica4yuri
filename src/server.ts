@@ -419,9 +419,25 @@ export default Plugin.define({
             }
             continue;
           }
+          if (event.type === "session.renamed") {
+            await refresh(sessionID).catch(() => undefined);
+            const link = links.get(sessionID);
+            if (link?.role === "main") {
+              const session = await getSession(sessionID);
+              const authority = (session.metadata?.yuri as any)?.titleAuthority;
+              if (authority?.source === "manual" && session.title) {
+                const task = await readTask(link.taskId);
+                if (task && task.title !== session.title) {
+                  await mutate(task.id, (draft) => {
+                    draft.title = session.title!;
+                  }).catch(() => undefined);
+                }
+              }
+            }
+            continue;
+          }
           if (
             event.type === "session.metadata.updated" ||
-            event.type === "session.renamed" ||
             event.type === "session.moved" ||
             event.type === "session.created" ||
             event.type === "session.forked"
