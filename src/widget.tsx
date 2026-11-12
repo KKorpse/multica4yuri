@@ -1,45 +1,11 @@
-import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
-import type { JSX } from "solid-js";
+import { For, Show, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import MarkdownIt from "markdown-it";
 import { Portal } from "solid-js/web";
 import type { Context } from "@opencode/plugin/gui";
 import type { Board } from "./board";
 import type { T } from "./i18n";
 import { basename, labelColor, relativeTime } from "./model";
 import { StatusIcon } from "./ui";
-
-/** Render markdown links and bare http(s) URLs without pulling in a parser. */
-function rich(text: string): JSX.Element[] {
-  const out: JSX.Element[] = [];
-  const token = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<]+)/g;
-  let last = 0;
-  for (let match = token.exec(text); match; match = token.exec(text)) {
-    if (match.index > last) out.push(<>{text.slice(last, match.index)}</>);
-
-    let href = match[2] ?? match[3] ?? "";
-    let tail = "";
-    if (!match[2]) {
-      const clean = href.replace(/[).,;:!?]+$/, "");
-      tail = href.slice(clean.length);
-      href = clean;
-    }
-    if (href) {
-      out.push(
-        <a
-          href={href}
-          target="_blank"
-          rel="noreferrer noopener"
-          onClick={(event) => event.stopPropagation()}
-        >
-          {match[1] ?? href}
-        </a>,
-      );
-    }
-    if (tail) out.push(<>{tail}</>);
-    last = token.lastIndex;
-  }
-  if (last < text.length) out.push(<>{text.slice(last)}</>);
-  return out;
-}
 
 function preview(text: string): { head: string; tail: string } {
   const split = text.search(/\n\s*\n/);
@@ -51,39 +17,11 @@ function preview(text: string): { head: string; tail: string } {
   return { head: text, tail: "" };
 }
 
-function Block(props: { text: string }) {
-  const lines = props.text.split("\n").filter((line) => line.trim());
-  const first = lines[0] ?? "";
-  const rest = lines.slice(1);
-  const heading = !/^\s*[-*]\s+/.test(first) && /[:：]\s*$/.test(first) ? first : "";
-  const body = heading ? rest : lines;
-  const bullets = body.filter((line) => /^\s*[-*]\s+/.test(line));
-  const prose = body.filter((line) => !/^\s*[-*]\s+/.test(line));
-
-  return (
-    <div class="ysb-widget-block">
-      <Show when={heading}>
-        <div class="ysb-widget-blocktitle">{heading}</div>
-      </Show>
-      <Show when={prose.length > 0}>
-        <p class="ysb-widget-desc">{rich(prose.join("\n"))}</p>
-      </Show>
-      <Show when={bullets.length > 0}>
-        <ul class="ysb-widget-list">
-          <For each={bullets}>{(line) => <li>{rich(line.replace(/^\s*[-*]\s+/, ""))}</li>}</For>
-        </ul>
-      </Show>
-    </div>
-  );
-}
+const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
 
 function Blocks(props: { text: string }) {
-  const blocks = () =>
-    props.text
-      .trim()
-      .split(/\n\s*\n/)
-      .filter((block) => block.trim());
-  return <For each={blocks()}>{(block) => <Block text={block} />}</For>;
+  const html = createMemo(() => markdown.render(props.text));
+  return <div class="ysb-widget-markdown" innerHTML={html()} />;
 }
 
 function Chevron(props: { up?: boolean }) {

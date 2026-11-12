@@ -1,6 +1,6 @@
 {
   "name": "zmultica",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "ZMultica — a session-backed task board for Yuri",
   "type": "module",
   "private": true,
@@ -25,7 +25,9 @@
   },
   "dependencies": {
     "@opencode/plugin": "2.2.1",
-    "effect": "4.0.1"
+    "@types/markdown-it": "^14.1.2",
+    "effect": "4.0.1",
+    "markdown-it": "^14.1.0"
   },
   "devDependencies": {
     "@opencode/client": "2.2.1",

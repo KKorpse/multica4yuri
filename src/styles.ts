@@ -625,6 +625,61 @@ export const CSS = `
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+.ysb-widget-markdown {
+  min-width: 0;
+  color: var(--muted-foreground);
+  font-size: var(--text-meta, 11px);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.ysb-widget-markdown h1,
+.ysb-widget-markdown h2,
+.ysb-widget-markdown h3,
+.ysb-widget-markdown h4,
+.ysb-widget-markdown h5,
+.ysb-widget-markdown h6 {
+  margin: 0 0 4px;
+  color: var(--foreground);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.ysb-widget-markdown h1 { font-size: 14px; }
+.ysb-widget-markdown h2 { font-size: 12px; }
+.ysb-widget-markdown h3,
+.ysb-widget-markdown h4,
+.ysb-widget-markdown h5,
+.ysb-widget-markdown h6 { font-size: 11px; }
+.ysb-widget-markdown p { margin: 0 0 4px; }
+.ysb-widget-markdown ul,
+.ysb-widget-markdown ol {
+  margin: 0;
+  padding-left: 16px;
+}
+.ysb-widget-markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ysb-widget-markdown code {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.ysb-widget-markdown pre {
+  padding: 8px;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+.ysb-detail-body .ysb-widget-markdown {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ysb-detail-body .ysb-widget-markdown h1 { font-size: 18px; }
+.ysb-detail-body .ysb-widget-markdown h2 { font-size: 15px; }
+.ysb-detail-body .ysb-widget-markdown h3 { font-size: 13px; }
 .ysb-widget-block {
   display: flex;
   flex-direction: column;
@@ -632,12 +687,21 @@ export const CSS = `
   min-width: 0;
 }
 .ysb-widget-block + .ysb-widget-block { margin-top: 8px; }
-.ysb-widget-blocktitle {
+.ysb-widget-blocktitle,
+.ysb-widget-heading {
   color: var(--foreground);
-  font-size: var(--text-meta, 11px);
   font-weight: 600;
   line-height: 1.4;
 }
+.ysb-widget-heading.level-1 { font-size: 14px; }
+.ysb-widget-heading.level-2 { font-size: 12px; }
+.ysb-widget-heading.level-3,
+.ysb-widget-heading.level-4,
+.ysb-widget-heading.level-5,
+.ysb-widget-heading.level-6 { font-size: 11px; }
+.ysb-detail-body .ysb-widget-heading.level-1 { font-size: 18px; }
+.ysb-detail-body .ysb-widget-heading.level-2 { font-size: 15px; }
+.ysb-detail-body .ysb-widget-heading.level-3 { font-size: 13px; }
 .ysb-widget-list {
   display: flex;
   flex-direction: column;
