@@ -107,20 +107,20 @@ export function TaskStatus(props: {
   const sessions = () => task()?.record?.sessions ?? [];
 
   function openLink(href: string) {
-    if (/^https?:\/\//i.test(href)) {
-      props.ctx.system.openExternal(href);
-      return;
-    }
+    const external = /^https?:\/\//i.test(href);
     try {
       const opened = props.ctx.links.open({
         href,
-        exact: true,
-        base: task()?.directory,
+        ...(external ? {} : { exact: true, base: task()?.directory }),
         session: props.ctx.sessions.current(),
       });
       if (opened) return;
     } catch {
-      /* fall through to a harmless fallback */
+      /* fall through to the browser or a harmless fallback */
+    }
+    if (external) {
+      props.ctx.system.openExternal(href);
+      return;
     }
     void props.ctx.system.copy(href);
     props.ctx.toast.show({ title: props.t("output.copied") });
