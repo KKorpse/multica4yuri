@@ -66,6 +66,8 @@ export function TaskStatus(props: {
   const canExpandDoc = () => !!docParts().tail;
   const [docEditing, setDocEditing] = createSignal(false);
   const [docDraft, setDocDraft] = createSignal("");
+  const [descEditing, setDescEditing] = createSignal(false);
+  const [descDraft, setDescDraft] = createSignal("");
   const sessions = () => task()?.record?.sessions ?? [];
 
   function startEditDocument() {
@@ -78,6 +80,23 @@ export function TaskStatus(props: {
     if (!current) return;
     await props.board.saveDocument(current.id, docDraft());
     setDocEditing(false);
+  }
+
+  function startEditDescription() {
+    setDescDraft(description());
+    setDescEditing(true);
+  }
+
+  async function saveDescription() {
+    const current = task();
+    if (!current) return;
+    await props.board.save(current.id, {
+      title: current.title,
+      description: descDraft(),
+      status: current.status,
+      labels: current.labels,
+    });
+    setDescEditing(false);
   }
 
   const onKey = (event: KeyboardEvent) => {
@@ -229,10 +248,50 @@ export function TaskStatus(props: {
                     <span>{relativeTime(task().updated)}</span>
                   </div>
 
-                  <Show when={task().description}>
+                  <Show when={task().description || descEditing()}>
                     <section class="ysb-detail-section">
-                      <h3>{props.t("widget.goal")}</h3>
-                      <Blocks text={task().description} />
+                      <div class="ysb-detail-sectionhead">
+                        <h3>{props.t("widget.goal")}</h3>
+                        <Show when={!descEditing()}>
+                          <button
+                            class="ysb-widget-sectiontoggle"
+                            type="button"
+                            onClick={startEditDescription}
+                          >
+                            {props.t("action.edit")}
+                          </button>
+                        </Show>
+                      </div>
+                      <Show
+                        when={!descEditing()}
+                        fallback={
+                          <div class="ysb-detail-docedit">
+                            <textarea
+                              class="ysb-textarea"
+                              value={descDraft()}
+                              onInput={(event) => setDescDraft(event.currentTarget.value)}
+                            />
+                            <div class="ysb-detail-docactions">
+                              <button
+                                class="ysb-widget-action"
+                                type="button"
+                                onClick={() => setDescEditing(false)}
+                              >
+                                {props.t("action.cancel")}
+                              </button>
+                              <button
+                                class="ysb-widget-action primary"
+                                type="button"
+                                onClick={saveDescription}
+                              >
+                                {props.t("action.save")}
+                              </button>
+                            </div>
+                          </div>
+                        }
+                      >
+                        <Blocks text={task().description} />
+                      </Show>
                     </section>
                   </Show>
 
