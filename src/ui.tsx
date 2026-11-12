@@ -704,7 +704,7 @@ function Card(props: {
       }}
     >
       <div class="ysb-cardtop">
-        <span class="ysb-cardid">#{shortId(props.task.id)}</span>
+        <span class="ysb-cardid">#{props.task.code ?? shortId(props.task.id)}</span>
         <Show when={props.task.running}>
           <span class="ysb-run" title={props.t("card.running")} />
         </Show>
@@ -1157,7 +1157,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
 
             <div class="ysb-meta">
               <span>
-                {t("edit.meta")}: <span class="ysb-mono">{task()!.id}</span>
+                {t("edit.meta")}: <span class="ysb-mono">{task()!.code ?? task()!.id}</span>
               </span>
               <span>{basename(task()!.directory)}</span>
               <span>{t("edit.updated", { time: relativeTime(task()!.updated) })}</span>

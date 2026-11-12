@@ -22,6 +22,7 @@ export type TaskMeta = {
 
 export interface Task extends TaskMeta {
   id: string;
+  code?: string;
   title: string;
   directory: string;
   projectID: string;
@@ -163,6 +164,7 @@ export function toTaskFromRecord(
     rank: taskRecord.rank,
     outputs: [],
     id: taskRecord.id,
+    code: taskRecord.code,
     title: taskRecord.title,
     directory: main?.directory ?? session?.location.directory ?? "",
     projectID: session?.projectID ?? "",

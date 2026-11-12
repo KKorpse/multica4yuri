@@ -23,6 +23,7 @@ export type Document = {
 
 export type Task = {
   id: string;
+  code: string;
   title: string;
   description: string;
   status: Status;
@@ -69,6 +70,7 @@ export function newTask(
   const now = Date.now();
   return {
     id: main.id,
+    code: "",
     title,
     description,
     status: "待分配",

@@ -115,6 +115,7 @@ export default Plugin.define({
       const now = Date.now();
       const task: Task = {
         id: taskId,
+        code: legacy.code ?? "",
         title: legacy.title,
         description: legacy.goal ?? legacy.description ?? "",
         status: legacy.status ?? "执行中",
@@ -253,6 +254,7 @@ export default Plugin.define({
           directory: session.location.directory,
         },
       );
+      task.code = store.nextCode();
       store.write(task);
       tasks.set(task.id, task);
       await backlink(task);

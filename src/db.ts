@@ -49,6 +49,28 @@ export class BoardStore {
       CREATE INDEX IF NOT EXISTS idx_task_session_session ON task_session(session_id);
       CREATE INDEX IF NOT EXISTS idx_task_session_parent ON task_session(parent_id);
     `);
+
+    try {
+      this.db.exec("ALTER TABLE task ADD COLUMN code TEXT NOT NULL DEFAULT ''");
+    } catch {
+      /* the column already exists on newer databases */
+    }
+    const missing = this.db
+      .prepare("SELECT id FROM task WHERE code = '' ORDER BY created_at ASC")
+      .all() as Row[];
+    for (const row of missing) {
+      this.db.prepare("UPDATE task SET code = ? WHERE id = ?").run(this.nextCode(), row.id);
+    }
+  }
+
+  nextCode(): string {
+    const row = this.db
+      .prepare(
+        "SELECT code FROM task WHERE code <> '' ORDER BY CAST(substr(code, 4) AS INTEGER) DESC LIMIT 1",
+      )
+      .get() as Row | undefined;
+    const current = row ? Number(String(row.code).slice(3)) : -1;
+    return `ZM-${current + 1}`;
   }
 
   private sessions(taskId: string): SessionLink[] {
@@ -70,6 +92,7 @@ export class BoardStore {
     const id = String(row.id);
     return {
       id,
+      code: String(row.code ?? ""),
       title: String(row.title),
       description: String(row.description),
       status: row.status as Task["status"],
@@ -106,14 +129,15 @@ export class BoardStore {
       .prepare(
         `
       INSERT OR REPLACE INTO task (
-        id, title, description, status, labels, rank, main_session_id,
+        id, code, title, description, status, labels, rank, main_session_id,
         document_content, document_updated_at, document_updated_by,
         revision, created_at, updated_at, status_changed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
         task.id,
+        task.code,
         task.title,
         task.description,
         task.status,
