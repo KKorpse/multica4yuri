@@ -30,15 +30,15 @@ Yuri chat.
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
 - **Multi-session tasks** — one main session per task; child sessions are
   created with `zmultica_session_create` (or bound with `zmultica_session_link`).
-  The main session's metadata is the source of truth: goal, acceptance, roster,
-  outputs and the latest 50 notes. Main/sub briefs are written as durable
-  instruction entries; unread notes are injected on each model request.
+  Tasks live in an embedded SQLite database (`zmultica/board.db`) with `task`
+  and `task_session` tables. Each task has one output document
+  (`document_content`); latest replies are read on demand with
+  `zmultica_session_tail`. Main/sub briefs are durable instruction entries.
 - **Four statuses** — `待分配 / 执行中 / 已完成 / 废弃`. Execution start moves
   待分配 → 执行中 automatically; completion and discard are manual only.
 - **Outputs** — `sessionBoard.outputs` holds deliverables of type `text`,
-  `file` or `url`. The widget shows the first two; the details dialog lists all
-  of them. File links open with the system default app (desktop), URLs open in
-  the browser. Artifacts live under `zmultica-artifacts/<sessionId>/`.
+  `file` or `url`. The details dialog edits the task document. Artifacts live
+  under `zmultica-artifacts/<sessionId>/`.
 - **Esc navigation** — opening the board remembers the session you came from;
   `Esc` closes an open dialog first, otherwise returns to that session.
 - **Right-side task widget** — the open conversation's right work-status column
