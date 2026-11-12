@@ -319,7 +319,11 @@ export const CSS = `
   flex-direction: column;
   gap: calc(0.25rem * var(--padding-scale, 1));
   min-width: 0;
-  padding: 0.375rem 0.5rem;
+  margin: 0.25rem 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+  border-radius: var(--radius-lg, 8px);
+  background: color-mix(in srgb, var(--foreground) 3%, transparent);
   color: var(--muted-foreground);
   font-family: var(--font-sans, system-ui, sans-serif);
   font-size: var(--text-ui-label);
