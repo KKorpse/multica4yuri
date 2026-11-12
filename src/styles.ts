@@ -313,6 +313,134 @@ export const CSS = `
   text-align: center;
 }
 
+/* Right work-status widget: compact task identity for the open conversation. */
+.ysb-widget {
+  display: flex;
+  flex-direction: column;
+  gap: calc(0.25rem * var(--padding-scale, 1));
+  min-width: 0;
+  padding: 0.375rem 0.5rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: var(--text-ui-label);
+  font-weight: var(--ui-regular-font-weight, 400);
+}
+.ysb-widget-empty {
+  color: var(--muted-foreground);
+  font-size: var(--text-meta, 12px);
+  line-height: 1.4;
+}
+.ysb-widget-head {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.375rem;
+}
+.ysb-widget-status {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-widget-time {
+  margin-left: auto;
+  flex: none;
+  color: var(--muted-foreground);
+  font-size: var(--text-meta, 11px);
+  font-variant-numeric: tabular-nums;
+}
+.ysb-widget-run {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--status-success);
+  animation: ysb-pulse 1.4s ease-in-out infinite;
+}
+.ysb-widget-title {
+  display: -webkit-box;
+  overflow: hidden;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ysb-widget-title:hover {
+  color: var(--primary);
+}
+.ysb-widget-meta {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.25rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-meta, 11px);
+  line-height: 1.3;
+}
+.ysb-widget-dir {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-widget-sep { flex: none; opacity: 0.5; }
+.ysb-widget-agent {
+  flex: none;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-widget-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+.ysb-widget-label {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  gap: 0.25rem;
+  padding: 0 0.375rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ysb-label) 14%, transparent);
+  color: var(--ysb-label);
+  font-size: var(--text-micro, 10px);
+  line-height: 1.5;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-widget-chipdot {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.ysb-widget-open {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: var(--text-meta, 11px);
+  text-align: left;
+  cursor: pointer;
+}
+.ysb-widget-open:hover { color: var(--foreground); }
+
 @keyframes ysb-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.35; transform: scale(0.8); }

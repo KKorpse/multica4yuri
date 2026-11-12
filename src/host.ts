@@ -3,7 +3,7 @@ import type { JSX } from "solid-js";
 
 export const PLUGIN_ID = "yuri-session-board";
 export const PAGE_ID = "board";
-export const BUILD = "0.7.0";
+export const BUILD = "0.8.0";
 
 /** Touch devices never mount the board page at all. */
 export function isTouchDevice(): boolean {
@@ -39,6 +39,21 @@ export const YuriPage = Registry.define<{
   icon?: string;
   render(): JSX.Element;
 }>("yuri.page");
+
+/** The conversation's right work-status column (below Changes, above Todos). */
+export type WorkStatusProps = {
+  session?: { id: string; key: string; directory?: string | null };
+  directory: string | null;
+  placement: "inline" | "popover";
+  active: boolean;
+  signal: AbortSignal;
+};
+
+export const WorkStatus = Registry.define<{
+  id: string;
+  order?: number;
+  render(props: WorkStatusProps): JSX.Element;
+}>("yuri.work-status");
 
 /** Host-provided page navigator: switches the shell to the plugin main tab. */
 export const YuriPages = Contract.define<

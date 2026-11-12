@@ -137,6 +137,7 @@ export function createBoard(ctx: Context, t: T) {
   let subscribed = false;
   let eventAbort: AbortController | undefined;
   let disposed = false;
+  let watchers = 0;
 
   createEffect(() => {
     const snapshot = JSON.stringify(view);
@@ -405,11 +406,14 @@ export function createBoard(ctx: Context, t: T) {
   }
 
   function activate() {
+    watchers += 1;
     subscribe();
     if (!refreshedAt() || Date.now() - refreshedAt() > 30_000) void reload(refreshedAt() > 0);
   }
 
   function deactivate() {
+    watchers = Math.max(0, watchers - 1);
+    if (watchers > 0) return;
     unsubscribe();
     for (const timer of refreshTimers.values()) clearTimeout(timer);
     refreshTimers.clear();
@@ -592,6 +596,7 @@ export function createBoard(ctx: Context, t: T) {
 
   function dispose() {
     disposed = true;
+    watchers = 0;
     deactivate();
   }
 

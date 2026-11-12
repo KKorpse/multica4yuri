@@ -28,6 +28,10 @@ Yuri chat.
 - **Open chat** — single click opens task details, double-click (or “打开对话”)
   goes to the native session. The board is reachable again from the titlebar
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
+- **Right-side task widget** — the open conversation's right work-status column
+  (`yuri.work-status`, below Changes) shows the task status, title, directory,
+  agent and tags, plus a shortcut to the full board. It shares the board state,
+  so status and rename changes update live.
 - **Live** — running badges follow `session.execution.*` events; renames,
   metadata, archive and agent changes update without a reload.
 

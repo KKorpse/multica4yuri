@@ -1,9 +1,18 @@
 import { Command, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
-import { BUILD, isMobileSurface, isTouchDevice, openPluginPage, PAGE_ID, YuriPage } from "./host";
+import {
+  BUILD,
+  isMobileSurface,
+  isTouchDevice,
+  openPluginPage,
+  PAGE_ID,
+  WorkStatus,
+  YuriPage,
+} from "./host";
 import { messages } from "./i18n";
 import { CSS } from "./styles";
 import { BoardPage } from "./ui";
+import { TaskStatus } from "./widget";
 
 export default Plugin.define({
   i18n: { en: messages.en, zh: messages.zh },
@@ -28,6 +37,14 @@ export default Plugin.define({
       }
       openPluginPage(ctx);
     };
+
+    ctx.add(WorkStatus, {
+      id: "task",
+      order: 0,
+      render: (props) => (
+        <TaskStatus board={board} t={ctx.t} sessionID={props.session?.id} onOpenBoard={openBoard} />
+      ),
+    });
 
     ctx.add(Command, (): Command => ({
       id: "open",
