@@ -69,13 +69,19 @@ export default Plugin.define({
       },
     }));
 
-    ctx.add(TitlebarItem, (): TitlebarItem => ({
-      id: "open",
-      label: ctx.t("titlebar.label"),
-      title: ctx.t("page.title"),
-      icon: "checklist",
-      run: () => openBoard(),
-    }));
+    ctx.add(TitlebarItem, (): TitlebarItem => {
+      const running = board.runningCount();
+      return {
+        id: "open",
+        label: running > 0 ? `${ctx.t("titlebar.label")} · ${running}` : ctx.t("titlebar.label"),
+        title:
+          running > 0
+            ? `${ctx.t("page.title")} · ${running} ${ctx.t("card.running")}`
+            : ctx.t("page.title"),
+        icon: running > 0 ? "refresh" : "task",
+        run: () => openBoard(),
+      };
+    });
 
     return () => board.dispose();
   },
