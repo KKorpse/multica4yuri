@@ -832,7 +832,6 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
   const [form, setForm] = createStore({
     title: "",
     description: "",
-    acceptance: "",
     directory: initialDirectory,
     agent: "",
     status: board.createStatus() || "待分配",
@@ -878,7 +877,6 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
       const result = await board.create({
         title: form.title,
         description: form.description,
-        acceptance: form.acceptance,
         directory: form.directory.trim(),
         agent: form.agent,
         status: "待分配",
@@ -942,16 +940,6 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
               value={form.description}
               placeholder={t("field.descriptionPlaceholder")}
               onInput={(event) => setForm("description", event.currentTarget.value)}
-            />
-          </label>
-
-          <label class="ysb-formitem">
-            <span>{t("field.acceptance")}</span>
-            <textarea
-              class="ysb-textarea"
-              value={form.acceptance}
-              placeholder={t("field.acceptancePlaceholder")}
-              onInput={(event) => setForm("acceptance", event.currentTarget.value)}
             />
           </label>
 
@@ -1047,7 +1035,6 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
   const [form, setForm] = createStore({
     title: current?.title ?? "",
     description: current?.description ?? "",
-    acceptance: current?.record?.acceptance ?? "",
     status: current?.status ?? "待分配",
     labels: current?.labels ?? [],
   });
@@ -1129,16 +1116,6 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
                 value={form.description}
                 placeholder={t("field.descriptionPlaceholder")}
                 onInput={(event) => setForm("description", event.currentTarget.value)}
-              />
-            </label>
-
-            <label class="ysb-formitem">
-              <span>{t("field.acceptance")}</span>
-              <textarea
-                class="ysb-textarea"
-                value={form.acceptance}
-                placeholder={t("field.acceptancePlaceholder")}
-                onInput={(event) => setForm("acceptance", event.currentTarget.value)}
               />
             </label>
 

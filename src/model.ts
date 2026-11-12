@@ -1,5 +1,5 @@
 import type { SessionInfo } from "@opencode/client";
-import { mainMeta, type Task as TaskRecord } from "./task";
+import type { Task as TaskRecord } from "./task";
 
 export const METADATA_KEY = "sessionBoard";
 export const DESCRIPTION_KEY = "session-board.task";
@@ -148,35 +148,43 @@ export function deriveStatus(session: SessionInfo, running: boolean): string {
   return "待分配";
 }
 
+export function toTaskFromRecord(
+  taskRecord: TaskRecord,
+  session?: SessionInfo,
+  running = false,
+): Task {
+  const archive = record(record(session?.metadata?.yuri).archive).archivedAt;
+  const main = taskRecord.sessions.find((link) => link.role === "main") ?? taskRecord.sessions[0];
+  return {
+    version: 2,
+    description: taskRecord.description,
+    status: taskRecord.status,
+    labels: taskRecord.labels,
+    rank: taskRecord.rank,
+    outputs: [],
+    id: taskRecord.id,
+    title: taskRecord.title,
+    directory: main?.directory ?? session?.location.directory ?? "",
+    projectID: session?.projectID ?? "",
+    agent: session?.agent || "默认 Agent",
+    planned: true,
+    parentID: session?.parentID,
+    archived: session
+      ? typeof archive === "number"
+        ? archive > 0
+        : !!session.time.archived
+      : false,
+    running,
+    outcome: session?.outcome,
+    created: taskRecord.createdAt,
+    updated: taskRecord.updatedAt,
+    cost: session?.cost ?? 0,
+    record: taskRecord,
+  };
+}
+
 export function toTask(session: SessionInfo, running = false): Task {
   const archive = record(record(session.metadata?.yuri).archive).archivedAt;
-  const main = mainMeta(session);
-  if (main) {
-    const self = main.sessions.find((link) => link.role === "main") ?? main.sessions[0];
-    return {
-      version: main.version,
-      description: main.goal,
-      status: main.status,
-      labels: main.labels,
-      rank: main.rank,
-      outputs: main.outputs,
-      id: main.id,
-      title: main.title,
-      directory: self?.directory ?? session.location.directory,
-      projectID: session.projectID,
-      agent: session.agent || "默认 Agent",
-      planned: true,
-      parentID: session.parentID,
-      archived: typeof archive === "number" ? archive > 0 : !!session.time.archived,
-      running,
-      outcome: session.outcome,
-      created: main.createdAt,
-      updated: main.updatedAt,
-      cost: session.cost,
-      record: main,
-    };
-  }
-
   const meta = taskMeta(session);
   const planned = hasBoardMeta(session);
   return {

@@ -1,11 +1,11 @@
 import { Plugin } from "@opencode/plugin";
+import { BoardStore } from "./db";
+import { BoardRpc } from "./rpc";
 import {
   childTitle,
-  mainMeta,
+  newTask,
   renderBrief,
-  renderDelta,
-  subMeta,
-  type Note,
+  taskLink,
   type Role,
   type SessionLink,
   type Task,
@@ -13,19 +13,22 @@ import {
 
 const ENTRY_KEY = "zmultica.session";
 const MAX_CHILDREN = 8;
-const MAX_NOTES = 50;
 
 type Link = { taskId: string; role: Role; parentId?: string; goal: string };
 
 export default Plugin.define({
   id: "zmultica",
   async setup(ctx) {
+    const store = new BoardStore(
+      (ctx.options as any).dbPath ?? "/data/mm64/zackkzhou/zmultica/board.db",
+    );
     const tasks = new Map<string, Task>();
     const links = new Map<string, Link>();
     const controller = new AbortController();
     const registrations: Array<{ dispose(): Promise<void> | void }> = [];
 
     const getSession = (sessionID: string) => ctx.session.get({ sessionID });
+    const readTask = async (taskId: string) => store.get(taskId);
 
     function selfLink(task: Task, sessionID: string): SessionLink | undefined {
       return task.sessions.find((link) => link.sessionId === sessionID);
@@ -34,9 +37,11 @@ export default Plugin.define({
     async function writeBrief(sessionID: string) {
       const link = links.get(sessionID);
       if (!link) return;
-      const task = tasks.get(link.taskId);
-      const self = task && selfLink(task, sessionID);
-      if (!task || !self) return;
+      const task = tasks.get(link.taskId) ?? (await readTask(link.taskId));
+      if (!task) return;
+      tasks.set(task.id, task);
+      const self = selfLink(task, sessionID);
+      if (!self) return;
       await ctx.session.instructions.entry.put({
         sessionID,
         key: ENTRY_KEY,
@@ -44,59 +49,111 @@ export default Plugin.define({
       });
     }
 
-    async function refresh(sessionID: string): Promise<void> {
-      const session = await getSession(sessionID);
-      const main = mainMeta(session);
-      if (main) {
-        tasks.set(main.id, main);
-        links.set(sessionID, { taskId: main.id, role: "main", goal: "" });
-        for (const link of main.sessions) {
-          links.set(link.sessionId, {
-            taskId: main.id,
-            role: link.role,
-            parentId: link.parentId ?? undefined,
-            goal: link.goal,
-          });
-        }
-        await writeBrief(sessionID);
-        return;
-      }
-      const sub = subMeta(session);
-      if (sub) {
-        links.set(sessionID, {
-          taskId: sub.taskId,
-          role: "sub",
-          parentId: sub.parentId,
-          goal: sub.goal,
-        });
-        if (!tasks.has(sub.taskId)) await refresh(sub.taskId);
-        await writeBrief(sessionID);
-        return;
-      }
-      links.delete(sessionID);
+    async function backlink(task: Task) {
+      const main = await getSession(task.mainSessionId);
+      await ctx.session.update({
+        sessionID: task.mainSessionId,
+        metadata: {
+          ...main.metadata,
+          sessionBoard: {
+            version: 2,
+            role: "main",
+            taskId: task.id,
+            parentId: null,
+            goal: "",
+            rev: task.revision,
+          },
+        },
+      });
+    }
+
+    async function putTask(task: Task): Promise<Task> {
+      task.revision += 1;
+      task.updatedAt = Date.now();
+      store.write(task);
+      tasks.set(task.id, task);
+      await backlink(task);
+      for (const link of task.sessions) await writeBrief(link.sessionId);
+      return task;
     }
 
     async function mutate(taskId: string, update: (task: Task) => void): Promise<Task> {
-      const session = await getSession(taskId);
-      const task = mainMeta(session);
+      const task = await readTask(taskId);
       if (!task) throw new Error("任务不存在");
       update(task);
-      task.updatedAt = Date.now();
-      await ctx.session.update({
-        sessionID: taskId,
-        metadata: { ...session.metadata, sessionBoard: task },
+      return putTask(task);
+    }
+
+    async function refresh(sessionID: string): Promise<void> {
+      const session = await getSession(sessionID);
+      const link = taskLink(session);
+      if (!link) {
+        links.delete(sessionID);
+        return;
+      }
+      links.set(sessionID, {
+        taskId: link.taskId,
+        role: link.role,
+        parentId: link.parentId ?? undefined,
+        goal: link.goal,
       });
-      tasks.set(taskId, task);
-      for (const link of task.sessions) await writeBrief(link.sessionId);
-      return task;
+      const task = await readTask(link.taskId);
+      if (!task && link.role === "main") await migrateLegacy(session, link.taskId);
+      if (task) tasks.set(task.id, task);
+      await writeBrief(sessionID);
+    }
+
+    async function migrateLegacy(session: any, taskId: string) {
+      const legacy = session.metadata?.sessionBoard;
+      if (!legacy?.sessions || !legacy.title) return;
+      const outputs = Array.isArray(legacy.outputs) ? legacy.outputs : [];
+      const lines = outputs.map((output: any) =>
+        output.type === "text"
+          ? `- ${output.title}：${output.value}`
+          : `- [${output.title}](${output.value})`,
+      );
+      const now = Date.now();
+      const task: Task = {
+        id: taskId,
+        title: legacy.title,
+        description: legacy.goal ?? legacy.description ?? "",
+        status: legacy.status ?? "执行中",
+        labels: legacy.labels ?? [],
+        rank: legacy.rank ?? -(legacy.createdAt ?? now),
+        mainSessionId: legacy.mainSessionId ?? session.id,
+        sessions: legacy.sessions,
+        document: {
+          content: lines.join("\n"),
+          updatedAt: now,
+          updatedBy: session.id,
+        },
+        revision: 1,
+        createdAt: legacy.createdAt ?? now,
+        updatedAt: now,
+        statusChangedAt: legacy.statusChangedAt ?? now,
+      };
+      store.write(task);
+      tasks.set(task.id, task);
+      await backlink(task);
     }
 
     async function requireMain(sessionID: string): Promise<Task> {
       if (!links.has(sessionID)) await refresh(sessionID);
       const link = links.get(sessionID);
       if (!link || link.role !== "main") throw new Error("只有主会话可以执行此操作");
-      const task = tasks.get(link.taskId);
+      const task = tasks.get(link.taskId) ?? (await readTask(link.taskId));
       if (!task) throw new Error("任务不存在");
+      tasks.set(task.id, task);
+      return task;
+    }
+
+    async function linkedTask(sessionID: string): Promise<Task> {
+      if (!links.has(sessionID)) await refresh(sessionID);
+      const link = links.get(sessionID);
+      if (!link) throw new Error("当前会话未绑定任务");
+      const task = tasks.get(link.taskId) ?? (await readTask(link.taskId));
+      if (!task) throw new Error("任务不存在");
+      tasks.set(task.id, task);
       return task;
     }
 
@@ -174,18 +231,59 @@ export default Plugin.define({
       return child.id;
     }
 
-    async function linkedTask(sessionID: string): Promise<Task> {
-      if (!links.has(sessionID)) await refresh(sessionID);
-      const link = links.get(sessionID);
-      if (!link) throw new Error("当前会话未绑定任务");
-      const task = tasks.get(link.taskId);
-      if (!task) throw new Error("任务不存在");
+    async function createTask(input: {
+      title: string;
+      description?: string;
+      labels?: string[];
+      directory: string;
+      agent?: string;
+    }): Promise<Task> {
+      const session = await ctx.session.create({
+        title: input.title.trim(),
+        agent: input.agent,
+        location: { directory: input.directory },
+      });
+      const task = newTask(
+        input.title.trim(),
+        input.description?.trim() ?? "",
+        input.labels ?? [],
+        {
+          id: session.id,
+          title: session.title || input.title.trim(),
+          directory: session.location.directory,
+        },
+      );
+      store.write(task);
+      tasks.set(task.id, task);
+      await backlink(task);
+      await writeBrief(session.id);
       return task;
     }
 
     function text(value: unknown): { content: string } {
       return { content: typeof value === "string" ? value : JSON.stringify(value, null, 2) };
     }
+
+    registrations.push(
+      await ctx.rpc.register(BoardRpc, {
+        list: async () => {
+          return store.list();
+        },
+        create: async (input: any) => createTask(input),
+        update: async (input: any) =>
+          mutate(input.taskId, (task) => {
+            Object.assign(task, input.patch);
+          }),
+        setDocument: async (input: any) =>
+          mutate(input.taskId, (task) => {
+            task.document = {
+              content: input.content,
+              updatedAt: Date.now(),
+              updatedBy: input.updatedBy ?? task.mainSessionId,
+            };
+          }),
+      }),
+    );
 
     registrations.push(
       await ctx.tool.transform((editor) => {
@@ -222,53 +320,6 @@ export default Plugin.define({
         });
 
         editor.add({
-          name: "zmultica_session_note",
-          description: "向当前任务写一条汇报。子会话完成、失败或阻塞时必须调用；主会话也可写结论。",
-          input: {
-            type: "object",
-            properties: {
-              status: { type: "string", enum: ["completed", "failed", "blocked", "note"] },
-              summary: { type: "string" },
-              refs: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    type: { type: "string", enum: ["text", "file", "url"] },
-                    title: { type: "string" },
-                    value: { type: "string" },
-                  },
-                  required: ["type", "title", "value"],
-                },
-              },
-            },
-            required: ["status", "summary"],
-          },
-          execute: async (input: any, context) => {
-            const task = await linkedTask(context.sessionID);
-            const self = selfLink(task, context.sessionID);
-            const seq = task.lastNoteSeq + 1;
-            await mutate(task.id, (draft) => {
-              const item: Note = {
-                seq,
-                sessionId: context.sessionID,
-                role: self?.role ?? "sub",
-                status: input.status,
-                summary: input.summary.trim(),
-                refs: input.refs ?? [],
-                createdAt: Date.now(),
-              };
-              draft.lastNoteSeq = seq;
-              draft.notes.push(item);
-              if (draft.notes.length > MAX_NOTES)
-                draft.notes.splice(0, draft.notes.length - MAX_NOTES);
-              draft.readBy[context.sessionID] = seq;
-            });
-            return text({ seq, taskId: task.id });
-          },
-        });
-
-        editor.add({
           name: "zmultica_session_list",
           description: "读取当前任务的会话清单和状态。",
           input: { type: "object", properties: {} },
@@ -276,37 +327,63 @@ export default Plugin.define({
         });
 
         editor.add({
-          name: "zmultica_session_read",
-          description: "读取当前任务的汇报，并把当前会话的未读游标标记为已读。",
+          name: "zmultica_session_tail",
+          description: "读取某个会话的最后一条 assistant 文本和执行状态，用于了解最新进展。",
           input: {
             type: "object",
-            properties: { after: { type: "number", description: "只返回 seq 大于此值的汇报" } },
+            properties: { sessionID: { type: "string" } },
+            required: ["sessionID"],
+          },
+          execute: async (input: any) => {
+            const session = await getSession(input.sessionID);
+            const messages = await ctx.session.context({ sessionID: input.sessionID });
+            const assistant = [...messages].reverse().find((message) => {
+              if (message.type !== "assistant" || !("content" in message)) return false;
+              return message.content.some((part) => part.type === "text" && part.text.trim());
+            });
+            const content = assistant && "content" in assistant ? assistant.content : [];
+            const textPart = content.findLast((part) => part.type === "text" && part.text.trim());
+            return text({
+              sessionID: input.sessionID,
+              title: session.title,
+              outcome: session.outcome,
+              updatedAt: session.time.updated,
+              text: textPart?.type === "text" ? textPart.text : "",
+            });
+          },
+        });
+
+        editor.add({
+          name: "zmultica_document_set",
+          description:
+            "设置当前任务的产出文档内容。主会话和子会话都可以修改；内容应简洁，包含文字和链接。",
+          input: {
+            type: "object",
+            properties: {
+              content: { type: "string" },
+            },
+            required: ["content"],
           },
           execute: async (input: any, context) => {
             const task = await linkedTask(context.sessionID);
-            const notes = task.notes.filter((note) => note.seq > (input.after ?? 0));
-            await mutate(task.id, (draft) => {
-              draft.readBy[context.sessionID] = Math.max(
-                draft.readBy[context.sessionID] ?? 0,
-                draft.lastNoteSeq,
-              );
+            const updated = await mutate(task.id, (draft) => {
+              draft.document = {
+                content: input.content,
+                updatedAt: Date.now(),
+                updatedBy: context.sessionID,
+              };
             });
-            return text(notes);
+            return text(updated.document);
           },
         });
-      }),
-    );
 
-    registrations.push(
-      await ctx.session.hook("context", async (request) => {
-        const sessionID = request.sessionID;
-        if (!links.has(sessionID)) await refresh(sessionID).catch(() => undefined);
-        const link = links.get(sessionID);
-        if (!link) return;
-        const task = tasks.get(link.taskId);
-        if (!task) return;
-        const block = renderDelta(task, sessionID);
-        if (block) request.system.push({ type: "text", text: block });
+        editor.add({
+          name: "zmultica_document_get",
+          description: "读取当前任务的产出文档。",
+          input: { type: "object", properties: {} },
+          execute: async (_input: unknown, context) =>
+            text((await linkedTask(context.sessionID)).document),
+        });
       }),
     );
 
@@ -356,6 +433,7 @@ export default Plugin.define({
     })();
 
     return () => {
+      store.close();
       controller.abort();
       for (const registration of registrations) void registration.dispose();
     };

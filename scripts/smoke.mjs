@@ -146,6 +146,14 @@ const ctx = {
     },
     agent: { list: async () => ({ data: [] }) },
     project: { list: async () => [] },
+    rpc: () => ({
+      list: async () => [],
+      create: async () => {
+        throw new Error("not implemented in smoke");
+      },
+      update: async () => ({}),
+      setDocument: async () => ({}),
+    }),
     event: {
       subscribe: ({ signal }) => ({
         async *[Symbol.asyncIterator]() {

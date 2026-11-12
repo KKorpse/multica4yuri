@@ -20,6 +20,7 @@ import {
   statusColor,
   taskMeta,
   toTask,
+  toTaskFromRecord,
   uniqueLabels,
   type ArchiveFilter,
   type Filters,
@@ -28,7 +29,8 @@ import {
   type Task,
   type TaskMeta,
 } from "./model";
-import { mainMeta, newTask, subMeta } from "./task";
+import { taskLink, type Task as TaskRecord } from "./task";
+import { BoardRpc } from "./rpc";
 import type { T } from "./i18n";
 
 export interface ViewState {
@@ -124,6 +126,7 @@ function eventSessionID(event: EventLike): string | undefined {
 
 export function createBoard(ctx: Context, t: T) {
   const [sessions, setSessions] = createSignal<SessionInfo[]>([]);
+  const [records, setRecords] = createSignal<TaskRecord[]>([]);
   const [projects, setProjects] = createSignal<Array<{ path: string; label: string }>>([]);
   const [running, setRunning] = createSignal<ReadonlySet<string>>(new Set());
   const [loading, setLoading] = createSignal(true);
@@ -154,9 +157,14 @@ export function createBoard(ctx: Context, t: T) {
 
   const tasks = createMemo(() => {
     const active = running();
-    return sessions()
-      .filter((session) => !isSystemSession(session) && !subMeta(session))
+    const byId = new Map(sessions().map((session) => [session.id, session]));
+    const fromRecords = records().map((record) =>
+      toTaskFromRecord(record, byId.get(record.mainSessionId), active.has(record.mainSessionId)),
+    );
+    const fromSessions = sessions()
+      .filter((session) => !isSystemSession(session) && !taskLink(session))
       .map((session) => toTask(session, active.has(session.id)));
+    return [...fromRecords, ...fromSessions];
   });
 
   const visible = createMemo(() => sortTasks(filterTasks(tasks(), view.filters), view.sort));
@@ -313,10 +321,14 @@ export function createBoard(ctx: Context, t: T) {
       if (request !== generation) return;
       const merged = new Map<string, SessionInfo>();
       for (const session of [...active, ...archived]) merged.set(session.id, session);
-      const live = await ctx.client.session.active({ signal: ctx.signal }).catch(() => ({}));
+      const [live, taskRecords] = await Promise.all([
+        ctx.client.session.active({ signal: ctx.signal }).catch(() => ({})),
+        ctx.client.rpc(BoardRpc).list({}) as Promise<TaskRecord[]>,
+      ]);
       if (request !== generation) return;
       batch(() => {
         setSessions([...merged.values()]);
+        setRecords(taskRecords);
         setRunning(new Set(Object.keys(live)));
         setLoading(false);
         setRefreshedAt(Date.now());
@@ -425,46 +437,27 @@ export function createBoard(ctx: Context, t: T) {
   async function create(
     input: CreateInput,
   ): Promise<{ id: string; sent: boolean; sendError?: unknown }> {
-    const title = input.title.trim();
-    const session = await api.createSession(
-      ctx,
-      {
-        title,
-        directory: input.directory,
-        agent: input.agent || undefined,
-      },
-      ctx.signal,
-    );
-    const task = newTask(
-      title,
-      input.description.trim(),
-      input.acceptance ?? "",
-      uniqueLabels(input.labels),
-      {
-        id: session.id,
-        title: session.title || title,
-        directory: session.location.directory,
-      },
-    );
-    upsert({ ...session, metadata: { ...session.metadata, [METADATA_KEY]: task } });
+    const task = (await ctx.client.rpc(BoardRpc).create({
+      title: input.title.trim(),
+      description: input.description.trim(),
+      labels: uniqueLabels(input.labels),
+      directory: input.directory,
+      agent: input.agent || undefined,
+    })) as TaskRecord;
+    setRecords((list) => [task, ...list.filter((item) => item.id !== task.id)]);
     setView("lastDirectory", input.directory);
-    try {
-      await api.writeBoardMeta(ctx, session, task, ctx.signal);
-    } catch {
-      /* the record copy still carries the task data */
-    }
     let sent = false;
     let sendError: unknown;
-    if (input.send && task.goal) {
+    if (input.send && task.description) {
       try {
-        await api.sendPrompt(ctx, session.id, task.goal, ctx.signal);
+        await api.sendPrompt(ctx, task.mainSessionId, task.description, ctx.signal);
         sent = true;
       } catch (caught) {
         sendError = caught;
       }
     }
     void reload(true);
-    return { id: session.id, sent, sendError };
+    return { id: task.mainSessionId, sent, sendError };
   }
 
   function allowedStatus<P extends string>(next: string, previous: P): P {
@@ -474,36 +467,21 @@ export function createBoard(ctx: Context, t: T) {
   async function save(id: string, input: SaveInput): Promise<void> {
     const session = sessionById(id);
     if (!session) return;
-    const record = mainMeta(session);
+    const record = taskById(id)?.record;
     const title = input.title.trim() || session.title || "";
 
     if (record) {
-      const next: typeof record = {
-        ...record,
-        title: title || record.title,
-        goal: input.description.trim(),
-        acceptance: input.acceptance ?? record.acceptance,
-        status: allowedStatus(input.status || record.status, record.status),
-        labels: uniqueLabels(input.labels),
-        updatedAt: Date.now(),
-      };
-      if (next.status !== record.status) next.statusChangedAt = Date.now();
-      patchSession(id, (value) => ({
-        ...value,
-        title: next.title,
-        metadata: { ...value.metadata, [METADATA_KEY]: next },
-      }));
-      try {
-        if (next.title && next.title !== session.title) await api.updateTitle(ctx, id, next.title);
-        await api.writeBoardMeta(ctx, session, next, ctx.signal);
-      } catch (caught) {
-        patchSession(id, (value) => ({
-          ...value,
-          title: session.title,
-          metadata: { ...value.metadata, [METADATA_KEY]: record },
-        }));
-        throw caught;
-      }
+      await ctx.client.rpc(BoardRpc).update({
+        taskId: record.id,
+        patch: {
+          title: title || record.title,
+          description: input.description.trim(),
+          status: allowedStatus(input.status || record.status, record.status),
+          labels: uniqueLabels(input.labels),
+        },
+      });
+      if (title && title !== session.title) await api.updateTitle(ctx, id, title);
+      void reload(true);
       return;
     }
 
@@ -526,6 +504,11 @@ export function createBoard(ctx: Context, t: T) {
     }
   }
 
+  async function saveDocument(id: string, content: string): Promise<void> {
+    await ctx.client.rpc(BoardRpc).setDocument({ taskId: id, content });
+    void reload(true);
+  }
+
   async function move(id: string, status: string, index?: number): Promise<void> {
     const session = sessionById(id);
     const task = taskById(id);
@@ -544,29 +527,13 @@ export function createBoard(ctx: Context, t: T) {
     }
     if (nextStatus === task.status && rank === task.rank) return;
 
-    const record = mainMeta(session);
+    const record = task.record;
     if (record) {
-      const statusForRecord = allowedStatus(status, record.status);
-      const next: typeof record = {
-        ...record,
-        status: statusForRecord,
-        rank,
-        updatedAt: Date.now(),
-        statusChangedAt: statusForRecord !== record.status ? Date.now() : record.statusChangedAt,
-      };
-      patchSession(id, (value) => ({
-        ...value,
-        metadata: { ...value.metadata, [METADATA_KEY]: next },
-      }));
-      try {
-        await api.writeBoardMeta(ctx, session, next, ctx.signal);
-      } catch (caught) {
-        patchSession(id, (value) => ({
-          ...value,
-          metadata: { ...value.metadata, [METADATA_KEY]: record },
-        }));
-        throw caught;
-      }
+      await ctx.client.rpc(BoardRpc).update({
+        taskId: record.id,
+        patch: { status: allowedStatus(status, record.status), rank },
+      });
+      void reload(true);
       return;
     }
 
@@ -706,6 +673,7 @@ export function createBoard(ctx: Context, t: T) {
     deactivate,
     create,
     save,
+    saveDocument,
     move,
     archive,
     open,

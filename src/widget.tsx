@@ -4,7 +4,7 @@ import { Portal } from "solid-js/web";
 import type { Context } from "@opencode/plugin/gui";
 import type { Board } from "./board";
 import type { T } from "./i18n";
-import { basename, labelColor, relativeTime, type Output } from "./model";
+import { basename, labelColor, relativeTime } from "./model";
 import { StatusIcon } from "./ui";
 
 /** Render markdown links and bare http(s) URLs without pulling in a parser. */
@@ -123,80 +123,26 @@ export function TaskStatus(props: {
   const description = () => task()?.description.trim() ?? "";
   const parts = () => preview(description());
   const canExpand = () => !!parts().tail;
-  const outputs = () => task()?.outputs ?? [];
+  const doc = () => task()?.record?.document?.content ?? "";
+  const docParts = () => preview(doc());
+  const canExpandDoc = () => !!docParts().tail;
+  const [docEditing, setDocEditing] = createSignal(false);
+  const [docDraft, setDocDraft] = createSignal("");
   const sessions = () => task()?.record?.sessions ?? [];
-  const notes = () => task()?.record?.notes ?? [];
-  const acceptance = () => task()?.record?.acceptance ?? "";
-  const [filePreview, setFilePreview] = createSignal<{
-    title: string;
-    path: string;
-    content: string;
-    loading: boolean;
-    error?: string;
-  }>();
 
-  async function openOutput(output: Output) {
-    if (output.type === "text") return;
-    if (output.type === "url") {
-      props.ctx.system.openExternal(output.value);
-      return;
-    }
-
-    const path = output.value;
-    try {
-      if (props.ctx.links.open({ href: path, exact: true, session: props.ctx.sessions.current() }))
-        return;
-    } catch {
-      /* no native handler: fall back to the in-app preview */
-    }
-
-    setFilePreview({ title: output.title, path, content: "", loading: true });
-    try {
-      const screen = props.ctx.screen.current();
-      if (!screen) throw new Error("no session screen");
-      const resolved = screen.file.resolve(path);
-      await screen.file.sync(resolved, { silent: true });
-      const state = screen.file.get(resolved);
-      if (state?.content?.type === "text") {
-        setFilePreview({
-          title: output.title,
-          path: resolved,
-          content: state.content.content,
-          loading: false,
-        });
-      } else {
-        setFilePreview({
-          title: output.title,
-          path: resolved,
-          content: "",
-          loading: false,
-          error: state?.error || props.t("output.previewError"),
-        });
-      }
-    } catch (error) {
-      setFilePreview({
-        title: output.title,
-        path,
-        content: "",
-        loading: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+  function startEditDocument() {
+    setDocDraft(doc());
+    setDocEditing(true);
   }
 
-  async function copyPreviewPath() {
-    const current = filePreview();
+  async function saveDocument() {
+    const current = task();
     if (!current) return;
-    await props.ctx.system.copy(current.path);
-    props.ctx.toast.show({ title: props.t("output.copied") });
+    await props.board.saveDocument(current.id, docDraft());
+    setDocEditing(false);
   }
 
   const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape" && filePreview()) {
-      event.stopPropagation();
-      setFilePreview(undefined);
-      return;
-    }
     if (event.key === "Escape" && details()) {
       event.stopPropagation();
       setDetails(false);
@@ -279,12 +225,12 @@ export function TaskStatus(props: {
               </div>
             </Show>
 
-            <Show when={outputs().length > 0}>
+            <Show when={doc()}>
               <div class="ysb-widget-divider" />
               <section class="ysb-widget-section">
                 <header class="ysb-widget-sectionhead">
                   <span class="ysb-widget-sectiontitle">{props.t("widget.outputs")}</span>
-                  <Show when={outputs().length > 2}>
+                  <Show when={canExpandDoc()}>
                     <button
                       class="ysb-widget-sectiontoggle"
                       type="button"
@@ -295,29 +241,7 @@ export function TaskStatus(props: {
                     </button>
                   </Show>
                 </header>
-                <div class="ysb-widget-outputlist">
-                  <For each={outputsExpanded() ? outputs() : outputs().slice(0, 2)}>
-                    {(output) =>
-                      output.type === "text" ? (
-                        <span class="ysb-widget-outputtext" title={output.value}>
-                          {output.title}
-                        </span>
-                      ) : (
-                        <button
-                          class="ysb-widget-output"
-                          type="button"
-                          title={output.value}
-                          onClick={() => openOutput(output)}
-                        >
-                          <span class="ysb-widget-outputicon" aria-hidden="true">
-                            {output.type === "url" ? "↗" : "▤"}
-                          </span>
-                          <span class="ysb-widget-outputtitle">{output.title}</span>
-                        </button>
-                      )
-                    }
-                  </For>
-                </div>
+                <Blocks text={outputsExpanded() ? doc() : docParts().head} />
               </section>
             </Show>
           </>
@@ -371,12 +295,6 @@ export function TaskStatus(props: {
                     <section class="ysb-detail-section">
                       <h3>{props.t("widget.goal")}</h3>
                       <Blocks text={task().description} />
-                      <Show when={acceptance()}>
-                        <p class="ysb-detail-acceptance">
-                          <strong>{props.t("field.acceptance")}</strong>
-                          {acceptance()}
-                        </p>
-                      </Show>
                     </section>
                   </Show>
 
@@ -396,31 +314,50 @@ export function TaskStatus(props: {
                     </div>
                   </Show>
 
-                  <Show when={outputs().length > 0}>
+                  <Show when={doc() || docEditing()}>
                     <section class="ysb-detail-section">
-                      <h3>{props.t("widget.outputs")}</h3>
-                      <div class="ysb-detail-outputlist">
-                        <For each={outputs()}>
-                          {(output) =>
-                            output.type === "text" ? (
-                              <div class="ysb-detail-outputtext">
-                                <strong>{output.title}</strong>
-                                <p>{output.value}</p>
-                              </div>
-                            ) : (
-                              <button
-                                class="ysb-detail-output"
-                                type="button"
-                                title={output.value}
-                                onClick={() => openOutput(output)}
-                              >
-                                <span>{output.title}</span>
-                                <span aria-hidden="true">↗</span>
-                              </button>
-                            )
-                          }
-                        </For>
+                      <div class="ysb-detail-sectionhead">
+                        <h3>{props.t("widget.outputs")}</h3>
+                        <Show when={!docEditing()}>
+                          <button
+                            class="ysb-widget-sectiontoggle"
+                            type="button"
+                            onClick={startEditDocument}
+                          >
+                            {props.t("action.edit")}
+                          </button>
+                        </Show>
                       </div>
+                      <Show
+                        when={!docEditing()}
+                        fallback={
+                          <div class="ysb-detail-docedit">
+                            <textarea
+                              class="ysb-textarea"
+                              value={docDraft()}
+                              onInput={(event) => setDocDraft(event.currentTarget.value)}
+                            />
+                            <div class="ysb-detail-docactions">
+                              <button
+                                class="ysb-widget-action"
+                                type="button"
+                                onClick={() => setDocEditing(false)}
+                              >
+                                {props.t("action.cancel")}
+                              </button>
+                              <button
+                                class="ysb-widget-action primary"
+                                type="button"
+                                onClick={saveDocument}
+                              >
+                                {props.t("action.save")}
+                              </button>
+                            </div>
+                          </div>
+                        }
+                      >
+                        <Blocks text={doc()} />
+                      </Show>
                     </section>
                   </Show>
 
@@ -445,25 +382,6 @@ export function TaskStatus(props: {
                               <span class="ysb-detail-sessiontitle">{link.title}</span>
                               <span class="ysb-detail-sessiondir">{basename(link.directory)}</span>
                             </button>
-                          )}
-                        </For>
-                      </div>
-                    </section>
-                  </Show>
-
-                  <Show when={notes().length > 0}>
-                    <section class="ysb-detail-section">
-                      <h3>{props.t("dialog.notes")}</h3>
-                      <div class="ysb-detail-notelist">
-                        <For each={[...notes()].reverse().slice(0, 8)}>
-                          {(note) => (
-                            <div class="ysb-detail-note">
-                              <span class={`ysb-detail-notestatus ${note.status}`}>
-                                {note.status}
-                              </span>
-                              <span class="ysb-detail-notesummary">{note.summary}</span>
-                              <span class="ysb-detail-noteauthor">{note.sessionId}</span>
-                            </div>
                           )}
                         </For>
                       </div>
@@ -502,68 +420,6 @@ export function TaskStatus(props: {
                     class="ysb-widget-action primary"
                     type="button"
                     onClick={() => setDetails(false)}
-                  >
-                    {props.t("action.close")}
-                  </button>
-                </footer>
-              </section>
-            </div>
-          </Portal>
-        )}
-      </Show>
-
-      <Show when={filePreview()}>
-        {(current) => (
-          <Portal mount={document.body}>
-            <div
-              class="ysb-detail-backdrop"
-              onClick={(event) => {
-                if (event.target === event.currentTarget) setFilePreview(undefined);
-              }}
-            >
-              <section
-                class="ysb-detail"
-                role="dialog"
-                aria-modal="true"
-                aria-label={current().title}
-              >
-                <header class="ysb-detail-head">
-                  <div class="ysb-detail-heading">
-                    <h2 class="ysb-detail-title">{current().title}</h2>
-                  </div>
-                  <button
-                    class="ysb-detail-close"
-                    type="button"
-                    aria-label={props.t("action.close")}
-                    onClick={() => setFilePreview(undefined)}
-                  >
-                    ×
-                  </button>
-                </header>
-
-                <div class="ysb-detail-body">
-                  <div class="ysb-detail-statusline">
-                    <span class="ysb-preview-path">{current().path}</span>
-                  </div>
-                  <Show when={current().loading}>
-                    <p class="ysb-detail-desc">{props.t("output.loading")}</p>
-                  </Show>
-                  <Show when={current().error}>
-                    <p class="ysb-detail-error">{current().error}</p>
-                  </Show>
-                  <Show when={!current().loading && !current().error}>
-                    <pre class="ysb-preview-content">{current().content}</pre>
-                  </Show>
-                </div>
-
-                <footer class="ysb-detail-foot">
-                  <button class="ysb-widget-action" type="button" onClick={copyPreviewPath}>
-                    {props.t("output.copyPath")}
-                  </button>
-                  <button
-                    class="ysb-widget-action primary"
-                    type="button"
-                    onClick={() => setFilePreview(undefined)}
                   >
                     {props.t("action.close")}
                   </button>

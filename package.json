@@ -1,6 +1,6 @@
 {
   "name": "zmultica",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "ZMultica — a session-backed task board for Yuri",
   "type": "module",
   "private": true,
@@ -21,7 +21,7 @@
     "format": "prettier --write src test scripts *.ts *.json README.md",
     "format:check": "prettier --check src test scripts *.ts *.json README.md",
     "check": "npm run typecheck && npm test && npm run build && npm run smoke",
-    "build:server": "esbuild src/server.ts --bundle --format=esm --platform=node --target=node22 --outfile=dist/index.mjs --external:@opencode/plugin --external:@opencode/ai --external:effect"
+    "build:server": "esbuild src/server.ts --bundle --format=esm --platform=node --target=node22 --outfile=dist/index.mjs --external:@opencode/plugin --external:@opencode/ai --external:effect --external:bun:sqlite"
   },
   "dependencies": {
     "@opencode/plugin": "2.2.1",

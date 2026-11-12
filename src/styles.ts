@@ -945,6 +945,26 @@ export const CSS = `
   border-radius: 8px;
   background: color-mix(in srgb, var(--foreground) 2%, transparent);
 }
+.ysb-detail-sectionhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ysb-detail-docedit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ysb-detail-docedit .ysb-textarea {
+  min-height: 180px;
+  resize: vertical;
+}
+.ysb-detail-docactions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .ysb-detail-section > h3 {
   margin: 0;
   color: var(--foreground);

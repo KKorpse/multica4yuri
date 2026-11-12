@@ -2,7 +2,6 @@ import type { AgentInfo, Project, SessionInfo } from "@opencode/client";
 import type { Context } from "@opencode/plugin/gui";
 import { hostRequest } from "./host";
 import { METADATA_KEY, type TaskMeta } from "./model";
-import type { MainMeta } from "./task";
 
 const PAGE = 200;
 const MAX_PAGES = 10;
@@ -79,7 +78,7 @@ export async function createSession(
     title: string;
     directory: string;
     agent?: string;
-    meta?: TaskMeta | MainMeta;
+    meta?: TaskMeta;
   },
   signal: AbortSignal,
 ): Promise<SessionInfo> {
@@ -115,7 +114,7 @@ export async function updateTitle(ctx: Context, sessionID: string, title: string
 export async function writeBoardMeta(
   ctx: Context,
   session: Pick<SessionInfo, "id" | "location">,
-  meta: TaskMeta | MainMeta,
+  meta: TaskMeta,
   signal: AbortSignal,
 ): Promise<Record<string, unknown>> {
   const response = await hostRequest<{ metadata: Record<string, unknown> }>(
