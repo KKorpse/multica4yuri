@@ -85,7 +85,7 @@ export default Plugin.define({
       if (task.title !== previousTitle) {
         const sub = task.sessions.filter((link) => link.role === "sub");
         sub.forEach((link, index) => {
-          link.title = childTitle(task, link.goal, link.directory, index);
+          link.title = childTitle(task, link.goal, link.directory, index, link.sessionId);
         });
       }
       const updated = await putTask(task);

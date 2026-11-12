@@ -96,9 +96,17 @@ export function newTask(
   };
 }
 
-export function childTitle(task: Task, goal: string, directory: string, index: number): string {
+export function childTitle(
+  task: Task,
+  goal: string,
+  directory: string,
+  index: number,
+  exceptId?: string,
+): string {
   const label = goal.trim() || `子会话 ${index}`;
-  const duplicate = task.sessions.some((link) => link.goal === goal.trim() && goal.trim());
+  const duplicate = task.sessions.some(
+    (link) => link.sessionId !== exceptId && link.goal === goal.trim() && goal.trim(),
+  );
   return `${task.title} · ${label}${duplicate ? ` · ${directory.split("/").filter(Boolean).at(-1)}` : ""}`;
 }
 
