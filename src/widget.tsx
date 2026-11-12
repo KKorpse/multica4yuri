@@ -124,6 +124,9 @@ export function TaskStatus(props: {
   const parts = () => preview(description());
   const canExpand = () => !!parts().tail;
   const outputs = () => task()?.outputs ?? [];
+  const sessions = () => task()?.record?.sessions ?? [];
+  const notes = () => task()?.record?.notes ?? [];
+  const acceptance = () => task()?.record?.acceptance ?? "";
   const [filePreview, setFilePreview] = createSignal<{
     title: string;
     path: string;
@@ -368,6 +371,12 @@ export function TaskStatus(props: {
                     <section class="ysb-detail-section">
                       <h3>{props.t("widget.goal")}</h3>
                       <Blocks text={task().description} />
+                      <Show when={acceptance()}>
+                        <p class="ysb-detail-acceptance">
+                          <strong>{props.t("field.acceptance")}</strong>
+                          {acceptance()}
+                        </p>
+                      </Show>
                     </section>
                   </Show>
 
@@ -410,6 +419,52 @@ export function TaskStatus(props: {
                               </button>
                             )
                           }
+                        </For>
+                      </div>
+                    </section>
+                  </Show>
+
+                  <Show when={sessions().length > 0}>
+                    <section class="ysb-detail-section">
+                      <h3>{props.t("dialog.sessions")}</h3>
+                      <div class="ysb-detail-sessionlist">
+                        <For each={sessions()}>
+                          {(link) => (
+                            <button
+                              class="ysb-detail-session"
+                              type="button"
+                              title={link.directory}
+                              onClick={() => {
+                                setDetails(false);
+                                props.board.open(link.sessionId);
+                              }}
+                            >
+                              <span class={`ysb-detail-role ${link.role}`}>
+                                {link.role === "main" ? "主" : "子"}
+                              </span>
+                              <span class="ysb-detail-sessiontitle">{link.title}</span>
+                              <span class="ysb-detail-sessiondir">{basename(link.directory)}</span>
+                            </button>
+                          )}
+                        </For>
+                      </div>
+                    </section>
+                  </Show>
+
+                  <Show when={notes().length > 0}>
+                    <section class="ysb-detail-section">
+                      <h3>{props.t("dialog.notes")}</h3>
+                      <div class="ysb-detail-notelist">
+                        <For each={[...notes()].reverse().slice(0, 8)}>
+                          {(note) => (
+                            <div class="ysb-detail-note">
+                              <span class={`ysb-detail-notestatus ${note.status}`}>
+                                {note.status}
+                              </span>
+                              <span class="ysb-detail-notesummary">{note.summary}</span>
+                              <span class="ysb-detail-noteauthor">{note.sessionId}</span>
+                            </div>
+                          )}
                         </For>
                       </div>
                     </section>

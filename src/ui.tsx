@@ -95,22 +95,13 @@ export function StatusIcon(props: { status: string; size?: number }) {
   const color = () => statusColor(props.status);
   const shape = (): JSX.Element => {
     switch (props.status) {
-      case "待规划":
+      case "待分配":
         return <circle cx="6" cy="6" r="4.3" stroke-dasharray="1.7 1.7" />;
-      case "待开始":
-        return <circle cx="6" cy="6" r="4.3" />;
       case "执行中":
         return (
           <>
             <circle cx="6" cy="6" r="4.3" />
             <path d="M6 1.7a4.3 4.3 0 0 1 0 8.6Z" fill={color()} stroke="none" />
-          </>
-        );
-      case "待确认":
-        return (
-          <>
-            <circle cx="6" cy="6" r="4.3" />
-            <path d="M6 3.2v3l1.8 1" />
           </>
         );
       case "已完成":
@@ -120,7 +111,7 @@ export function StatusIcon(props: { status: string; size?: number }) {
             <path d="m3.8 6.1 1.5 1.5 2.9-3" />
           </>
         );
-      case "已搁置":
+      case "废弃":
         return (
           <>
             <circle cx="6" cy="6" r="4.3" />
@@ -841,9 +832,10 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
   const [form, setForm] = createStore({
     title: "",
     description: "",
+    acceptance: "",
     directory: initialDirectory,
     agent: "",
-    status: board.createStatus() || "待规划",
+    status: board.createStatus() || "待分配",
     labels: [] as string[],
     send: true,
   });
@@ -886,9 +878,10 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
       const result = await board.create({
         title: form.title,
         description: form.description,
+        acceptance: form.acceptance,
         directory: form.directory.trim(),
         agent: form.agent,
-        status: form.send && form.status === "待规划" ? "执行中" : form.status,
+        status: "待分配",
         labels: form.labels,
         send: form.send,
       });
@@ -952,6 +945,16 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
             />
           </label>
 
+          <label class="ysb-formitem">
+            <span>{t("field.acceptance")}</span>
+            <textarea
+              class="ysb-textarea"
+              value={form.acceptance}
+              placeholder={t("field.acceptancePlaceholder")}
+              onInput={(event) => setForm("acceptance", event.currentTarget.value)}
+            />
+          </label>
+
           <div class="ysb-formrow">
             <label class="ysb-formitem">
               <span>{t("field.directory")}</span>
@@ -986,14 +989,8 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
           <div class="ysb-formrow">
             <label class="ysb-formitem">
               <span>{t("field.status")}</span>
-              <select
-                class="ysb-select"
-                value={form.status}
-                onChange={(event) => setForm("status", event.currentTarget.value)}
-              >
-                <For each={board.statuses()}>
-                  {(status) => <option value={status}>{status}</option>}
-                </For>
+              <select class="ysb-select" value="待分配" disabled>
+                <option value="待分配">待分配</option>
               </select>
             </label>
             <label class="ysb-check ysb-sendcheck">
@@ -1050,7 +1047,8 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
   const [form, setForm] = createStore({
     title: current?.title ?? "",
     description: current?.description ?? "",
-    status: current?.status ?? "待规划",
+    acceptance: current?.record?.acceptance ?? "",
+    status: current?.status ?? "待分配",
     labels: current?.labels ?? [],
   });
   const [busy, setBusy] = createSignal(false);
@@ -1134,6 +1132,16 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
               />
             </label>
 
+            <label class="ysb-formitem">
+              <span>{t("field.acceptance")}</span>
+              <textarea
+                class="ysb-textarea"
+                value={form.acceptance}
+                placeholder={t("field.acceptancePlaceholder")}
+                onInput={(event) => setForm("acceptance", event.currentTarget.value)}
+              />
+            </label>
+
             <div class="ysb-formrow">
               <label class="ysb-formitem">
                 <span>{t("field.status")}</span>
@@ -1142,7 +1150,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
                   value={form.status}
                   onChange={(event) => setForm("status", event.currentTarget.value)}
                 >
-                  <For each={board.statuses()}>
+                  <For each={[...new Set([form.status, "已完成", "废弃"])]}>
                     {(status) => <option value={status}>{status}</option>}
                   </For>
                 </select>
@@ -1178,7 +1186,7 @@ function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) 
               <span>{t("edit.updated", { time: relativeTime(task()!.updated) })}</span>
               <span>{t("edit.cost", { cost: cost(task()!.cost) })}</span>
               <Show when={!task()!.planned}>
-                <span>{task()!.status === "待规划" ? t("edit.unplanned") : t("edit.auto")}</span>
+                <span>{task()!.status === "待分配" ? t("edit.unplanned") : t("edit.auto")}</span>
               </Show>
             </div>
           </div>

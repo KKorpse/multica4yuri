@@ -1,8 +1,9 @@
 import type { SessionInfo } from "@opencode/client";
+import { mainMeta, type Task as TaskRecord } from "./task";
 
 export const METADATA_KEY = "sessionBoard";
 export const DESCRIPTION_KEY = "session-board.task";
-export const DEFAULT_STATUSES = ["待规划", "待开始", "执行中", "待确认", "已完成", "已搁置"];
+export const DEFAULT_STATUSES = ["待分配", "执行中", "已完成", "废弃"];
 
 export type Output = {
   type: "text" | "file" | "url";
@@ -33,6 +34,7 @@ export interface Task extends TaskMeta {
   created: number;
   updated: number;
   cost: number;
+  record?: TaskRecord;
 }
 
 export type Grouping = "status" | "agent" | "directory";
@@ -93,12 +95,25 @@ export function taskOutputs(value: unknown): Output[] {
   });
 }
 
+const STATUS_ALIASES: Record<string, string> = {
+  待规划: "待分配",
+  待开始: "待分配",
+  待确认: "执行中",
+  已搁置: "废弃",
+};
+
+export function normalizeStatus(status: unknown): string {
+  const value = typeof status === "string" ? status.trim() : "";
+  if (DEFAULT_STATUSES.includes(value)) return value;
+  return STATUS_ALIASES[value] ?? DEFAULT_STATUSES[0];
+}
+
 export function taskMeta(session: SessionInfo): TaskMeta {
   const m = record(session.metadata?.[METADATA_KEY]);
   return {
     version: typeof m.version === "number" ? m.version : 1,
     description: typeof m.description === "string" ? m.description : "",
-    status: typeof m.status === "string" && m.status.trim() ? m.status : DEFAULT_STATUSES[0],
+    status: normalizeStatus(m.status),
     labels: Array.isArray(m.labels)
       ? uniqueLabels(m.labels.filter((s) => typeof s === "string"))
       : [],
@@ -126,15 +141,42 @@ export function hasBoardMeta(session: SessionInfo): boolean {
  */
 export function deriveStatus(session: SessionInfo, running: boolean): string {
   if (running) return "执行中";
-  if (session.outcome === "succeeded") return "已完成";
-  if (session.outcome === "failed" || session.outcome === "interrupted") return "待确认";
   const time = record(session.time);
-  if (typeof time.busy === "number" || typeof session.time.idle === "number") return "待确认";
-  return "待规划";
+  if (session.outcome || typeof time.busy === "number" || typeof session.time.idle === "number") {
+    return "执行中";
+  }
+  return "待分配";
 }
 
 export function toTask(session: SessionInfo, running = false): Task {
   const archive = record(record(session.metadata?.yuri).archive).archivedAt;
+  const main = mainMeta(session);
+  if (main) {
+    const self = main.sessions.find((link) => link.role === "main") ?? main.sessions[0];
+    return {
+      version: main.version,
+      description: main.goal,
+      status: main.status,
+      labels: main.labels,
+      rank: main.rank,
+      outputs: main.outputs,
+      id: main.id,
+      title: main.title,
+      directory: self?.directory ?? session.location.directory,
+      projectID: session.projectID,
+      agent: session.agent || "默认 Agent",
+      planned: true,
+      parentID: session.parentID,
+      archived: typeof archive === "number" ? archive > 0 : !!session.time.archived,
+      running,
+      outcome: session.outcome,
+      created: main.createdAt,
+      updated: main.updatedAt,
+      cost: session.cost,
+      record: main,
+    };
+  }
+
   const meta = taskMeta(session);
   const planned = hasBoardMeta(session);
   return {
@@ -223,12 +265,10 @@ export function rankBetween(before?: number, after?: number): number | undefined
 
 const PALETTE = ["#8b8cdd", "#c586c0", "#5b9bd5", "#46a99a", "#b79b5a", "#d4836a", "#8599c2"];
 const STATUS_COLORS: Record<string, string> = {
-  待规划: "#8b94a5",
-  待开始: "#73a3dc",
+  待分配: "#8b94a5",
   执行中: "#d5a653",
-  待确认: "#66b394",
   已完成: "#5b9bd5",
-  已搁置: "#b38086",
+  废弃: "#b38086",
 };
 
 export function labelColor(label: string): string {

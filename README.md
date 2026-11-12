@@ -28,6 +28,13 @@ Yuri chat.
 - **Open chat** — single click opens task details, double-click (or “打开对话”)
   goes to the native session. The board is reachable again from the titlebar
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
+- **Multi-session tasks** — one main session per task; child sessions are
+  created with `zmultica_session_create` (or bound with `zmultica_session_link`).
+  The main session's metadata is the source of truth: goal, acceptance, roster,
+  outputs and the latest 50 notes. Main/sub briefs are written as durable
+  instruction entries; unread notes are injected on each model request.
+- **Four statuses** — `待分配 / 执行中 / 已完成 / 废弃`. Execution start moves
+  待分配 → 执行中 automatically; completion and discard are manual only.
 - **Outputs** — `sessionBoard.outputs` holds deliverables of type `text`,
   `file` or `url`. The widget shows the first two; the details dialog lists all
   of them. File links open with the system default app (desktop), URLs open in
@@ -62,7 +69,7 @@ npm run check
 ```
 
 Runs the TypeScript check, unit tests for the pure model/query logic, the
-production bundle build, and a headless render smoke test. The smoke test loads
+production GUI and server bundle builds, and a headless render smoke test. The smoke test loads
 the built bundle through the real plugin SDK, renders the page in JSDOM with
 stubbed sessions, and asserts that planned and unplanned sessions become cards
 while child sessions stay hidden.

@@ -992,6 +992,97 @@ export const CSS = `
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.ysb-detail-acceptance {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ysb-detail-acceptance strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--foreground);
+  font-weight: 500;
+}
+.ysb-detail-sessionlist,
+.ysb-detail-notelist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ysb-detail-session {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.ysb-detail-session:hover { background: var(--interactive-hover); }
+.ysb-detail-role {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--foreground) 8%, transparent);
+  color: var(--muted-foreground);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.ysb-detail-role.main { color: var(--primary); }
+.ysb-detail-sessiontitle {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-detail-sessiondir {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-detail-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 0.375rem 0.5rem;
+  border-left: 2px solid color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+.ysb-detail-notestatus {
+  color: var(--muted-foreground);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.ysb-detail-notestatus.completed { color: var(--status-success); }
+.ysb-detail-notestatus.failed,
+.ysb-detail-notestatus.blocked { color: var(--status-error); }
+.ysb-detail-notesummary {
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ysb-detail-noteauthor {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10px;
+}
 .ysb-detail-meta {
   display: grid;
   grid-template-columns: auto 1fr;

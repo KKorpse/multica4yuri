@@ -6,6 +6,7 @@ import * as api from "./data";
 import { openSession } from "./host";
 import {
   EMPTY_FILTERS,
+  DEFAULT_STATUSES,
   METADATA_KEY,
   basename,
   columnKeys,
@@ -27,6 +28,7 @@ import {
   type Task,
   type TaskMeta,
 } from "./model";
+import { mainMeta, newTask, subMeta } from "./task";
 import type { T } from "./i18n";
 
 export interface ViewState {
@@ -46,6 +48,7 @@ export interface Column {
 export interface CreateInput {
   title: string;
   description: string;
+  acceptance?: string;
   directory: string;
   agent: string;
   status: string;
@@ -56,6 +59,7 @@ export interface CreateInput {
 export interface SaveInput {
   title: string;
   description: string;
+  acceptance?: string;
   status: string;
   labels: string[];
 }
@@ -151,7 +155,7 @@ export function createBoard(ctx: Context, t: T) {
   const tasks = createMemo(() => {
     const active = running();
     return sessions()
-      .filter((session) => !isSystemSession(session))
+      .filter((session) => !isSystemSession(session) && !subMeta(session))
       .map((session) => toTask(session, active.has(session.id)));
   });
 
@@ -159,8 +163,7 @@ export function createBoard(ctx: Context, t: T) {
 
   const statuses = createMemo(() => {
     const seen = new Set<string>();
-    for (const status of ["待规划", "待开始", "执行中", "待确认", "已完成", "已搁置"])
-      seen.add(status);
+    for (const status of DEFAULT_STATUSES) seen.add(status);
     for (const task of tasks()) seen.add(task.status);
     return [...seen];
   });
@@ -422,38 +425,39 @@ export function createBoard(ctx: Context, t: T) {
   async function create(
     input: CreateInput,
   ): Promise<{ id: string; sent: boolean; sendError?: unknown }> {
-    const meta: TaskMeta = {
-      version: 1,
-      description: input.description.trim(),
-      status: input.status || "待规划",
-      labels: uniqueLabels(input.labels),
-      rank: -Date.now(),
-      outputs: [],
-    };
+    const title = input.title.trim();
     const session = await api.createSession(
       ctx,
       {
-        title: input.title.trim(),
+        title,
         directory: input.directory,
         agent: input.agent || undefined,
-        meta,
       },
       ctx.signal,
     );
-    upsert({ ...session, metadata: { ...session.metadata, [METADATA_KEY]: meta } });
+    const task = newTask(
+      title,
+      input.description.trim(),
+      input.acceptance ?? "",
+      uniqueLabels(input.labels),
+      {
+        id: session.id,
+        title: session.title || title,
+        directory: session.location.directory,
+      },
+    );
+    upsert({ ...session, metadata: { ...session.metadata, [METADATA_KEY]: task } });
     setView("lastDirectory", input.directory);
-    // The create payload already carries metadata on modern servers; this also
-    // records it in Yuri's Host store so archive/projection stay consistent.
     try {
-      await api.writeBoardMeta(ctx, session, meta, ctx.signal);
+      await api.writeBoardMeta(ctx, session, task, ctx.signal);
     } catch {
       /* the record copy still carries the task data */
     }
     let sent = false;
     let sendError: unknown;
-    if (input.send && meta.description) {
+    if (input.send && task.goal) {
       try {
-        await api.sendPrompt(ctx, session.id, meta.description, ctx.signal);
+        await api.sendPrompt(ctx, session.id, task.goal, ctx.signal);
         sent = true;
       } catch (caught) {
         sendError = caught;
@@ -463,17 +467,53 @@ export function createBoard(ctx: Context, t: T) {
     return { id: session.id, sent, sendError };
   }
 
+  function allowedStatus<P extends string>(next: string, previous: P): P {
+    return next === previous || next === "已完成" || next === "废弃" ? (next as P) : previous;
+  }
+
   async function save(id: string, input: SaveInput): Promise<void> {
     const session = sessionById(id);
     if (!session) return;
+    const record = mainMeta(session);
+    const title = input.title.trim() || session.title || "";
+
+    if (record) {
+      const next: typeof record = {
+        ...record,
+        title: title || record.title,
+        goal: input.description.trim(),
+        acceptance: input.acceptance ?? record.acceptance,
+        status: allowedStatus(input.status || record.status, record.status),
+        labels: uniqueLabels(input.labels),
+        updatedAt: Date.now(),
+      };
+      if (next.status !== record.status) next.statusChangedAt = Date.now();
+      patchSession(id, (value) => ({
+        ...value,
+        title: next.title,
+        metadata: { ...value.metadata, [METADATA_KEY]: next },
+      }));
+      try {
+        if (next.title && next.title !== session.title) await api.updateTitle(ctx, id, next.title);
+        await api.writeBoardMeta(ctx, session, next, ctx.signal);
+      } catch (caught) {
+        patchSession(id, (value) => ({
+          ...value,
+          title: session.title,
+          metadata: { ...value.metadata, [METADATA_KEY]: record },
+        }));
+        throw caught;
+      }
+      return;
+    }
+
     const previous = taskMeta(session);
     const next: TaskMeta = {
       ...previous,
       description: input.description.trim(),
-      status: input.status || previous.status,
+      status: allowedStatus(input.status || previous.status, previous.status),
       labels: uniqueLabels(input.labels),
     };
-    const title = input.title.trim() || session.title || "";
     patchMeta(id, next);
     if (title) patchSession(id, (value) => ({ ...value, title }));
     try {
@@ -490,11 +530,11 @@ export function createBoard(ctx: Context, t: T) {
     const session = sessionById(id);
     const task = taskById(id);
     if (!session || !task || view.grouping !== "status") return;
-    const previous = taskMeta(session);
-    let rank = previous.rank;
+    const nextStatus = allowedStatus(status, task.status);
+    let rank = task.rank;
     if (view.sort === "manual" && index !== undefined) {
       const siblings = tasks()
-        .filter((item) => item.status === status && item.id !== id)
+        .filter((item) => item.status === nextStatus && item.id !== id)
         .sort((a, b) => a.rank - b.rank);
       const before = siblings[index - 1]?.rank;
       const after = siblings[index]?.rank;
@@ -502,8 +542,36 @@ export function createBoard(ctx: Context, t: T) {
         rankBetween(before, after) ??
         (before !== undefined ? before + 1e-6 : after !== undefined ? after - 1024 : -Date.now());
     }
-    if (status === task.status && rank === previous.rank) return;
-    const next: TaskMeta = { ...previous, status, rank };
+    if (nextStatus === task.status && rank === task.rank) return;
+
+    const record = mainMeta(session);
+    if (record) {
+      const statusForRecord = allowedStatus(status, record.status);
+      const next: typeof record = {
+        ...record,
+        status: statusForRecord,
+        rank,
+        updatedAt: Date.now(),
+        statusChangedAt: statusForRecord !== record.status ? Date.now() : record.statusChangedAt,
+      };
+      patchSession(id, (value) => ({
+        ...value,
+        metadata: { ...value.metadata, [METADATA_KEY]: next },
+      }));
+      try {
+        await api.writeBoardMeta(ctx, session, next, ctx.signal);
+      } catch (caught) {
+        patchSession(id, (value) => ({
+          ...value,
+          metadata: { ...value.metadata, [METADATA_KEY]: record },
+        }));
+        throw caught;
+      }
+      return;
+    }
+
+    const previous = taskMeta(session);
+    const next: TaskMeta = { ...previous, status: nextStatus, rank };
     patchMeta(id, next);
     try {
       await api.writeBoardMeta(ctx, session, next, ctx.signal);

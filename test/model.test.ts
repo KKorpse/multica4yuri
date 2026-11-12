@@ -33,7 +33,7 @@ test("taskMeta reads the stored task and applies defaults", () => {
   assert.deepEqual(taskMeta(session()), {
     version: 1,
     description: "",
-    status: "待规划",
+    status: "待分配",
     labels: [],
     rank: -1000,
     outputs: [],
@@ -82,18 +82,18 @@ test("toTask marks planned, archived and running sessions", () => {
 });
 
 test("executed sessions derive a first status from their own history", () => {
-  assert.equal(deriveStatus(session(), false), "待规划");
+  assert.equal(deriveStatus(session(), false), "待分配");
   assert.equal(
     deriveStatus(session({ time: { created: 1, updated: 2, idle: 3 } }), false),
-    "待确认",
+    "执行中",
   );
-  assert.equal(deriveStatus(session({ outcome: "succeeded" }), false), "已完成");
-  assert.equal(deriveStatus(session({ outcome: "failed" }), false), "待确认");
-  assert.equal(deriveStatus(session({ outcome: "interrupted" }), false), "待确认");
+  assert.equal(deriveStatus(session({ outcome: "succeeded" }), false), "执行中");
+  assert.equal(deriveStatus(session({ outcome: "failed" }), false), "执行中");
+  assert.equal(deriveStatus(session({ outcome: "interrupted" }), false), "执行中");
   assert.equal(deriveStatus(session({ outcome: "succeeded" }), true), "执行中");
 
   const succeeded = toTask(session({ outcome: "succeeded" }));
-  assert.equal(succeeded.status, "已完成");
+  assert.equal(succeeded.status, "执行中");
   assert.equal(succeeded.planned, false);
 });
 
@@ -207,15 +207,15 @@ test("rankBetween keeps ordering and detects exhausted precision", () => {
 
 test("columns keep the default status order and append custom statuses", () => {
   const tasks = [
-    task({ status: "待规划" }),
+    task({ status: "待分配" }),
     task({ status: "稍后处理" }),
     task({ status: "执行中" }),
   ];
-  assert.deepEqual(columnKeys(tasks, "status", ["待规划", "待开始", "执行中", "已完成"]), [
-    "待规划",
-    "待开始",
+  assert.deepEqual(columnKeys(tasks, "status", ["待分配", "执行中", "已完成", "废弃"]), [
+    "待分配",
     "执行中",
     "已完成",
+    "废弃",
     "稍后处理",
   ]);
 });

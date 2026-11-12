@@ -1,10 +1,11 @@
 {
   "name": "zmultica",
-  "version": "0.11.3",
+  "version": "0.12.0",
   "description": "ZMultica — a session-backed task board for Yuri",
   "type": "module",
   "private": true,
   "exports": {
+    ".": "./dist/index.mjs",
     "./gui-experimental": "./dist/gui-experimental.cjs"
   },
   "files": [
@@ -12,14 +13,15 @@
     "README.md"
   ],
   "scripts": {
-    "build": "vite build",
+    "build": "npm run build:server && vite build",
     "dev": "vite build --watch",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.ts",
     "smoke": "node scripts/smoke.mjs",
     "format": "prettier --write src test scripts *.ts *.json README.md",
     "format:check": "prettier --check src test scripts *.ts *.json README.md",
-    "check": "npm run typecheck && npm test && npm run build && npm run smoke"
+    "check": "npm run typecheck && npm test && npm run build && npm run smoke",
+    "build:server": "esbuild src/server.ts --bundle --format=esm --platform=node --target=node22 --outfile=dist/index.mjs --external:@opencode/plugin --external:@opencode/ai --external:effect"
   },
   "dependencies": {
     "@opencode/plugin": "2.2.1",
@@ -35,5 +37,6 @@
     "typescript": "^5.9.3",
     "vite": "7.3.7",
     "vite-plugin-solid": "2.11.10"
-  }
+  },
+  "main": "./dist/index.mjs"
 }

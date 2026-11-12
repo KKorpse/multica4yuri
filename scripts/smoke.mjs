@@ -203,11 +203,11 @@ assert.ok(
   "executed session rendered",
 );
 const doneColumn = [...dom.window.document.querySelectorAll("[data-ysb-column]")].find(
-  (node) => node.dataset.ysbColumn === "已完成",
+  (node) => node.dataset.ysbColumn === "执行中",
 );
 assert.ok(
   doneColumn?.textContent.includes("Finished session"),
-  "executed session auto-classified as done",
+  "executed session stays in progress until the user completes it",
 );
 assert.equal(doneColumn?.textContent.includes("Plain session"), false);
 assert.ok(!cards.some((text) => text.includes("Hidden child")), "child session hidden");
