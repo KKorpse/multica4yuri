@@ -3,7 +3,7 @@ import type { JSX } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { Board } from "./board";
 import type { T } from "./i18n";
-import { basename, labelColor, relativeTime } from "./model";
+import { basename, labelColor, relativeTime, type Output } from "./model";
 import { StatusIcon } from "./ui";
 
 /** Render markdown links and bare http(s) URLs without pulling in a parser. */
@@ -50,7 +50,13 @@ function preview(text: string): { head: string; tail: string } {
   return { head: text, tail: "" };
 }
 
-export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOpenBoard(): void }) {
+export function TaskStatus(props: {
+  board: Board;
+  t: T;
+  sessionID?: string;
+  onOpenBoard(): void;
+  onOpenOutput(output: Output): void;
+}) {
   onMount(() => props.board.activate());
   onCleanup(() => props.board.deactivate());
 
@@ -60,6 +66,7 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
   const description = () => task()?.description.trim() ?? "";
   const parts = () => preview(description());
   const canExpand = () => !!parts().tail;
+  const outputs = () => task()?.outputs ?? [];
 
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Escape" && details()) {
@@ -140,6 +147,36 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                 </For>
               </div>
             </Show>
+
+            <Show when={outputs().length > 0}>
+              <div class="ysb-widget-outputs">
+                <span class="ysb-widget-outputlabel">{props.t("widget.outputs")}</span>
+                <For each={outputs().slice(0, 2)}>
+                  {(output) =>
+                    output.type === "text" ? (
+                      <span class="ysb-widget-outputtext" title={output.value}>
+                        {output.title}
+                      </span>
+                    ) : (
+                      <button
+                        class="ysb-widget-output"
+                        type="button"
+                        title={output.value}
+                        onClick={() => props.onOpenOutput(output)}
+                      >
+                        <span class="ysb-widget-outputicon" aria-hidden="true">
+                          {output.type === "url" ? "↗" : "▤"}
+                        </span>
+                        <span class="ysb-widget-outputtitle">{output.title}</span>
+                      </button>
+                    )
+                  }
+                </For>
+                <Show when={outputs().length > 2}>
+                  <span class="ysb-widget-outputmore">+{outputs().length - 2}</span>
+                </Show>
+              </div>
+            </Show>
           </>
         )}
       </Show>
@@ -205,6 +242,32 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                         )}
                       </For>
                     </div>
+                  </Show>
+
+                  <Show when={outputs().length > 0}>
+                    <section class="ysb-detail-outputs">
+                      <h3>{props.t("widget.outputs")}</h3>
+                      <For each={outputs()}>
+                        {(output) =>
+                          output.type === "text" ? (
+                            <div class="ysb-detail-outputtext">
+                              <strong>{output.title}</strong>
+                              <p>{output.value}</p>
+                            </div>
+                          ) : (
+                            <button
+                              class="ysb-detail-output"
+                              type="button"
+                              title={output.value}
+                              onClick={() => props.onOpenOutput(output)}
+                            >
+                              <span>{output.title}</span>
+                              <span aria-hidden="true">↗</span>
+                            </button>
+                          )
+                        }
+                      </For>
+                    </section>
                   </Show>
 
                   <dl class="ysb-detail-meta">

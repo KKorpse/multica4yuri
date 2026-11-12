@@ -4,12 +4,19 @@ export const METADATA_KEY = "sessionBoard";
 export const DESCRIPTION_KEY = "session-board.task";
 export const DEFAULT_STATUSES = ["待规划", "待开始", "执行中", "待确认", "已完成", "已搁置"];
 
+export type Output = {
+  type: "text" | "file" | "url";
+  title: string;
+  value: string;
+};
+
 export type TaskMeta = {
   version: number;
   description: string;
   status: string;
   labels: string[];
   rank: number;
+  outputs: Output[];
 };
 
 export interface Task extends TaskMeta {
@@ -74,6 +81,18 @@ export function uniqueLabels(values: readonly string[]): string[] {
     });
 }
 
+export function taskOutputs(value: unknown): Output[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    const entry = record(item);
+    const type =
+      entry.type === "file" || entry.type === "url" || entry.type === "text" ? entry.type : null;
+    const title = typeof entry.title === "string" ? entry.title.trim() : "";
+    const href = typeof entry.value === "string" ? entry.value.trim() : "";
+    return type && title && href ? [{ type, title, value: href }] : [];
+  });
+}
+
 export function taskMeta(session: SessionInfo): TaskMeta {
   const m = record(session.metadata?.[METADATA_KEY]);
   return {
@@ -84,6 +103,7 @@ export function taskMeta(session: SessionInfo): TaskMeta {
       ? uniqueLabels(m.labels.filter((s) => typeof s === "string"))
       : [],
     rank: typeof m.rank === "number" && Number.isFinite(m.rank) ? m.rank : -session.time.created,
+    outputs: taskOutputs(m.outputs),
   };
 }
 

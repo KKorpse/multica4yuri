@@ -428,6 +428,7 @@ export function createBoard(ctx: Context, t: T) {
       status: input.status || "待规划",
       labels: uniqueLabels(input.labels),
       rank: -Date.now(),
+      outputs: [],
     };
     const session = await api.createSession(
       ctx,

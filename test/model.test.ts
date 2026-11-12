@@ -36,6 +36,7 @@ test("taskMeta reads the stored task and applies defaults", () => {
     status: "待规划",
     labels: [],
     rank: -1000,
+    outputs: [],
   });
 
   const stored = session({
@@ -55,6 +56,7 @@ test("taskMeta reads the stored task and applies defaults", () => {
     status: "执行中",
     labels: ["backend", "ui"],
     rank: 32,
+    outputs: [],
   });
 });
 

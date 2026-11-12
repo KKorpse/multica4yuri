@@ -28,6 +28,12 @@ Yuri chat.
 - **Open chat** — single click opens task details, double-click (or “打开对话”)
   goes to the native session. The board is reachable again from the titlebar
   “看板” button, the command palette, or `/plugins/yuri-session-board/board`.
+- **Outputs** — `sessionBoard.outputs` holds deliverables of type `text`,
+  `file` or `url`. The widget shows the first two; the details dialog lists all
+  of them. File links open with the system default app (desktop), URLs open in
+  the browser. Artifacts live under `zmultica-artifacts/<sessionId>/`.
+- **Esc navigation** — opening the board remembers the session you came from;
+  `Esc` closes an open dialog first, otherwise returns to that session.
 - **Right-side task widget** — the open conversation's right work-status column
   (`yuri.work-status`, below Changes) shows the task status, title, directory,
   agent and tags. Descriptions support Markdown/bare-URL links and an expand

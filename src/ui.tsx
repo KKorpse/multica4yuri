@@ -14,7 +14,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { Board, Column } from "./board";
-import { BUILD, isCoarsePointer, isMobileSurface } from "./host";
+import { BUILD, consumeReturnSession, isCoarsePointer, isMobileSurface, openSession } from "./host";
 import type { T } from "./i18n";
 import {
   basename,
@@ -179,6 +179,28 @@ export function BoardPage(props: { board: Board; t: T }) {
     });
   });
   onCleanup(() => board.deactivate());
+
+  onMount(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (board.createOpen()) {
+        event.stopPropagation();
+        board.closeCreate();
+        return;
+      }
+      if (board.editingId()) {
+        event.stopPropagation();
+        board.closeEdit();
+        return;
+      }
+      const id = consumeReturnSession();
+      event.preventDefault();
+      if (id) openSession(id);
+      else window.history.back();
+    };
+    document.addEventListener("keydown", onKey);
+    onCleanup(() => document.removeEventListener("keydown", onKey));
+  });
 
   const canDrag = () => board.view.grouping === "status" && !isCoarsePointer();
 

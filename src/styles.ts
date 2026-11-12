@@ -708,6 +708,46 @@ export const CSS = `
   border-radius: 999px;
   background: currentColor;
 }
+.ysb-widget-outputs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin-top: 2px;
+}
+.ysb-widget-outputlabel {
+  color: var(--muted-foreground);
+  font-size: var(--text-micro, 10px);
+}
+.ysb-widget-output {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-size: var(--text-meta, 11px);
+  text-align: left;
+  cursor: pointer;
+}
+.ysb-widget-output:hover {
+  text-decoration: underline;
+}
+.ysb-widget-outputicon { flex: none; }
+.ysb-widget-outputtitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-widget-outputtext,
+.ysb-widget-outputmore {
+  color: var(--muted-foreground);
+  font-size: var(--text-meta, 11px);
+}
 .ysb-widget-actions {
   display: flex;
   gap: 6px;
@@ -832,6 +872,46 @@ export const CSS = `
   color: var(--primary);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+.ysb-detail-outputs h3 {
+  margin: 0 0 6px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+}
+.ysb-detail-output {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
+  border-radius: 6px;
+  background: var(--surface-muted, color-mix(in srgb, var(--foreground) 4%, transparent));
+  color: var(--primary);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.ysb-detail-output + .ysb-detail-output { margin-top: 6px; }
+.ysb-detail-output:hover { background: var(--interactive-hover); }
+.ysb-detail-outputtext {
+  margin-top: 6px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ysb-detail-outputtext strong {
+  display: block;
+  color: var(--foreground);
+  font-weight: 500;
+}
+.ysb-detail-outputtext p {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .ysb-detail-meta {
   display: grid;
