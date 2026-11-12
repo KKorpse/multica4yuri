@@ -2,7 +2,7 @@ import { Contract, Registry, type Context } from "@opencode/plugin/gui";
 import type { JSX } from "solid-js";
 
 export const PAGE_ID = "board";
-export const BUILD = "0.13.2";
+export const BUILD = "0.13.3";
 
 /** Touch devices never mount the board page at all. */
 export function isTouchDevice(): boolean {

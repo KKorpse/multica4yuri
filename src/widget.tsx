@@ -19,9 +19,24 @@ function preview(text: string): { head: string; tail: string } {
 
 const markdown = new MarkdownIt({ html: false, linkify: true, breaks: true });
 
-function Blocks(props: { text: string }) {
+function Blocks(props: { text: string; onOpenLink?(href: string): void }) {
   const html = createMemo(() => markdown.render(props.text));
-  return <div class="ysb-widget-markdown" innerHTML={html()} />;
+  return (
+    <div
+      class="ysb-widget-markdown"
+      innerHTML={html()}
+      onClick={(event) => {
+        const target = event.target as HTMLElement | null;
+        const anchor = target?.closest?.("a");
+        if (!anchor) return;
+        const href = anchor.getAttribute("href");
+        if (!href) return;
+        event.preventDefault();
+        event.stopPropagation();
+        props.onOpenLink?.(href);
+      }}
+    />
+  );
 }
 
 function Chevron(props: { up?: boolean }) {
@@ -69,6 +84,26 @@ export function TaskStatus(props: {
   const [descEditing, setDescEditing] = createSignal(false);
   const [descDraft, setDescDraft] = createSignal("");
   const sessions = () => task()?.record?.sessions ?? [];
+
+  function openLink(href: string) {
+    if (/^https?:\/\//i.test(href)) {
+      props.ctx.system.openExternal(href);
+      return;
+    }
+    try {
+      const opened = props.ctx.links.open({
+        href,
+        exact: true,
+        base: task()?.directory,
+        session: props.ctx.sessions.current(),
+      });
+      if (opened) return;
+    } catch {
+      /* fall through to a harmless fallback */
+    }
+    void props.ctx.system.copy(href);
+    props.ctx.toast.show({ title: props.t("output.copied") });
+  }
 
   function startEditDocument() {
     setDocDraft(doc());
@@ -155,7 +190,7 @@ export function TaskStatus(props: {
                     </button>
                   </Show>
                 </header>
-                <Blocks text={expanded() ? description() : parts().head} />
+                <Blocks text={expanded() ? description() : parts().head} onOpenLink={openLink} />
               </section>
             </Show>
 
@@ -198,7 +233,7 @@ export function TaskStatus(props: {
                     </button>
                   </Show>
                 </header>
-                <Blocks text={outputsExpanded() ? doc() : docParts().head} />
+                <Blocks text={outputsExpanded() ? doc() : docParts().head} onOpenLink={openLink} />
               </section>
             </Show>
           </>
@@ -290,7 +325,7 @@ export function TaskStatus(props: {
                           </div>
                         }
                       >
-                        <Blocks text={task().description} />
+                        <Blocks text={task().description} onOpenLink={openLink} />
                       </Show>
                     </section>
                   </Show>
@@ -353,7 +388,7 @@ export function TaskStatus(props: {
                           </div>
                         }
                       >
-                        <Blocks text={doc()} />
+                        <Blocks text={doc()} onOpenLink={openLink} />
                       </Show>
                     </section>
                   </Show>
