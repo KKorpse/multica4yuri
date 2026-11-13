@@ -232,7 +232,10 @@ export function createBoard(ctx: Context, t: T) {
   }
 
   function taskById(id: string): Task | undefined {
-    return tasks().find((task) => task.id === id);
+    return tasks().find(
+      (task) =>
+        task.id === id || task.record?.sessions.some((link) => link.sessionId === id) === true,
+    );
   }
 
   function patchSession(id: string, patch: (session: SessionInfo) => SessionInfo) {
