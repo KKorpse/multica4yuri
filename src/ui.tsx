@@ -701,16 +701,6 @@ export function BoardPage(props: { board: Board; t: T }) {
                             class="ysb-menuitem"
                             type="button"
                             onClick={() => {
-                              board.edit(task().id);
-                              setMenu(undefined);
-                            }}
-                          >
-                            {t("widget.details")}
-                          </button>
-                          <button
-                            class="ysb-menuitem"
-                            type="button"
-                            onClick={() => {
                               board.open(task().id);
                               setMenu(undefined);
                             }}

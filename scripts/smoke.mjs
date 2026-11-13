@@ -368,6 +368,19 @@ assert.ok(
   `detail dialog chat action reached the session route (${pushes.join(", ")})`,
 );
 
+// The card context menu keeps status actions only; details live on the card button.
+firstCard.dispatchEvent(
+  new dom.window.MouseEvent("contextmenu", { bubbles: true, clientX: 12, clientY: 12 }),
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+const menuText = dom.window.document.querySelector(".ysb-menu")?.textContent ?? "";
+assert.match(menuText, /menu\.urgent/, "context menu rendered");
+assert.equal(menuText.includes("widget.details"), false, "context menu has no details entry");
+dom.window.document
+  .querySelector(".ysb-menu-backdrop")
+  ?.dispatchEvent(new dom.window.MouseEvent("mousedown", { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 50));
+
 // Grouping by tag and the tag manager must render from the label catalog.
 const groupSelect = dom.window.document.querySelector(".ysb-toolbar select");
 groupSelect.value = "label";

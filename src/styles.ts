@@ -1111,6 +1111,9 @@ export const CSS = `
 }
 .ysb-detail-close {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 28px;
   height: 28px;
   padding: 0;
