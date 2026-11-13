@@ -696,17 +696,6 @@ export function BoardPage(props: { board: Board; t: T }) {
                               {t("menu.reopen")}
                             </button>
                           </Show>
-                          <div class="ysb-menusep" />
-                          <button
-                            class="ysb-menuitem"
-                            type="button"
-                            onClick={() => {
-                              board.open(task().id);
-                              setMenu(undefined);
-                            }}
-                          >
-                            {t("action.chat")}
-                          </button>
                         </>
                       )}
                     </Show>

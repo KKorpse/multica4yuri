@@ -376,6 +376,7 @@ await new Promise((resolve) => setTimeout(resolve, 50));
 const menuText = dom.window.document.querySelector(".ysb-menu")?.textContent ?? "";
 assert.match(menuText, /menu\.urgent/, "context menu rendered");
 assert.equal(menuText.includes("widget.details"), false, "context menu has no details entry");
+assert.equal(menuText.includes("action.chat"), false, "context menu has no open-chat entry");
 dom.window.document
   .querySelector(".ysb-menu-backdrop")
   ?.dispatchEvent(new dom.window.MouseEvent("mousedown", { bubbles: true }));
