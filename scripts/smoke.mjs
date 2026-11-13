@@ -325,20 +325,47 @@ assert.equal(doneColumn?.textContent.includes("Plain session"), false);
 assert.ok(!cards.some((text) => text.includes("Hidden child")), "child session hidden");
 assert.match(dom.window.document.body.textContent, /page\.title/, "page title rendered");
 
-// The detail dialog's “open chat” action must reach Yuri's session route.
+// Card click opens the chat; every card has a separate details button.
 const pushes = [];
 dom.window.history.pushState = (_state, _title, url) => pushes.push(String(url));
-dom.window.document.querySelector("[data-ysb-card]").click();
+const cardsWithDetails = [...dom.window.document.querySelectorAll("[data-ysb-card]")].map((card) =>
+  card.querySelector(".ysb-carddetails"),
+);
+assert.equal(cardsWithDetails.length, 3, "every card renders a details button");
+assert.ok(cardsWithDetails.every(Boolean), "details buttons are present");
+
+const plainCard = [...dom.window.document.querySelectorAll("[data-ysb-card]")].find((card) =>
+  card.textContent.includes("Plain session"),
+);
+plainCard.querySelector(".ysb-carddetails").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+const plainDetail = dom.window.document.querySelector(".ysb-detail");
+assert.ok(plainDetail, "details button opens the task dialog");
+assert.match(plainDetail.textContent, /filter\.labels/, "details always shows the tag section");
+assert.match(plainDetail.textContent, /label\.none/, "details shows the empty tag hint");
+dom.window.document.querySelector(".ysb-detail-close").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+
+const firstCard = dom.window.document.querySelector("[data-ysb-card]");
+firstCard.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.ok(
+  pushes.some((url) => url.includes("/session/")),
+  `card click opens the session route (${pushes.join(", ")})`,
+);
+
+firstCard.querySelector(".ysb-carddetails").click();
 await new Promise((resolve) => setTimeout(resolve, 50));
 const chatButton = [...dom.window.document.querySelectorAll("button")].find((button) =>
   button.textContent.includes("action.chat"),
 );
 assert.ok(chatButton, "open chat button rendered");
+const beforeChat = pushes.length;
 chatButton.click();
 await new Promise((resolve) => setTimeout(resolve, 50));
 assert.ok(
-  pushes.some((url) => url.includes("/session/")),
-  `open chat reached the session route (${pushes.join(", ")})`,
+  pushes.length > beforeChat && pushes.at(-1).includes("/session/"),
+  `detail dialog chat action reached the session route (${pushes.join(", ")})`,
 );
 
 // Grouping by tag and the tag manager must render from the label catalog.

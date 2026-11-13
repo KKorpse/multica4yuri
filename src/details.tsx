@@ -20,6 +20,7 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
   const [title, setTitle] = createSignal(task()?.title ?? "");
   const [status, setStatus] = createSignal(task()?.status ?? "待分配");
   const [labelValue, setLabelValue] = createSignal<string[]>(task()?.labels ?? []);
+  const [labelsEditing, setLabelsEditing] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
 
   function openLink(href: string) {
@@ -55,6 +56,28 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
     setDocEditing(false);
   }
 
+  async function saveLabels() {
+    const current = task();
+    if (!current || busy()) return;
+    setBusy(true);
+    try {
+      await props.board.save(current.id, {
+        title: current.title,
+        description: current.description,
+        status: current.status,
+        labels: labelValue(),
+      });
+      setLabelsEditing(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEditLabels() {
+    setLabelValue(task()?.labels ?? []);
+    setLabelsEditing(true);
+  }
+
   async function saveSettings() {
     const current = task();
     if (!current || busy()) return;
@@ -64,7 +87,7 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
         title: title(),
         description: current.description,
         status: status(),
-        labels: labelValue(),
+        labels: current.labels,
       });
       props.onClose();
     } finally {
@@ -176,21 +199,74 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                   </section>
                 </Show>
 
-                <Show when={task().labels.length > 0}>
-                  <div class="ysb-widget-labels">
-                    <For each={task().labels}>
-                      {(label) => (
-                        <span
-                          class="ysb-widget-label"
-                          style={{ "--ysb-label": props.board.colorOfLabel(label) }}
-                        >
-                          <span class="ysb-widget-chipdot" />
-                          {label}
-                        </span>
-                      )}
-                    </For>
+                <section class="ysb-detail-section">
+                  <div class="ysb-detail-sectionhead">
+                    <h3>{props.t("filter.labels")}</h3>
+                    <Show when={!labelsEditing()}>
+                      <button
+                        class="ysb-widget-sectiontoggle"
+                        type="button"
+                        onClick={startEditLabels}
+                      >
+                        {props.t("action.edit")}
+                      </button>
+                    </Show>
                   </div>
-                </Show>
+                  <Show
+                    when={!labelsEditing()}
+                    fallback={
+                      <div class="ysb-detail-docedit">
+                        <TagEditor
+                          value={labelValue()}
+                          suggestions={props.board.labelOptions()}
+                          placeholder={props.t("field.labelsPlaceholder")}
+                          t={props.t}
+                          colorOf={props.board.colorOfLabel}
+                          onChange={setLabelValue}
+                        />
+                        <div class="ysb-detail-docactions">
+                          <button
+                            class="ysb-widget-action"
+                            type="button"
+                            onClick={() => {
+                              setLabelValue(task()?.labels ?? []);
+                              setLabelsEditing(false);
+                            }}
+                          >
+                            {props.t("action.cancel")}
+                          </button>
+                          <button
+                            class="ysb-widget-action primary"
+                            type="button"
+                            disabled={busy()}
+                            onClick={() => void saveLabels()}
+                          >
+                            {props.t("action.save")}
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  >
+                    <Show
+                      when={task().labels.length > 0}
+                      fallback={<p class="ysb-hint">{props.t("label.none")}</p>}
+                    >
+                      <div class="ysb-widget-labels">
+                        <For each={task().labels}>
+                          {(label) => (
+                            <span
+                              class="ysb-widget-label"
+                              style={{ "--ysb-label": props.board.colorOfLabel(label) }}
+                            >
+                              <span class="ysb-widget-chipdot" />
+                              {label}
+                            </span>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
+                  </Show>
+                </section>
 
                 <Show when={doc() || docEditing()}>
                   <section class="ysb-detail-section">
@@ -305,17 +381,6 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                         </For>
                       </select>
                     </label>
-                    <div class="ysb-formitem">
-                      <span>{props.t("field.labels")}</span>
-                      <TagEditor
-                        value={labelValue()}
-                        suggestions={props.board.labelOptions()}
-                        placeholder={props.t("field.labelsPlaceholder")}
-                        t={props.t}
-                        colorOf={props.board.colorOfLabel}
-                        onChange={setLabelValue}
-                      />
-                    </div>
                   </div>
                   <div class="ysb-detail-docactions">
                     <button

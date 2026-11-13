@@ -321,6 +321,23 @@ export const CSS = `
   background: color-mix(in srgb, #e06c75 10%, var(--ysb-card));
 }
 .ysb-cardtop { display: flex; align-items: center; justify-content: space-between; min-height: 14px; gap: 6px; }
+.ysb-cardtopmeta { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.ysb-carddetails {
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--ysb-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ysb-muted);
+  font: inherit;
+  font-size: 10.5px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ysb-carddetails:hover {
+  background: var(--ysb-hover);
+  color: var(--ysb-fg);
+}
 .ysb-cardid {
   color: var(--ysb-muted);
   font-size: 11px;
@@ -980,7 +997,7 @@ export const CSS = `
 }
 .ysb-detail-settingsrow {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 .ysb-detail-close {

@@ -773,21 +773,37 @@ function Card(props: {
         props.onDragStart(props.task.id);
       }}
       onDragEnd={() => props.onDragEnd()}
-      onClick={() => props.onEdit(props.task.id)}
+      onClick={() => props.onChat(props.task.id)}
       onContextMenu={(event) => {
         event.preventDefault();
         props.onContextMenu(props.task.id, event.clientX, event.clientY);
       }}
-      onDblClick={() => props.onChat(props.task.id)}
       onKeyDown={(event) => {
-        if (event.key === "Enter") props.onEdit(props.task.id);
+        if (event.target === event.currentTarget && event.key === "Enter")
+          props.onChat(props.task.id);
       }}
     >
       <div class="ysb-cardtop">
         <span class="ysb-cardid">#{props.task.code ?? shortId(props.task.id)}</span>
-        <Show when={props.task.running}>
-          <span class="ysb-run" title={props.t("card.running")} />
-        </Show>
+        <span class="ysb-cardtopmeta">
+          <Show when={props.task.running}>
+            <span class="ysb-run" title={props.t("card.running")} />
+          </Show>
+          <button
+            class="ysb-carddetails"
+            type="button"
+            title={props.t("widget.details")}
+            aria-label={props.t("widget.details")}
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onEdit(props.task.id);
+            }}
+          >
+            {props.t("widget.details")}
+          </button>
+        </span>
       </div>
       <p class="ysb-cardtitle">{props.task.title}</p>
       <Show when={props.task.description}>
