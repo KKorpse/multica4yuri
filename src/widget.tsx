@@ -4,7 +4,7 @@ import type { T } from "./i18n";
 import { TaskDetails } from "./details";
 import { Chevron } from "./icons";
 import { Blocks } from "./markdown";
-import { basename, labelColor, relativeTime } from "./model";
+import { basename, relativeTime } from "./model";
 import { StatusIcon } from "./status";
 
 function preview(text: string): { head: string; tail: string } {
@@ -99,7 +99,10 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
               <div class="ysb-widget-labels">
                 <For each={task().labels.slice(0, 2)}>
                   {(label) => (
-                    <span class="ysb-widget-label" style={{ "--ysb-label": labelColor(label) }}>
+                    <span
+                      class="ysb-widget-label"
+                      style={{ "--ysb-label": props.board.colorOfLabel(label) }}
+                    >
                       <span class="ysb-widget-chipdot" />
                       {label}
                     </span>

@@ -23,6 +23,7 @@ import {
   type ArchiveFilter,
   type Filters,
   type Grouping,
+  type LabelInfo,
   type Sort,
   type Task,
   type TaskMeta,
@@ -89,7 +90,11 @@ function loadView(): ViewState {
     const archive = text("archive", "active");
     return {
       grouping:
-        parsed.grouping === "agent" || parsed.grouping === "directory" ? parsed.grouping : "status",
+        parsed.grouping === "agent" ||
+        parsed.grouping === "directory" ||
+        parsed.grouping === "label"
+          ? parsed.grouping
+          : "status",
       sort:
         parsed.sort === "updated" || parsed.sort === "created" || parsed.sort === "title"
           ? parsed.sort
@@ -125,6 +130,7 @@ function eventSessionID(event: EventLike): string | undefined {
 export function createBoard(ctx: Context, t: T) {
   const [sessions, setSessions] = createSignal<SessionInfo[]>([]);
   const [records, setRecords] = createSignal<TaskRecord[]>([]);
+  const [labels, setLabels] = createSignal<LabelInfo[]>([]);
   const [projects, setProjects] = createSignal<Array<{ path: string; label: string }>>([]);
   const [running, setRunning] = createSignal<ReadonlySet<string>>(new Set());
   const [loading, setLoading] = createSignal(true);
@@ -191,6 +197,14 @@ export function createBoard(ctx: Context, t: T) {
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "zh-CN"));
   });
 
+  const labelOptions = createMemo(() =>
+    labels().map((label) => ({ name: label.name, count: label.count })),
+  );
+
+  function colorOfLabel(name: string): string {
+    return labels().find((label) => label.name === name)?.color ?? labelColor(name);
+  }
+
   const agentOptions = createMemo(() => {
     const seen = new Set<string>();
     for (const task of tasks()) seen.add(task.agent);
@@ -213,6 +227,20 @@ export function createBoard(ctx: Context, t: T) {
 
   const columns = createMemo<Column[]>(() => {
     const list = visible();
+    if (view.grouping === "label") {
+      const untagged = t("label.untagged");
+      const keys = [
+        ...new Set(list.flatMap((task) => (task.labels.length ? task.labels : [untagged]))),
+      ].sort((a, b) => a.localeCompare(b, "zh-CN"));
+      return keys.map((key) => ({
+        key,
+        label: key,
+        color: key === untagged ? statusColor("待分配") : colorOfLabel(key),
+        tasks: list.filter((task) =>
+          key === untagged ? task.labels.length === 0 : task.labels.includes(key),
+        ),
+      }));
+    }
     const keys = view.filters.statuses.length ? view.filters.statuses : statuses();
     return columnKeys(list, view.grouping, keys).map((key) => {
       const items = list.filter((task) => groupKey(task, view.grouping) === key);
@@ -318,14 +346,16 @@ export function createBoard(ctx: Context, t: T) {
       if (request !== generation) return;
       const merged = new Map<string, SessionInfo>();
       for (const session of [...active, ...archived]) merged.set(session.id, session);
-      const [live, taskRecords] = await Promise.all([
+      const [live, taskRecords, labelList] = await Promise.all([
         ctx.client.session.active({ signal: ctx.signal }).catch(() => ({})),
         ctx.client.rpc(BoardRpc).list({}) as Promise<TaskRecord[]>,
+        ctx.client.rpc(BoardRpc).labelList({}) as Promise<LabelInfo[]>,
       ]);
       if (request !== generation) return;
       batch(() => {
         setSessions([...merged.values()]);
         setRecords(taskRecords);
+        setLabels(labelList);
         setRunning(new Set(Object.keys(live)));
         setLoading(false);
         setRefreshedAt(Date.now());
@@ -550,6 +580,26 @@ export function createBoard(ctx: Context, t: T) {
     void reload(true);
   }
 
+  async function createLabel(name: string, color?: string): Promise<LabelInfo> {
+    const label = (await ctx.client.rpc(BoardRpc).labelCreate({ name, color })) as LabelInfo;
+    setLabels((list) =>
+      [...list.filter((item) => item.id !== label.id), { ...label, count: 0 }].sort((a, b) =>
+        a.name.localeCompare(b.name, "zh-CN"),
+      ),
+    );
+    return label;
+  }
+
+  async function renameLabel(id: string, name: string): Promise<void> {
+    await ctx.client.rpc(BoardRpc).labelRename({ id, name });
+    await reload(true);
+  }
+
+  async function deleteLabel(id: string): Promise<void> {
+    await ctx.client.rpc(BoardRpc).labelDelete({ id });
+    await reload(true);
+  }
+
   async function move(id: string, status: string, index?: number): Promise<void> {
     const session = sessionById(id);
     const task = taskById(id);
@@ -712,6 +762,9 @@ export function createBoard(ctx: Context, t: T) {
     statuses,
     statusCounts,
     labelCounts,
+    labels,
+    labelOptions,
+    colorOfLabel,
     agentOptions,
     directoryOptions,
     runningCount,
@@ -735,6 +788,9 @@ export function createBoard(ctx: Context, t: T) {
     create,
     save,
     saveDocument,
+    createLabel,
+    renameLabel,
+    deleteLabel,
     reopen,
     setUrgent,
     move,

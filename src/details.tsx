@@ -4,8 +4,9 @@ import type { Board } from "./board";
 import type { T } from "./i18n";
 import { Blocks } from "./markdown";
 import { SpriteIcon } from "./icons";
-import { basename, labelColor, relativeTime } from "./model";
+import { basename, relativeTime } from "./model";
 import { StatusIcon } from "./status";
+import { TagEditor } from "./tag";
 
 export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): void }) {
   const task = () => props.board.task(props.id);
@@ -18,7 +19,7 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
   const [docDraft, setDocDraft] = createSignal("");
   const [title, setTitle] = createSignal(task()?.title ?? "");
   const [status, setStatus] = createSignal(task()?.status ?? "待分配");
-  const [labelText, setLabelText] = createSignal((task()?.labels ?? []).join(", "));
+  const [labelValue, setLabelValue] = createSignal<string[]>(task()?.labels ?? []);
   const [busy, setBusy] = createSignal(false);
 
   function openLink(href: string) {
@@ -63,10 +64,7 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
         title: title(),
         description: current.description,
         status: status(),
-        labels: labelText()
-          .split(",")
-          .map((label) => label.trim())
-          .filter(Boolean),
+        labels: labelValue(),
       });
       props.onClose();
     } finally {
@@ -182,7 +180,10 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                   <div class="ysb-widget-labels">
                     <For each={task().labels}>
                       {(label) => (
-                        <span class="ysb-widget-label" style={{ "--ysb-label": labelColor(label) }}>
+                        <span
+                          class="ysb-widget-label"
+                          style={{ "--ysb-label": props.board.colorOfLabel(label) }}
+                        >
                           <span class="ysb-widget-chipdot" />
                           {label}
                         </span>
@@ -304,15 +305,17 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                         </For>
                       </select>
                     </label>
-                    <label class="ysb-formitem">
+                    <div class="ysb-formitem">
                       <span>{props.t("field.labels")}</span>
-                      <input
-                        class="ysb-input"
-                        value={labelText()}
+                      <TagEditor
+                        value={labelValue()}
+                        suggestions={props.board.labelOptions()}
                         placeholder={props.t("field.labelsPlaceholder")}
-                        onInput={(event) => setLabelText(event.currentTarget.value)}
+                        t={props.t}
+                        colorOf={props.board.colorOfLabel}
+                        onChange={setLabelValue}
                       />
-                    </label>
+                    </div>
                   </div>
                   <div class="ysb-detail-docactions">
                     <button

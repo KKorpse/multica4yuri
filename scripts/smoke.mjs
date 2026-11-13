@@ -233,6 +233,7 @@ const ctx = {
     project: { list: async () => [] },
     rpc: () => ({
       list: async () => taskRecords,
+      labelList: async () => [{ id: "lbl_ui", name: "ui", color: "#8b8cdd", count: 3 }],
       create: async () => {
         throw new Error("not implemented in smoke");
       },
@@ -338,6 +339,32 @@ await new Promise((resolve) => setTimeout(resolve, 50));
 assert.ok(
   pushes.some((url) => url.includes("/session/")),
   `open chat reached the session route (${pushes.join(", ")})`,
+);
+
+// Grouping by tag and the tag manager must render from the label catalog.
+const groupSelect = dom.window.document.querySelector(".ysb-toolbar select");
+groupSelect.value = "label";
+groupSelect.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 50));
+const columns = [...dom.window.document.querySelectorAll("[data-ysb-column]")].map(
+  (node) => node.dataset.ysbColumn,
+);
+assert.ok(columns.includes("ui"), `tag grouping shows the ui column (${columns.join(", ")})`);
+assert.ok(
+  columns.includes("无标签") || columns.includes("label.untagged"),
+  `tag grouping shows the untagged column (${columns.join(", ")})`,
+);
+const manageButton = [...dom.window.document.querySelectorAll("button")].find((button) =>
+  button.textContent.includes("label.manage"),
+);
+assert.ok(manageButton, "tag manager button rendered");
+manageButton.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.match(dom.window.document.body.textContent, /label\.title/, "tag manager opened");
+assert.equal(
+  dom.window.document.querySelectorAll(".ysb-labelrow").length,
+  1,
+  "tag manager lists labels",
 );
 
 Object.defineProperty(dom.window, "matchMedia", {

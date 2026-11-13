@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import type { LabelInfo } from "./model";
 import type { Task } from "./task";
 
 type Json = any;
@@ -117,12 +118,33 @@ function listTasks() {
     console.log("没有匹配的任务");
     return;
   }
-  for (const task of result) {
-    const sessions = task.sessions.length;
-    console.log(
-      `${(task.code || task.id).padEnd(6)}  ${task.status.padEnd(4)}  ${task.title}  (${sessions} 会话, ${formatDate(task.updatedAt)})`,
-    );
+  const group = flag("group");
+  if (group === "label") {
+    const groups = new Map<string, Task[]>();
+    for (const task of result) {
+      for (const label of task.labels.length ? task.labels : ["无标签"]) {
+        const list = groups.get(label) ?? [];
+        list.push(task);
+        groups.set(label, list);
+      }
+    }
+    for (const [label, list] of [...groups.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0], "zh-CN"),
+    )) {
+      console.log(`# ${label}`);
+      for (const task of list) printTaskLine(task);
+    }
+    return;
   }
+  for (const task of result) printTaskLine(task);
+}
+
+function printTaskLine(task: Task) {
+  const sessions = task.sessions.length;
+  const labels = task.labels.length ? `  [${task.labels.join(", ")}]` : "";
+  console.log(
+    `${(task.code || task.id).padEnd(6)}  ${task.status.padEnd(4)}  ${task.title}${labels}  (${sessions} 会话, ${formatDate(task.updatedAt)})`,
+  );
 }
 
 function showTask(task: Task) {
@@ -248,16 +270,70 @@ function sessionTail(sessionID: string | undefined) {
   console.log(result.text || "（暂无回复）");
 }
 
+function listLabels() {
+  const result = rpc("labelList") as LabelInfo[];
+  if (json) return print(result);
+  if (!result.length) {
+    console.log("还没有标签");
+    return;
+  }
+  for (const label of result) {
+    console.log(
+      `${label.name.padEnd(12)}  ${String(label.count).padStart(3)}  ${label.color}  ${label.id}`,
+    );
+  }
+}
+
+function resolveLabel(ref: string | undefined): LabelInfo {
+  if (!ref) throw new Error("缺少标签名");
+  const all = rpc("labelList") as LabelInfo[];
+  const label =
+    all.find((item) => item.id === ref) ??
+    all.find((item) => item.name.toLocaleLowerCase() === ref.toLocaleLowerCase());
+  if (!label) throw new Error(`标签不存在：${ref}`);
+  return label;
+}
+
+function createLabel() {
+  const name = positionals[2];
+  if (!name) throw new Error("缺少标签名");
+  const label = rpc("labelCreate", { name, color: flag("color") }) as LabelInfo;
+  if (json) return print(label);
+  console.log(`已创建标签 ${label.name}  ${label.color}  ${label.id}`);
+}
+
+function renameLabel() {
+  const target = positionals[3];
+  if (!target) throw new Error("用法：label rename <旧名> <新名>");
+  const label = resolveLabel(positionals[2]);
+  const updated = rpc("labelRename", { id: label.id, name: target }) as LabelInfo;
+  if (json) return print(updated);
+  console.log(`已重命名 ${label.name} → ${updated?.name ?? target}`);
+}
+
+function deleteLabel() {
+  const label = resolveLabel(positionals[2]);
+  rpc("labelDelete", { id: label.id });
+  if (json) return print({ ok: true, id: label.id, name: label.name });
+  console.log(`已删除标签 ${label.name}（从 ${label.count} 个任务移除）`);
+}
+
 function help() {
   console.log(`zmultica <command> <subcommand> [flags]
 
 任务
-  task list [--status 执行中] [--since 7d] [--label 支付] [--search 关键字] [--limit 50] [--json]
+  task list [--status 执行中] [--since 7d] [--label 支付] [--group label] [--search 关键字] [--limit 50] [--json]
   task get <ZM-0>
   task create --title "..." [--description "..."] [--labels a,b] [--directory /path] [--agent build]
   task update <ZM-0> [--title "..."] [--description "..."] [--labels a,b] [--status 已完成|废弃]
   task complete <ZM-0>
   task discard <ZM-0>
+
+标签
+  label list
+  label create <名称> [--color #8b8cdd]
+  label rename <旧名|ID> <新名>
+  label delete <名称|ID>
 
 产出
   document get <ZM-0>
@@ -290,6 +366,10 @@ try {
   else if (group === "session" && action === "create") sessionCreate(ref);
   else if (group === "session" && action === "link") sessionLink(ref);
   else if (group === "session" && action === "tail") sessionTail(ref);
+  else if (group === "label" && action === "list") listLabels();
+  else if (group === "label" && action === "create") createLabel();
+  else if (group === "label" && action === "rename") renameLabel();
+  else if (group === "label" && action === "delete") deleteLabel();
   else {
     help();
     process.exitCode = 1;

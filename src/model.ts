@@ -40,9 +40,16 @@ export interface Task extends TaskMeta {
   record?: TaskRecord;
 }
 
-export type Grouping = "status" | "agent" | "directory";
+export type Grouping = "status" | "agent" | "directory" | "label";
 export type Sort = "manual" | "updated" | "created" | "title";
 export type ArchiveFilter = "active" | "all" | "archived";
+
+export type LabelInfo = {
+  id: string;
+  name: string;
+  color: string;
+  count: number;
+};
 
 export interface Filters {
   search: string;
@@ -250,7 +257,7 @@ export function sortTasks(tasks: readonly Task[], sort: Sort): Task[] {
 }
 
 export function groupKey(task: Task, grouping: Grouping): string {
-  return task[grouping];
+  return grouping === "label" ? (task.labels[0] ?? "") : task[grouping];
 }
 
 export function columnKeys(
@@ -259,6 +266,11 @@ export function columnKeys(
   statuses: readonly string[],
 ): string[] {
   if (grouping === "status") return [...new Set([...statuses, ...tasks.map((t) => t.status)])];
+  if (grouping === "label") {
+    return [...new Set(tasks.flatMap((task) => task.labels))].sort((a, b) =>
+      a.localeCompare(b, "zh-CN"),
+    );
+  }
   return [...new Set(tasks.map((t) => groupKey(t, grouping)))].sort((a, b) =>
     a.localeCompare(b, "zh-CN"),
   );
@@ -279,7 +291,22 @@ export function rankBetween(before?: number, after?: number): number | undefined
     : undefined;
 }
 
-const PALETTE = ["#8b8cdd", "#c586c0", "#5b9bd5", "#46a99a", "#b79b5a", "#d4836a", "#8599c2"];
+const PALETTE = [
+  "#8b8cdd",
+  "#c586c0",
+  "#5b9bd5",
+  "#46a99a",
+  "#b79b5a",
+  "#d4836a",
+  "#8599c2",
+  "#7fae6a",
+  "#c48a5e",
+  "#6fa8b5",
+  "#b07fc0",
+  "#a3a35c",
+  "#d07f9a",
+  "#6f9fd8",
+];
 const STATUS_COLORS: Record<string, string> = {
   待分配: "#8b94a5",
   执行中: "#d5a653",

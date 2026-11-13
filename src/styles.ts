@@ -483,6 +483,18 @@ export const CSS = `
   resize: vertical;
 }
 .ysb-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ysb-labelcreate { display: flex; align-items: center; gap: 8px; }
+.ysb-labelcreate .ysb-input { flex: 1; }
+.ysb-labellist { display: flex; flex-direction: column; gap: 6px; }
+.ysb-labelrow { display: flex; align-items: center; gap: 8px; }
+.ysb-labelrow .ysb-input { flex: 1; }
+.ysb-labelcount {
+  min-width: 28px;
+  color: var(--ysb-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .ysb-tag {
   display: inline-flex;
   align-items: center;

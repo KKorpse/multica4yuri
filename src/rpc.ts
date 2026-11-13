@@ -87,6 +87,34 @@ export const BoardRpc = {
       },
       output: { type: "object" },
     },
+    labelList: {
+      input: { type: "object", properties: {} },
+      output: { type: "array" },
+    },
+    labelCreate: {
+      input: {
+        type: "object",
+        properties: { name: { type: "string" }, color: { type: "string" } },
+        required: ["name"],
+      },
+      output: { type: "object" },
+    },
+    labelRename: {
+      input: {
+        type: "object",
+        properties: { id: { type: "string" }, name: { type: "string" } },
+        required: ["id", "name"],
+      },
+      output: { type: "object" },
+    },
+    labelDelete: {
+      input: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+      output: { type: "object" },
+    },
     setDocument: {
       input: {
         type: "object",

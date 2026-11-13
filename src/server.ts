@@ -336,6 +336,16 @@ export default Plugin.define({
           mutate(input.taskId, (task) => {
             Object.assign(task, input.patch);
           }),
+        labelList: async () => store.listLabels(),
+        labelCreate: async (input: any) => store.createLabel(input.name, input.color),
+        labelRename: async (input: any) => {
+          store.renameLabel(input.id, input.name);
+          return store.listLabels().find((label) => label.id === input.id);
+        },
+        labelDelete: async (input: any) => {
+          store.deleteLabel(input.id);
+          return { ok: true };
+        },
         setDocument: async (input: any) =>
           mutate(input.taskId, (task) => {
             task.document = {
