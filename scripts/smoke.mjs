@@ -277,6 +277,15 @@ const page = added.find(([id]) => id === "yuri.page")?.[1];
 assert.ok(page, "page registered");
 assert.equal(page.id, "board");
 
+const commandEntries = added
+  .filter(([id]) => id === "command")
+  .flatMap(([, item]) => (typeof item === "function" ? [item()] : [item]));
+assert.equal(
+  commandEntries.find((entry) => entry?.id === "open")?.bind,
+  "mod+m",
+  "the board command uses Command+M",
+);
+
 const statusEntry = added.find(([id]) => id === "yuri.work-status")?.[1];
 assert.ok(statusEntry, "work-status registered");
 const statusRoot = dom.window.document.createElement("div");

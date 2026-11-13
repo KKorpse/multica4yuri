@@ -51,7 +51,7 @@ export default Plugin.define({
       title: ctx.t("command.open"),
       description: ctx.t("page.subtitle"),
       keywords: "session board kanban task 看板 任务",
-      bind: "mod+shift+b",
+      bind: "mod+m",
       run: () => openBoard(),
     }));
 

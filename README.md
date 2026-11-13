@@ -129,7 +129,7 @@ npm run build
 Yuri reloads plugins on config change. Open the board with:
 
 - the **看板** titlebar button,
-- **Command palette → 打开会话看板** (`mod+shift+b`), or
+- **Command palette → 打开会话看板** (`Command+M` on macOS, `Ctrl+M` elsewhere), or
 - the URL `/plugins/yuri-session-board/board`.
 
 For development:
