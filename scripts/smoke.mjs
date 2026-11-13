@@ -129,6 +129,90 @@ const sessions = [
   },
 ];
 
+const taskRecords = [
+  {
+    id: "ses_board_a",
+    code: "ZM-0",
+    title: "Example task",
+    description: "Ship the board",
+    status: "执行中",
+    labels: ["ui"],
+    urgent: false,
+    rank: -now,
+    mainSessionId: "ses_board_a",
+    sessions: [
+      {
+        sessionId: "ses_board_a",
+        role: "main",
+        parentId: null,
+        goal: "",
+        title: "Example task",
+        directory: "/work/project",
+        createdAt: now - 60_000,
+      },
+    ],
+    document: { content: "", updatedAt: now - 30_000, updatedBy: "ses_board_a" },
+    revision: 1,
+    createdAt: now - 60_000,
+    updatedAt: now - 30_000,
+    statusChangedAt: now - 30_000,
+  },
+  {
+    id: "ses_board_b",
+    code: "ZM-1",
+    title: "Plain session",
+    description: "",
+    status: "待分配",
+    labels: [],
+    urgent: false,
+    rank: -now,
+    mainSessionId: "ses_board_b",
+    sessions: [
+      {
+        sessionId: "ses_board_b",
+        role: "main",
+        parentId: null,
+        goal: "",
+        title: "Plain session",
+        directory: "/work/project",
+        createdAt: now - 120_000,
+      },
+    ],
+    document: { content: "", updatedAt: now - 90_000, updatedBy: "ses_board_b" },
+    revision: 1,
+    createdAt: now - 120_000,
+    updatedAt: now - 90_000,
+    statusChangedAt: now - 90_000,
+  },
+  {
+    id: "ses_board_done",
+    code: "ZM-2",
+    title: "Finished session",
+    description: "",
+    status: "执行中",
+    labels: [],
+    urgent: false,
+    rank: -now,
+    mainSessionId: "ses_board_done",
+    sessions: [
+      {
+        sessionId: "ses_board_done",
+        role: "main",
+        parentId: null,
+        goal: "",
+        title: "Finished session",
+        directory: "/work/project",
+        createdAt: now - 300_000,
+      },
+    ],
+    document: { content: "", updatedAt: now - 200_000, updatedBy: "ses_board_done" },
+    revision: 1,
+    createdAt: now - 300_000,
+    updatedAt: now - 200_000,
+    statusChangedAt: now - 200_000,
+  },
+];
+
 const ctx = {
   id: "yuri-session-board",
   signal: new AbortController().signal,
@@ -148,7 +232,7 @@ const ctx = {
     agent: { list: async () => ({ data: [] }) },
     project: { list: async () => [] },
     rpc: () => ({
-      list: async () => [],
+      list: async () => taskRecords,
       create: async () => {
         throw new Error("not implemented in smoke");
       },

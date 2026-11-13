@@ -12,14 +12,12 @@ import {
   columnKeys,
   filterTasks,
   groupKey,
-  isSystemSession,
   labelColor,
   rankBetween,
   record,
   sortTasks,
   statusColor,
   taskMeta,
-  toTask,
   toTaskFromRecord,
   uniqueLabels,
   type ArchiveFilter,
@@ -29,7 +27,7 @@ import {
   type Task,
   type TaskMeta,
 } from "./model";
-import { taskLink, type Task as TaskRecord } from "./task";
+import type { Task as TaskRecord } from "./task";
 import { BoardRpc } from "./rpc";
 import type { T } from "./i18n";
 
@@ -158,13 +156,9 @@ export function createBoard(ctx: Context, t: T) {
   const tasks = createMemo(() => {
     const active = running();
     const byId = new Map(sessions().map((session) => [session.id, session]));
-    const fromRecords = records().map((record) =>
+    return records().map((record) =>
       toTaskFromRecord(record, byId.get(record.mainSessionId), active.has(record.mainSessionId)),
     );
-    const fromSessions = sessions()
-      .filter((session) => !isSystemSession(session) && !taskLink(session))
-      .map((session) => toTask(session, active.has(session.id)));
-    return [...fromRecords, ...fromSessions];
   });
 
   const visible = createMemo(() => sortTasks(filterTasks(tasks(), view.filters), view.sort));
