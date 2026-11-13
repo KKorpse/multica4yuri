@@ -70,6 +70,15 @@ function resolve(ref: string | undefined): Task {
   return task;
 }
 
+function validateAgent(directory: string, agentID: string | undefined): void {
+  if (!agentID) return;
+  const result = rpc("agentList", { directory }) as { agents?: Array<{ id: string }> };
+  const ids = (result.agents ?? []).map((agent) => agent.id).filter(Boolean);
+  if (ids.length && !ids.includes(agentID)) {
+    throw new Error(`Agent 不存在：${agentID}。可用：${ids.join(", ")}`);
+  }
+}
+
 function time(value: string | undefined): number | undefined {
   if (!value) return undefined;
   const relative = value.match(/^(\d+)([mhdw])$/);
@@ -170,12 +179,14 @@ function createTask() {
     .split(",")
     .map((label) => label.trim())
     .filter(Boolean);
+  const agent = flag("agent");
+  validateAgent(directory, agent);
   const task = rpc("create", {
     title,
     description: flag("description") || "",
     labels,
     directory,
-    agent: flag("agent"),
+    agent,
   }) as Task;
   let started = false;
   let startError: string | undefined;
@@ -247,6 +258,11 @@ function sessionCreate(ref: string | undefined) {
   const task = resolve(ref);
   const goal = flag("goal");
   if (!goal) throw new Error("缺少 --goal");
+  const directory =
+    flag("directory") ||
+    task.sessions.find((link) => link.role === "main")?.directory ||
+    process.cwd();
+  validateAgent(directory, flag("agent"));
   const link = rpc("sessionCreate", {
     taskId: task.id,
     goal,

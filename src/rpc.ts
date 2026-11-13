@@ -46,6 +46,14 @@ export const BoardRpc = {
       },
       output: { type: "object" },
     },
+    agentList: {
+      input: {
+        type: "object",
+        properties: { directory: { type: "string" } },
+        required: ["directory"],
+      },
+      output: { type: "object" },
+    },
     documentGet: {
       input: {
         type: "object",

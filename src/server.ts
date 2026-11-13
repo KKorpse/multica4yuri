@@ -379,6 +379,19 @@ export default Plugin.define({
         create: async (input: any) => createTask(input),
         get: async (input: any) => requireTask(input.taskId),
         taskStart: async (input: any) => startTask(input.taskId, input.text),
+        agentList: async (input: any) => {
+          const response = await ctx.agent.list({
+            location: { directory: input.directory },
+          } as any);
+          return {
+            agents: (response.data ?? []).map((agent: any) => ({
+              id: agent.id,
+              name: agent.name,
+              mode: agent.mode,
+              hidden: agent.hidden,
+            })),
+          };
+        },
         documentGet: async (input: any) => {
           const task = await requireTask(input.taskId);
           return documentOf(task);
