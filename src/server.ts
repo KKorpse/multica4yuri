@@ -264,9 +264,11 @@ export default Plugin.define({
         throw new Error("相同目标和目录的子会话已存在");
       }
 
+      const agent = input.agent || main.agent;
+      await validateAgent(directory, agent);
       const child = await ctx.session.create({
         title: childTitle(task, goal, directory, task.sessions.length),
-        agent: input.agent || main.agent,
+        agent,
         location: { directory },
       });
       await linkChild(callerID, child.id, goal);
@@ -277,6 +279,38 @@ export default Plugin.define({
       const task = await readTask(taskId);
       if (!task) throw new Error("任务不存在");
       return task;
+    }
+
+    async function validateAgent(directory: string, agentID?: string): Promise<void> {
+      if (!agentID) return;
+      try {
+        const response = await ctx.agent.list({ location: { directory } } as any);
+        const agents = response.data ?? [];
+        if (agents.length && !agents.some((agent: any) => agent.id === agentID)) {
+          const available = agents
+            .map((agent: any) => agent.id)
+            .filter(Boolean)
+            .join(", ");
+          throw new Error(`Agent 不存在：${agentID}${available ? `。可用：${available}` : ""}`);
+        }
+      } catch (caught) {
+        if (caught instanceof Error && caught.message.startsWith("Agent 不存在")) throw caught;
+        /* the catalog can be unavailable for some locations; let session creation decide */
+      }
+    }
+
+    async function startTask(taskId: string, text?: string) {
+      const task = await requireTask(taskId);
+      const content = (text ?? task.description).trim() || "按任务描述开始执行。";
+      await ctx.session.prompt({ sessionID: task.mainSessionId, text: content });
+      return { ok: true, taskId: task.id, sessionID: task.mainSessionId };
+    }
+
+    async function startSession(sessionID: string, text?: string) {
+      const task = await linkedTask(sessionID);
+      const content = (text ?? "").trim() || "按任务描述和你的子目标开始执行。";
+      await ctx.session.prompt({ sessionID, text: content });
+      return { ok: true, taskId: task.id, sessionID };
     }
 
     async function tail(sessionID: string) {
@@ -304,9 +338,11 @@ export default Plugin.define({
       directory: string;
       agent?: string;
     }): Promise<Task> {
+      const agent = input.agent?.trim() || undefined;
+      await validateAgent(input.directory, agent);
       const session = await ctx.session.create({
         title: input.title.trim(),
-        agent: input.agent,
+        agent,
         location: { directory: input.directory },
       });
       const task = newTask(
@@ -342,6 +378,7 @@ export default Plugin.define({
         },
         create: async (input: any) => createTask(input),
         get: async (input: any) => requireTask(input.taskId),
+        taskStart: async (input: any) => startTask(input.taskId, input.text),
         documentGet: async (input: any) => {
           const task = await requireTask(input.taskId);
           return documentOf(task);
@@ -353,6 +390,7 @@ export default Plugin.define({
           const updated = await requireTask(task.id);
           return updated.sessions.find((link) => link.sessionId === sessionID);
         },
+        sessionStart: async (input: any) => startSession(input.sessionID, input.text),
         sessionLink: async (input: any) => {
           const task = await requireTask(input.taskId);
           return linkChild(task.mainSessionId, input.sessionID, input.goal);

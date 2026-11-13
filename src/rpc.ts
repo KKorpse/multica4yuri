@@ -38,6 +38,14 @@ export const BoardRpc = {
       },
       output: { type: "object" },
     },
+    taskStart: {
+      input: {
+        type: "object",
+        properties: { taskId: { type: "string" }, text: { type: "string" } },
+        required: ["taskId"],
+      },
+      output: { type: "object" },
+    },
     documentGet: {
       input: {
         type: "object",
@@ -64,6 +72,14 @@ export const BoardRpc = {
           agent: { type: "string" },
         },
         required: ["taskId", "goal"],
+      },
+      output: { type: "object" },
+    },
+    sessionStart: {
+      input: {
+        type: "object",
+        properties: { sessionID: { type: "string" }, text: { type: "string" } },
+        required: ["sessionID"],
       },
       output: { type: "object" },
     },

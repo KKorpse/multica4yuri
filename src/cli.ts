@@ -177,9 +177,25 @@ function createTask() {
     directory,
     agent: flag("agent"),
   }) as Task;
-  if (json) return print(task);
+  let started = false;
+  let startError: string | undefined;
+  if (has("send")) {
+    try {
+      rpc("taskStart", { taskId: task.id, text: flag("start-text") });
+      started = true;
+    } catch (caught) {
+      startError = caught instanceof Error ? caught.message : String(caught);
+    }
+  }
+  const result = { ...task, started, ...(startError ? { startError } : {}) };
+  if (json) return print(result);
   console.log(`已创建 ${task.code || task.id}  ${task.title}`);
   console.log(`主会话：${task.mainSessionId}`);
+  if (started) console.log("已发送任务描述，主会话开始执行");
+  if (startError) {
+    console.error(`任务已创建，但启动失败：${startError}`);
+    process.exitCode = 1;
+  }
 }
 
 function updateTask(ref: string | undefined) {
@@ -236,9 +252,25 @@ function sessionCreate(ref: string | undefined) {
     goal,
     directory: flag("directory"),
     agent: flag("agent"),
-  });
-  if (json) return print(link);
+  }) as Json;
+  let started = false;
+  let startError: string | undefined;
+  if (!has("no-start")) {
+    try {
+      rpc("sessionStart", { sessionID: link.sessionId, text: flag("start-text") });
+      started = true;
+    } catch (caught) {
+      startError = caught instanceof Error ? caught.message : String(caught);
+    }
+  }
+  const result = { ...link, started, ...(startError ? { startError } : {}) };
+  if (json) return print(result);
   console.log(`已创建子会话 ${link.sessionId}  ${link.title}`);
+  if (started) console.log("已启动子会话");
+  if (startError) {
+    console.error(`子会话已创建，但启动失败：${startError}`);
+    process.exitCode = 1;
+  }
 }
 
 function sessionLink(ref: string | undefined) {
@@ -247,8 +279,10 @@ function sessionLink(ref: string | undefined) {
   const goal = flag("goal");
   if (!sessionID || !goal) throw new Error("需要 --session 和 --goal");
   const link = rpc("sessionLink", { taskId: task.id, sessionID, goal });
+  if (has("start")) rpc("sessionStart", { sessionID, text: flag("start-text") });
   if (json) return print(link);
   console.log(`已绑定 ${link.sessionId}  ${link.title}`);
+  if (has("start")) console.log("已启动子会话");
 }
 
 function sessionList(ref: string | undefined) {
@@ -268,6 +302,20 @@ function sessionTail(sessionID: string | undefined) {
   console.log(`会话：${result.title || sessionID}`);
   console.log(`状态：${result.outcome || "unknown"}  ${formatDate(result.updatedAt)}`);
   console.log(result.text || "（暂无回复）");
+}
+
+function startTask(ref: string | undefined) {
+  const task = resolve(ref);
+  const result = rpc("taskStart", { taskId: task.id, text: flag("text") });
+  if (json) return print(result);
+  console.log(`已启动 ${task.code || task.id} 的主会话`);
+}
+
+function startSession(sessionID: string | undefined) {
+  if (!sessionID) throw new Error("缺少 sessionId");
+  const result = rpc("sessionStart", { sessionID, text: flag("text") });
+  if (json) return print(result);
+  console.log(`已启动会话 ${sessionID}`);
 }
 
 function listLabels() {
@@ -324,7 +372,8 @@ function help() {
 任务
   task list [--status 执行中] [--since 7d] [--label 支付] [--group label] [--search 关键字] [--limit 50] [--json]
   task get <ZM-0>
-  task create --title "..." [--description "..."] [--labels a,b] [--directory /path] [--agent build]
+  task create --title "..." [--description "..."] [--labels a,b] [--directory /path] [--agent build] [--send]
+  task start <ZM-0> [--text "..."]
   task update <ZM-0> [--title "..."] [--description "..."] [--labels a,b] [--status 已完成|废弃]
   task complete <ZM-0>
   task discard <ZM-0>
@@ -343,8 +392,9 @@ function help() {
 
 会话
   session list <ZM-0>
-  session create <ZM-0> --goal "补齐文档" [--directory /path] [--agent build]
-  session link <ZM-0> --session ses_xxx --goal "补齐文档"
+  session create <ZM-0> --goal "补齐文档" [--directory /path] [--agent build] [--no-start]
+  session start ses_xxx [--text "..."]
+  session link <ZM-0> --session ses_xxx --goal "补齐文档" [--start]
   session tail ses_xxx`);
 }
 
@@ -357,6 +407,7 @@ try {
   else if (group === "task" && action === "list") listTasks();
   else if (group === "task" && action === "get") showTask(resolve(ref));
   else if (group === "task" && action === "create") createTask();
+  else if (group === "task" && action === "start") startTask(ref);
   else if (group === "task" && action === "update") updateTask(ref);
   else if (group === "task" && action === "complete") updateTaskWithStatus(ref, "已完成");
   else if (group === "task" && action === "discard") updateTaskWithStatus(ref, "废弃");
@@ -364,6 +415,7 @@ try {
   else if (group === "document" && action === "set") setDocument(ref);
   else if (group === "session" && action === "list") sessionList(ref);
   else if (group === "session" && action === "create") sessionCreate(ref);
+  else if (group === "session" && action === "start") startSession(ref);
   else if (group === "session" && action === "link") sessionLink(ref);
   else if (group === "session" && action === "tail") sessionTail(ref);
   else if (group === "label" && action === "list") listLabels();

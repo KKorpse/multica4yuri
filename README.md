@@ -71,14 +71,19 @@ board. Build it with `npm run build:cli`, then link it into PATH:
 ln -sfn "$PWD/dist/cli.mjs" ~/bin/zmultica
 zmultica task list
 zmultica task get ZM-0
-zmultica task create --title "..." --description "..." --directory "$PWD"
+zmultica task create --title "..." --description "..." --directory "$PWD" --send
+zmultica task start ZM-0
 zmultica session create ZM-0 --goal "补齐文档"
+zmultica session start ses_xxx
 zmultica session tail ses_xxx
 zmultica document set ZM-0 --file ./output.md
 ```
 
 Read commands accept `--json`. Manual status changes are limited to
-`已完成` and `废弃`; `执行中` is entered by execution events.
+`已完成` and `废弃`; `执行中` is entered by execution events. `task create --send`
+starts the main session immediately; `task create` without `--send` only creates
+the task shell. `session create` starts the child by default; pass `--no-start`
+to only link it.
 
 The matching skill lives at `~/.config/opencode/skills/zmultica/SKILL.md` and is
 also created in the Multica workspace as the `zmultica` skill.
