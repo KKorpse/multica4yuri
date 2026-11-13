@@ -1,4 +1,6 @@
 import { Plugin } from "@opencode/plugin";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { BoardStore } from "./db";
 import { BoardRpc } from "./rpc";
 import {
@@ -19,9 +21,11 @@ type Link = { taskId: string; role: Role; parentId?: string; goal: string };
 export default Plugin.define({
   id: "zmultica",
   async setup(ctx) {
-    const store = new BoardStore(
-      (ctx.options as any).dbPath ?? "/data/mm64/zackkzhou/zmultica/board.db",
-    );
+    const dbPath = (ctx.options as any).dbPath ?? "/data/mm64/zackkzhou/zmultica/board.db";
+    const store = new BoardStore(dbPath);
+    const artifactRoot =
+      (ctx.options as any).artifactRoot ?? join(dirname(dbPath), "..", "zmultica-artifacts");
+    const documentPath = (taskId: string) => join(artifactRoot, taskId, "output.md");
     const tasks = new Map<string, Task>();
     const links = new Map<string, Link>();
     const controller = new AbortController();
@@ -32,6 +36,18 @@ export default Plugin.define({
 
     function selfLink(task: Task, sessionID: string): SessionLink | undefined {
       return task.sessions.find((link) => link.sessionId === sessionID);
+    }
+
+    function mirrorDocument(task: Task): void {
+      if (!task.document.content) return;
+      const file = documentPath(task.id);
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, task.document.content, "utf8");
+      task.document.path = file;
+    }
+
+    function documentOf(task: Task) {
+      return { ...task.document, path: documentPath(task.id) };
     }
 
     async function writeBrief(sessionID: string) {
@@ -45,7 +61,7 @@ export default Plugin.define({
       await ctx.session.instructions.entry.put({
         sessionID,
         key: ENTRY_KEY,
-        value: renderBrief(task, self),
+        value: renderBrief(task, self, documentPath(task.id)),
       });
     }
 
@@ -70,6 +86,7 @@ export default Plugin.define({
     async function putTask(task: Task): Promise<Task> {
       task.revision += 1;
       task.updatedAt = Date.now();
+      mirrorDocument(task);
       store.write(task);
       tasks.set(task.id, task);
       await backlink(task);
@@ -319,7 +336,10 @@ export default Plugin.define({
         },
         create: async (input: any) => createTask(input),
         get: async (input: any) => requireTask(input.taskId),
-        documentGet: async (input: any) => (await requireTask(input.taskId)).document,
+        documentGet: async (input: any) => {
+          const task = await requireTask(input.taskId);
+          return documentOf(task);
+        },
         sessionList: async (input: any) => requireTask(input.taskId),
         sessionCreate: async (input: any) => {
           const task = await requireTask(input.taskId);
@@ -429,7 +449,7 @@ export default Plugin.define({
                 updatedBy: context.sessionID,
               };
             });
-            return text(updated.document);
+            return text(documentOf(updated));
           },
         });
 
@@ -438,7 +458,7 @@ export default Plugin.define({
           description: "读取当前任务的产出文档。",
           input: { type: "object", properties: {} },
           execute: async (_input: unknown, context) =>
-            text((await linkedTask(context.sessionID)).document),
+            text(documentOf(await linkedTask(context.sessionID))),
         });
       }),
     );

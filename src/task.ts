@@ -19,6 +19,7 @@ export type Document = {
   content: string;
   updatedAt: number;
   updatedBy: string;
+  path?: string;
 };
 
 export type Task = {
@@ -122,22 +123,27 @@ function roster(task: Task): string {
     .join("\n");
 }
 
-export function renderBrief(task: Task, self: SessionLink): string {
+export function renderBrief(task: Task, self: SessionLink, documentPath?: string): string {
+  const docPath = documentPath ?? task.document.path ?? "（任务文档）";
+  const outputStyle = `[输出风格]
+最终回复只允许「结论」和「产出」两段；禁止输出评审正文、方案、标题、列表、代码、过程叙述或重复任务描述。
+任务描述里要求“输出报告/文档”时，只指写入任务文档，不是聊天回复。
+先调用 zmultica_document_set 写文档；聊天里只给文档链接，不要粘贴正文。
+文档路径: ${docPath}
+结论：一句话。
+产出：
+- [文档标题](${docPath})
+- [MR 标题](MR 链接)
+描述、方案、证据放文档；代码、diff、验证细节放 MR。`;
+
   if (self.role === "main") {
-    return `[任务]
+    return `${outputStyle}
+
+[任务]
 id: ${task.id}
 标题: ${task.title}
 状态: ${task.status}
 任务描述: ${task.description}
-
-[输出风格]
-最终产出只写「结论」和「产出」两段，不要过程叙述、不要重复任务描述、不要贴代码。
-产出先写入任务文档：调用 zmultica_document_set，不要在聊天里贴正文。
-结论：一句话。
-产出：
-- [文档标题](文档链接)
-- [MR 标题](MR 链接)
-描述、方案、证据放文档；代码、diff、验证细节放 MR。
 
 [会话清单]
 ${roster(task)}
@@ -154,22 +160,18 @@ ${roster(task)}
 同时满足才创建：独立交付物、独立上下文、可回传结果。
 优先创建：可并行、需要不同 Agent/权限/环境、耗时或高风险。
 不要创建：查文件、改几行代码、强同步修改、没有明确交付物。
-接口变更由主会话先定，再派子会话实现；不要让两个子会话同时改互相依赖的接口。`;
+接口变更由主会话先定，再派子会话实现；不要让两个子会话同时改互相依赖的接口。
+
+[回复格式再确认]
+聊天只输出「结论」和「产出」两段，完整内容写入 ${docPath}；不要粘贴正文。`;
   }
 
-  return `[任务]
+  return `${outputStyle}
+
+[任务]
 id: ${task.id}
 标题: ${task.title}
 状态: ${task.status}
-
-[输出风格]
-最终产出只写「结论」和「产出」两段，不要过程叙述、不要重复任务描述、不要贴代码。
-产出先写入任务文档：调用 zmultica_document_set，不要在聊天里贴正文。
-结论：一句话。
-产出：
-- [文档标题](文档链接)
-- [MR 标题](MR 链接)
-描述、方案、证据放文档；代码、diff、验证细节放 MR。
 
 [会话清单]
 ${roster(task)}
@@ -182,5 +184,8 @@ ${roster(task)}
 - 完成、失败或阻塞时，在最后一条回复里说明结论和证据位置，不要直接找用户。
 - 需要长期交付的内容写入任务文档；你可以修改，不能删除。
 - 需要其他会话的最新回复时用工具查询。
-- 任务状态由系统和用户维护，不要修改。`;
+- 任务状态由系统和用户维护，不要修改。
+
+[回复格式再确认]
+聊天只输出「结论」和「产出」两段，完整内容写入 ${docPath}；不要粘贴正文。`;
 }
