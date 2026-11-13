@@ -93,6 +93,7 @@ export function BoardPage(props: { board: Board; t: T }) {
   const [dragging, setDragging] = createSignal<string>();
   const [drop, setDrop] = createSignal<DropTarget>();
   const [filtersOpen, setFiltersOpen] = createSignal(false);
+  const [menu, setMenu] = createSignal<{ id: string; x: number; y: number }>();
   const [narrow, setNarrow] = createSignal(isMobileSurface());
   const [limits, setLimits] = createSignal<Record<string, number>>({});
   const PAGE_SIZE = 40;
@@ -552,6 +553,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                             dragging={dragging() === task().id}
                             onEdit={edit}
                             onChat={chat}
+                            onContextMenu={(id, x, y) => setMenu({ id, x, y })}
                             onDragStart={startDrag}
                             onDragEnd={endDrag}
                           />
@@ -597,6 +599,96 @@ export function BoardPage(props: { board: Board; t: T }) {
           <Show when={board.editingId()}>
             {(id) => <EditDialog board={board} t={t} id={id()} onClose={() => board.closeEdit()} />}
           </Show>
+
+          <Show when={menu()}>
+            {(menu) => {
+              const task = () => board.task(menu().id);
+              return (
+                <>
+                  <div
+                    class="ysb-menu-backdrop"
+                    onMouseDown={() => setMenu(undefined)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      setMenu(undefined);
+                    }}
+                  />
+                  <div
+                    class="ysb-menu"
+                    role="menu"
+                    style={{
+                      left: `${Math.min(menu().x, window.innerWidth - 168)}px`,
+                      top: `${Math.min(menu().y, window.innerHeight - 196)}px`,
+                    }}
+                  >
+                    <Show when={task()}>
+                      {(task) => (
+                        <>
+                          <Show when={task().status !== "已完成"}>
+                            <button
+                              class="ysb-menuitem"
+                              type="button"
+                              onClick={() => {
+                                void board.move(task().id, "已完成");
+                                setMenu(undefined);
+                              }}
+                            >
+                              {t("menu.complete")}
+                            </button>
+                          </Show>
+                          <Show when={task().status !== "废弃"}>
+                            <button
+                              class="ysb-menuitem danger"
+                              type="button"
+                              onClick={() => {
+                                void board.move(task().id, "废弃");
+                                setMenu(undefined);
+                              }}
+                            >
+                              {t("menu.discard")}
+                            </button>
+                          </Show>
+                          <Show when={task().status === "已完成" || task().status === "废弃"}>
+                            <button
+                              class="ysb-menuitem"
+                              type="button"
+                              onClick={() => {
+                                void board.reopen(task().id);
+                                setMenu(undefined);
+                              }}
+                            >
+                              {t("menu.reopen")}
+                            </button>
+                          </Show>
+                          <div class="ysb-menusep" />
+                          <button
+                            class="ysb-menuitem"
+                            type="button"
+                            onClick={() => {
+                              board.edit(task().id);
+                              setMenu(undefined);
+                            }}
+                          >
+                            {t("widget.details")}
+                          </button>
+                          <button
+                            class="ysb-menuitem"
+                            type="button"
+                            onClick={() => {
+                              board.open(task().id);
+                              setMenu(undefined);
+                            }}
+                          >
+                            {t("action.chat")}
+                          </button>
+                        </>
+                      )}
+                    </Show>
+                  </div>
+                </>
+              );
+            }}
+          </Show>
         </div>
       </ErrorBoundary>
     </Show>
@@ -621,6 +713,7 @@ function Card(props: {
   dragging: boolean;
   onEdit(id: string): void;
   onChat(id: string): void;
+  onContextMenu(id: string, x: number, y: number): void;
   onDragStart(id: string): void;
   onDragEnd(): void;
 }) {
@@ -644,6 +737,10 @@ function Card(props: {
       }}
       onDragEnd={() => props.onDragEnd()}
       onClick={() => props.onEdit(props.task.id)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        props.onContextMenu(props.task.id, event.clientX, event.clientY);
+      }}
       onDblClick={() => props.onChat(props.task.id)}
       onKeyDown={(event) => {
         if (event.key === "Enter") props.onEdit(props.task.id);

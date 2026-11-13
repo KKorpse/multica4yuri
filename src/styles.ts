@@ -1244,6 +1244,39 @@ export const CSS = `
   outline-offset: 2px;
 }
 
+.ysb-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+}
+.ysb-menu {
+  position: fixed;
+  z-index: 81;
+  min-width: 156px;
+  padding: 4px;
+  border: 1px solid var(--ysb-border);
+  border-radius: 8px;
+  background: var(--ysb-card);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
+}
+.ysb-menuitem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ysb-fg);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.ysb-menuitem:hover { background: var(--ysb-hover); }
+.ysb-menuitem.danger { color: #e06c75; }
+.ysb-menusep { height: 1px; margin: 4px 6px; background: var(--ysb-border); }
+
 @keyframes ysb-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.35; transform: scale(0.8); }

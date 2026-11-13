@@ -504,6 +504,28 @@ export function createBoard(ctx: Context, t: T) {
     }
   }
 
+  async function reopen(id: string): Promise<void> {
+    const task = taskById(id);
+    if (!task || (task.status !== "已完成" && task.status !== "废弃")) return;
+    const record = task.record;
+    if (record) {
+      await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: { status: "待分配" } });
+      void reload(true);
+      return;
+    }
+    const session = sessionById(id);
+    if (!session) return;
+    const previous = taskMeta(session);
+    const next: TaskMeta = { ...previous, status: "待分配" };
+    patchMeta(id, next);
+    try {
+      await api.writeBoardMeta(ctx, session, next, ctx.signal);
+    } catch (caught) {
+      patchMeta(id, previous);
+      throw caught;
+    }
+  }
+
   async function saveDocument(id: string, content: string): Promise<void> {
     await ctx.client.rpc(BoardRpc).setDocument({ taskId: id, content });
     void reload(true);
@@ -694,6 +716,7 @@ export function createBoard(ctx: Context, t: T) {
     create,
     save,
     saveDocument,
+    reopen,
     move,
     archive,
     open,
