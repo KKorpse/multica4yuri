@@ -62,6 +62,27 @@ Yuri chat.
 - Archive is Yuri's own session archive, so both views agree. The archive
   selector decides whether archived sessions are listed.
 
+## CLI
+
+`zmultica` is a thin client over the same RPC and SQLite store used by the
+board. Build it with `npm run build:cli`, then link it into PATH:
+
+```bash
+ln -sfn "$PWD/dist/cli.mjs" ~/bin/zmultica
+zmultica task list
+zmultica task get ZM-0
+zmultica task create --title "..." --description "..." --directory "$PWD"
+zmultica session create ZM-0 --goal "补齐文档"
+zmultica session tail ses_xxx
+zmultica document set ZM-0 --file ./output.md
+```
+
+Read commands accept `--json`. Manual status changes are limited to
+`已完成` and `废弃`; `执行中` is entered by execution events.
+
+The matching skill lives at `~/.config/opencode/skills/zmultica/SKILL.md` and is
+also created in the Multica workspace as the `zmultica` skill.
+
 ## Verification
 
 ```bash
