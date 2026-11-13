@@ -1,6 +1,6 @@
 {
   "name": "zmultica",
-  "version": "0.15.2",
+  "version": "0.15.3",
   "description": "ZMultica — a session-backed task board for Yuri",
   "type": "module",
   "private": true,

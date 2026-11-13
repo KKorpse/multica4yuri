@@ -276,6 +276,24 @@ const page = added.find(([id]) => id === "yuri.page")?.[1];
 assert.ok(page, "page registered");
 assert.equal(page.id, "board");
 
+const statusEntry = added.find(([id]) => id === "yuri.work-status")?.[1];
+assert.ok(statusEntry, "work-status registered");
+const statusRoot = dom.window.document.createElement("div");
+dom.window.document.body.append(statusRoot);
+const statusDispose = solidWeb.render(
+  () =>
+    statusEntry.render({
+      session: { id: "ses_board_a" },
+      directory: "/work/project",
+      placement: "inline",
+      active: true,
+      signal: new AbortController().signal,
+    }),
+  statusRoot,
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+console.log("STATUS TEXT", statusRoot.textContent.slice(0, 200));
+statusDispose();
 const dispose = solidWeb.render(() => page.render(), dom.window.document.getElementById("root"));
 await new Promise((resolve) => setTimeout(resolve, 200));
 
