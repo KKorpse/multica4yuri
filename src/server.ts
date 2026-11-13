@@ -8,6 +8,8 @@ import {
   childTitle,
   newTask,
   renderBrief,
+  sessionTitle,
+  stripCodePrefix,
   taskLink,
   type Role,
   type SessionLink,
@@ -107,9 +109,10 @@ export default Plugin.define({
       const updated = await putTask(task);
       if (updated.title !== previousTitle) {
         const main = await getSession(updated.mainSessionId);
-        if (main.title !== updated.title) {
+        const title = sessionTitle(updated);
+        if (main.title !== title) {
           await ctx.session
-            .update({ sessionID: updated.mainSessionId, title: updated.title })
+            .update({ sessionID: updated.mainSessionId, title })
             .catch(() => undefined);
         }
         for (const link of updated.sessions.filter((entry) => entry.role === "sub")) {
@@ -317,9 +320,13 @@ export default Plugin.define({
         },
       );
       task.code = store.nextCode();
+      task.sessions[0].title = sessionTitle(task);
       store.write(task);
       tasks.set(task.id, task);
       await backlink(task);
+      await ctx.session
+        .update({ sessionID: session.id, title: task.sessions[0].title })
+        .catch(() => undefined);
       await writeBrief(session.id);
       return task;
     }
@@ -502,17 +509,34 @@ export default Plugin.define({
               if (title) {
                 const task = await readTask(link.taskId);
                 const self = task?.sessions.find((item) => item.sessionId === sessionID);
+                const nextTaskTitle = stripCodePrefix(title, task?.code);
                 const shouldRenameTask =
                   link.role === "main" &&
                   authority?.source === "manual" &&
                   task &&
-                  task.title !== title;
+                  nextTaskTitle.length > 0 &&
+                  task.title !== nextTaskTitle;
                 if (task && (self?.title !== title || shouldRenameTask)) {
                   await mutate(task.id, (draft) => {
                     const current = draft.sessions.find((item) => item.sessionId === sessionID);
-                    if (current) current.title = title;
-                    if (shouldRenameTask) draft.title = title;
+                    if (current)
+                      current.title = shouldRenameTask
+                        ? sessionTitle({ code: draft.code, title: nextTaskTitle })
+                        : title;
+                    if (shouldRenameTask) draft.title = nextTaskTitle;
                   }).catch(() => undefined);
+                }
+                if (task && link.role === "main" && !shouldRenameTask) {
+                  const expected = sessionTitle(task);
+                  if (title !== expected) {
+                    await ctx.session.update({ sessionID, title: expected }).catch(() => undefined);
+                    if (self && self.title !== expected) {
+                      await mutate(task.id, (draft) => {
+                        const current = draft.sessions.find((item) => item.sessionId === sessionID);
+                        if (current) current.title = expected;
+                      }).catch(() => undefined);
+                    }
+                  }
                 }
               }
             }

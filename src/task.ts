@@ -99,6 +99,17 @@ export function newTask(
   };
 }
 
+export function sessionTitle(task: Pick<Task, "code" | "title">): string {
+  const code = task.code?.trim();
+  return code ? `【${code}】${task.title}` : task.title;
+}
+
+export function stripCodePrefix(title: string, code?: string): string {
+  const clean = title.trim();
+  const prefix = code?.trim() ? `【${code.trim()}】` : "";
+  return prefix && clean.startsWith(prefix) ? clean.slice(prefix.length).trim() : clean;
+}
+
 export function childTitle(
   task: Task,
   goal: string,
@@ -110,7 +121,7 @@ export function childTitle(
   const duplicate = task.sessions.some(
     (link) => link.sessionId !== exceptId && link.goal === goal.trim() && goal.trim(),
   );
-  return `${task.title} · ${label}${duplicate ? ` · ${directory.split("/").filter(Boolean).at(-1)}` : ""}`;
+  return `${sessionTitle(task)} · ${label}${duplicate ? ` · ${directory.split("/").filter(Boolean).at(-1)}` : ""}`;
 }
 
 function roster(task: Task): string {
