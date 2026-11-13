@@ -565,6 +565,26 @@ export function createBoard(ctx: Context, t: T) {
     openSession(id);
   }
 
+  function openLink(href: string, directory?: string) {
+    const external = /^https?:\/\//i.test(href);
+    try {
+      const opened = ctx.links.open({
+        href,
+        ...(external ? {} : { exact: true, base: directory }),
+        session: ctx.sessions.current(),
+      });
+      if (opened) return;
+    } catch {
+      /* fall through */
+    }
+    if (external) {
+      ctx.system.openExternal(href);
+      return;
+    }
+    void ctx.system.copy(href);
+    ctx.toast.show({ title: t("output.copied") });
+  }
+
   function loadAgents(directory: string, force = false): Promise<AgentInfo[]> {
     if (!directory) return Promise.resolve([]);
     if (!force) {
@@ -677,6 +697,7 @@ export function createBoard(ctx: Context, t: T) {
     move,
     archive,
     open,
+    openLink,
     loadAgents,
     currentDirectory,
     requestCreate,

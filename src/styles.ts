@@ -953,6 +953,17 @@ export const CSS = `
   font-weight: 600;
   word-break: break-word;
 }
+.ysb-detail-code {
+  flex: none;
+  color: var(--muted-foreground);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+}
+.ysb-detail-settingsrow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 .ysb-detail-close {
   flex: none;
   width: 28px;

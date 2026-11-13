@@ -18,6 +18,7 @@ for (const key of [
   "window",
   "document",
   "HTMLElement",
+  "HTMLHeadElement",
   "Node",
   "Event",
   "PopStateEvent",

@@ -42,13 +42,7 @@ export default Plugin.define({
       id: "task",
       order: 0,
       render: (props) => (
-        <TaskStatus
-          board={board}
-          t={ctx.t}
-          ctx={ctx}
-          sessionID={props.session?.id}
-          onOpenBoard={openBoard}
-        />
+        <TaskStatus board={board} t={ctx.t} sessionID={props.session?.id} onOpenBoard={openBoard} />
       ),
     });
 

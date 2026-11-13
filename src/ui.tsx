@@ -10,17 +10,17 @@ import {
   on,
   onCleanup,
   onMount,
-  type JSX,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { Board, Column } from "./board";
 import { BUILD, consumeReturnSession, isCoarsePointer, isMobileSurface, openSession } from "./host";
+import { TaskDetails } from "./details";
+import { StatusIcon } from "./status";
 import type { T } from "./i18n";
 import {
   basename,
   labelColor,
   relativeTime,
-  statusColor,
   uniqueLabels,
   type ArchiveFilter,
   type Grouping,
@@ -29,10 +29,6 @@ import {
 } from "./model";
 
 type DropTarget = { column: string; index: number };
-
-function cost(value: number): string {
-  return value > 0 ? `$${value.toFixed(value < 0.01 ? 4 : 2)}` : "$0";
-}
 
 function shortId(id: string): string {
   return id.replace(/^ses_/, "").slice(-6);
@@ -87,56 +83,6 @@ function IconFilter() {
         stroke-width="1.3"
         stroke-linejoin="round"
       />
-    </svg>
-  );
-}
-
-export function StatusIcon(props: { status: string; size?: number }) {
-  const color = () => statusColor(props.status);
-  const shape = (): JSX.Element => {
-    switch (props.status) {
-      case "待分配":
-        return <circle cx="6" cy="6" r="4.3" stroke-dasharray="1.7 1.7" />;
-      case "执行中":
-        return (
-          <>
-            <circle cx="6" cy="6" r="4.3" />
-            <path d="M6 1.7a4.3 4.3 0 0 1 0 8.6Z" fill={color()} stroke="none" />
-          </>
-        );
-      case "已完成":
-        return (
-          <>
-            <circle cx="6" cy="6" r="4.3" />
-            <path d="m3.8 6.1 1.5 1.5 2.9-3" />
-          </>
-        );
-      case "废弃":
-        return (
-          <>
-            <circle cx="6" cy="6" r="4.3" />
-            <path d="m3.7 8.3 4.6-4.6" />
-          </>
-        );
-      default:
-        return <circle cx="6" cy="6" r="4.3" />;
-    }
-  };
-
-  return (
-    <svg
-      class="ysb-status-icon"
-      width={props.size ?? 12}
-      height={props.size ?? 12}
-      viewBox="0 0 12 12"
-      fill="none"
-      stroke={color()}
-      stroke-width="1.4"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      aria-hidden="true"
-    >
-      {shape()}
     </svg>
   );
 }
@@ -1029,182 +975,5 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
 }
 
 function EditDialog(props: { board: Board; t: T; id: string; onClose(): void }) {
-  const board = props.board;
-  const t = props.t;
-  const current = board.task(props.id);
-  const [form, setForm] = createStore({
-    title: current?.title ?? "",
-    description: current?.description ?? "",
-    status: current?.status ?? "待分配",
-    labels: current?.labels ?? [],
-  });
-  const [busy, setBusy] = createSignal(false);
-  const task = () => board.task(props.id);
-
-  async function submit() {
-    if (busy() || !task()) return;
-    setBusy(true);
-    try {
-      await board.save(props.id, { ...form });
-      board.notice("toast.saved", "success");
-      props.onClose();
-    } catch (caught) {
-      board.fail(caught, "error.save");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function toggleArchive() {
-    const value = task();
-    if (!value || busy()) return;
-    const next = !value.archived;
-    setBusy(true);
-    try {
-      await board.archive(props.id, next);
-      board.notice(next ? "toast.archived" : "toast.unarchived", "success");
-      props.onClose();
-    } catch (caught) {
-      board.fail(caught, "error.archive");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  useDialogKeys(props.onClose, () => void submit());
-
-  return (
-    <div
-      class="ysb-overlay"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) props.onClose();
-      }}
-    >
-      <div class="ysb-modal wide" role="dialog" aria-modal="true" aria-label={t("edit.title")}>
-        <div class="ysb-modalhead">
-          <div>
-            <h2 class="ysb-modaltitle">{t("edit.title")}</h2>
-            <p class="ysb-modalsub">{t("edit.hint")}</p>
-          </div>
-          <button
-            class="ysb-iconbtn"
-            type="button"
-            title={t("action.close")}
-            aria-label={t("action.close")}
-            onClick={props.onClose}
-          >
-            ×
-          </button>
-        </div>
-
-        <Show when={task()} fallback={<p class="ysb-hint">{t("board.empty")}</p>}>
-          <div class="ysb-form">
-            <label class="ysb-formitem">
-              <span>{t("field.title")}</span>
-              <input
-                class="ysb-input"
-                value={form.title}
-                onInput={(event) => setForm("title", event.currentTarget.value)}
-              />
-            </label>
-
-            <label class="ysb-formitem">
-              <span>{t("field.description")}</span>
-              <textarea
-                class="ysb-textarea"
-                value={form.description}
-                placeholder={t("field.descriptionPlaceholder")}
-                onInput={(event) => setForm("description", event.currentTarget.value)}
-              />
-            </label>
-
-            <div class="ysb-formrow">
-              <label class="ysb-formitem">
-                <span>{t("field.status")}</span>
-                <select
-                  class="ysb-select"
-                  value={form.status}
-                  onChange={(event) => setForm("status", event.currentTarget.value)}
-                >
-                  <For each={[...new Set([form.status, "已完成", "废弃"])]}>
-                    {(status) => <option value={status}>{status}</option>}
-                  </For>
-                </select>
-              </label>
-              <div class="ysb-formitem">
-                <span>{t("field.agent")}</span>
-                <div class="ysb-tags">
-                  <span class="ysb-tag" style={`--ysb-label:${labelColor(task()!.agent)}`}>
-                    <span class="ysb-chipdot" />
-                    {task()!.agent}
-                  </span>
-                </div>
-                <p class="ysb-hint">{t("edit.agentHint")}</p>
-              </div>
-            </div>
-
-            <div class="ysb-formitem">
-              <span>{t("field.labels")}</span>
-              <TagEditor
-                value={form.labels}
-                suggestions={board.labelCounts()}
-                placeholder={t("field.labelsPlaceholder")}
-                t={t}
-                onChange={(next) => setForm("labels", next)}
-              />
-            </div>
-
-            <div class="ysb-meta">
-              <span>
-                {t("edit.meta")}: <span class="ysb-mono">{task()!.code ?? task()!.id}</span>
-              </span>
-              <span>{basename(task()!.directory)}</span>
-              <span>{t("edit.updated", { time: relativeTime(task()!.updated) })}</span>
-              <span>{t("edit.cost", { cost: cost(task()!.cost) })}</span>
-              <Show when={!task()!.planned}>
-                <span>{task()!.status === "待分配" ? t("edit.unplanned") : t("edit.auto")}</span>
-              </Show>
-            </div>
-          </div>
-        </Show>
-
-        <div class="ysb-modalfoot">
-          <button
-            class="ysb-btn small"
-            classList={{ danger: !task()?.archived }}
-            type="button"
-            disabled={busy() || !task()}
-            onClick={() => void toggleArchive()}
-          >
-            {task()?.archived ? t("action.unarchive") : t("action.archive")}
-          </button>
-          <div class="ysb-footright">
-            <button
-              class="ysb-btn ghost"
-              type="button"
-              disabled={!task()}
-              onClick={() => {
-                board.open(props.id);
-                props.onClose();
-              }}
-            >
-              {t("action.chat")}
-            </button>
-            <button class="ysb-btn" type="button" onClick={props.onClose}>
-              {t("action.cancel")}
-            </button>
-            <button
-              class="ysb-btn primary"
-              type="button"
-              disabled={busy() || !task()}
-              onClick={() => void submit()}
-            >
-              {busy() ? "…" : t("action.save")}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <TaskDetails board={props.board} t={props.t} id={props.id} onClose={props.onClose} />;
 }
