@@ -2,6 +2,7 @@ import { Plugin } from "@opencode/plugin";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { BoardStore } from "./db";
+import { resolvePaths } from "./paths";
 import { BoardRpc } from "./rpc";
 import {
   childTitle,
@@ -21,10 +22,8 @@ type Link = { taskId: string; role: Role; parentId?: string; goal: string };
 export default Plugin.define({
   id: "zmultica",
   async setup(ctx) {
-    const dbPath = (ctx.options as any).dbPath ?? "/data/mm64/zackkzhou/zmultica/board.db";
+    const { dbPath, artifactRoot } = resolvePaths(ctx.options as Record<string, unknown>);
     const store = new BoardStore(dbPath);
-    const artifactRoot =
-      (ctx.options as any).artifactRoot ?? join(dirname(dbPath), "..", "zmultica-artifacts");
     const documentPath = (taskId: string) => join(artifactRoot, taskId, "output.md");
     const tasks = new Map<string, Task>();
     const links = new Map<string, Link>();

@@ -105,9 +105,19 @@ The GUI part is a package in this repository. Build it, then add the directory
 to the global OpenCode config so Yuri loads it in every window:
 
 ```jsonc
-// ~/.config/opencode/opencode.jsonc
+// ~/.config/opencode/opencode.json
 {
-  "plugins": [{ "package": "/absolute/path/to/yuri-session-board" }],
+  "plugins": [
+    {
+      "package": "/absolute/path/to/yuri-session-board",
+      // optional; all three default to a per-user directory
+      "options": {
+        "dataDir": "~/.local/share/zmultica",
+        "dbPath": "~/.local/share/zmultica/board.db",
+        "artifactRoot": "~/.local/share/zmultica/artifacts",
+      },
+    },
+  ],
 }
 ```
 
@@ -131,21 +141,34 @@ npm run check # typecheck + unit tests + build
 
 ## Where the data lives
 
-Nothing is stored in a plugin database. Task data is a JSON Merge Patch on the
-session's Host metadata (`metadata.sessionBoard`), written through Yuri's
-authenticated `PUT /api/yuri/sessions/:id/metadata` endpoint. This keeps the
-session title, agent, archive state and every other metadata key intact, and it
-is shared across windows and devices attached to the same host.
+Task data lives in an embedded SQLite database, not in OpenCode's own database.
+The default location is per user and portable across machines:
 
-```ts
-metadata.sessionBoard = {
-  version: 1,
-  description: string,
-  status: string,
-  labels: string[],
-  rank: number, // manual ordering inside a column
+```text
+$ZMULTICA_DATA_DIR/board.db                  # if the env var is set
+$XDG_DATA_HOME/zmultica/board.db             # otherwise
+~/.local/share/zmultica/board.db             # fallback
+```
+
+Task output documents are mirrored next to it under
+`<dataDir>/artifacts/<taskId>/output.md`.
+
+All three locations can be overridden in the plugin entry:
+
+```jsonc
+{
+  "package": "/absolute/path/to/yuri-session-board",
+  "options": {
+    "dataDir": "/custom/zmultica",
+    "dbPath": "/custom/zmultica/board.db",
+    "artifactRoot": "/custom/zmultica-artifacts",
+  },
 }
 ```
+
+Plugin options and `ZMULTICA_DATA_DIR` are local configuration. The SQLite file
+itself is not synchronized between machines; sharing a board across hosts still
+requires the multi-host support discussed in the design notes.
 
 Archiving uses Yuri's own archive endpoint, so the board and the native session
 list agree.
