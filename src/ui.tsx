@@ -1064,15 +1064,13 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
 function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
   const t = props.t;
   const [name, setName] = createSignal("");
-  const [drafts, setDrafts] = createStore<Record<string, string>>({});
+  const [editingId, setEditingId] = createSignal<string>();
+  const [deletingId, setDeletingId] = createSignal<string>();
+  const [draft, setDraft] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [problem, setProblem] = createSignal("");
 
-  createEffect(() => {
-    for (const label of props.board.labels()) {
-      if (drafts[label.id] === undefined) setDrafts(label.id, label.name);
-    }
-  });
+  const labels = () => props.board.labels();
 
   async function run(action: () => Promise<void>) {
     if (busy()) return;
@@ -1091,25 +1089,33 @@ function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
     const value = name().trim();
     if (!value) return;
     void run(async () => {
-      const label = await props.board.createLabel(value);
-      setDrafts(label.id, label.name);
+      await props.board.createLabel(value);
       setName("");
     });
   }
 
-  function rename(id: string) {
-    const value = (drafts[id] ?? "").trim();
-    if (!value) return;
+  function startRename(id: string, value: string) {
+    setDeletingId(undefined);
+    setEditingId(id);
+    setDraft(value);
+  }
+
+  function commitRename(id: string, current: string) {
+    const value = draft().trim();
+    if (!value || value === current) {
+      setEditingId(undefined);
+      return;
+    }
     void run(async () => {
       await props.board.renameLabel(id, value);
-      setDrafts(id, value);
+      setEditingId(undefined);
     });
   }
 
-  function remove(id: string, label: string, count: number) {
-    if (!window.confirm(t("label.deleteConfirm", { name: label, count }))) return;
+  function remove(id: string) {
     void run(async () => {
       await props.board.deleteLabel(id);
+      setDeletingId(undefined);
     });
   }
 
@@ -1123,7 +1129,12 @@ function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
         if (event.target === event.currentTarget) props.onClose();
       }}
     >
-      <div class="ysb-modal" role="dialog" aria-modal="true" aria-label={t("label.title")}>
+      <div
+        class="ysb-modal ysb-labelmodal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("label.title")}
+      >
         <div class="ysb-modalhead">
           <div>
             <h2 class="ysb-modaltitle">{t("label.title")}</h2>
@@ -1141,11 +1152,14 @@ function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
         </div>
 
         <div class="ysb-form">
-          <div class="ysb-labelcreate">
+          <div class="ysb-labelcomposer">
+            <span class="ysb-labeladdicon" aria-hidden="true">
+              +
+            </span>
             <input
               class="ysb-input"
               value={name()}
-              autofocus
+              ref={(element) => element.focus()}
               placeholder={t("label.placeholder")}
               onInput={(event) => setName(event.currentTarget.value)}
               onKeyDown={(event) => {
@@ -1155,56 +1169,145 @@ function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
                 }
               }}
             />
-            <button class="ysb-btn primary" type="button" disabled={busy()} onClick={create}>
+            <button
+              class="ysb-btn primary"
+              type="button"
+              disabled={busy() || !name().trim()}
+              onClick={create}
+            >
               {t("label.add")}
             </button>
           </div>
+          <p class="ysb-hint ysb-labelcreatehint">{t("label.createHint")}</p>
 
-          <Show when={props.board.labels().length === 0}>
-            <p class="ysb-hint">{t("label.empty")}</p>
-          </Show>
-
-          <div class="ysb-labellist">
-            <For each={props.board.labels()}>
-              {(label) => (
-                <div class="ysb-labelrow">
-                  <span
-                    class="ysb-chipdot"
-                    style={`background:${label.color}`}
-                    aria-hidden="true"
-                  />
-                  <input
-                    class="ysb-input"
-                    value={drafts[label.id] ?? label.name}
-                    onInput={(event) => setDrafts(label.id, event.currentTarget.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        rename(label.id);
-                      }
-                    }}
-                  />
-                  <span class="ysb-labelcount">{label.count}</span>
-                  <button
-                    class="ysb-btn small"
-                    type="button"
-                    disabled={busy()}
-                    onClick={() => rename(label.id)}
-                  >
-                    {t("action.save")}
-                  </button>
-                  <button
-                    class="ysb-btn small danger"
-                    type="button"
-                    disabled={busy()}
-                    onClick={() => remove(label.id, label.name, label.count)}
-                  >
-                    {t("action.delete")}
-                  </button>
-                </div>
-              )}
-            </For>
+          <div class="ysb-labellisthead">
+            <span>{t("label.all")}</span>
+            <span>{t("label.total", { count: labels().length })}</span>
           </div>
+
+          <Show
+            when={labels().length > 0}
+            fallback={<div class="ysb-labelempty">{t("label.empty")}</div>}
+          >
+            <div class="ysb-labellist">
+              <For each={labels()}>
+                {(label) => (
+                  <div
+                    class="ysb-labelrow"
+                    classList={{
+                      "is-editing": editingId() === label.id,
+                      "is-confirming": deletingId() === label.id,
+                    }}
+                  >
+                    <span
+                      class="ysb-labeldot"
+                      style={`--ysb-label:${label.color}; background:${label.color}`}
+                      aria-hidden="true"
+                    />
+                    <Show
+                      when={editingId() === label.id}
+                      fallback={
+                        <div class="ysb-labelmain">
+                          <span class="ysb-labelname">{label.name}</span>
+                          <span class="ysb-labelmeta">
+                            {t("label.taskCount", { count: label.count })}
+                          </span>
+                        </div>
+                      }
+                    >
+                      <input
+                        class="ysb-input ysb-labelrename"
+                        value={draft()}
+                        ref={(element) => {
+                          element.focus();
+                          element.select();
+                        }}
+                        onInput={(event) => setDraft(event.currentTarget.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            commitRename(label.id, label.name);
+                          } else if (event.key === "Escape") {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setEditingId(undefined);
+                          }
+                        }}
+                      />
+                    </Show>
+                    <div class="ysb-labelactions">
+                      <Show
+                        when={editingId() === label.id}
+                        fallback={
+                          <Show
+                            when={deletingId() === label.id}
+                            fallback={
+                              <>
+                                <button
+                                  class="ysb-btn small ghost"
+                                  type="button"
+                                  disabled={busy()}
+                                  onClick={() => startRename(label.id, label.name)}
+                                >
+                                  {t("label.rename")}
+                                </button>
+                                <button
+                                  class="ysb-btn small ghost ysb-danger-text"
+                                  type="button"
+                                  disabled={busy()}
+                                  onClick={() => {
+                                    setEditingId(undefined);
+                                    setDeletingId(label.id);
+                                  }}
+                                >
+                                  {t("action.delete")}
+                                </button>
+                              </>
+                            }
+                          >
+                            <span class="ysb-labelconfirm">
+                              {t("label.deleteInline", { count: label.count })}
+                            </span>
+                            <button
+                              class="ysb-btn small danger"
+                              type="button"
+                              disabled={busy()}
+                              onClick={() => remove(label.id)}
+                            >
+                              {t("action.delete")}
+                            </button>
+                            <button
+                              class="ysb-btn small ghost"
+                              type="button"
+                              onClick={() => setDeletingId(undefined)}
+                            >
+                              {t("action.cancel")}
+                            </button>
+                          </Show>
+                        }
+                      >
+                        <button
+                          class="ysb-btn small primary"
+                          type="button"
+                          disabled={busy()}
+                          onClick={() => commitRename(label.id, label.name)}
+                        >
+                          {t("action.save")}
+                        </button>
+                        <button
+                          class="ysb-btn small ghost"
+                          type="button"
+                          onClick={() => setEditingId(undefined)}
+                        >
+                          {t("action.cancel")}
+                        </button>
+                      </Show>
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
 
           <Show when={problem()}>
             <p class="ysb-error">{problem()}</p>

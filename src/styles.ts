@@ -500,17 +500,126 @@ export const CSS = `
   resize: vertical;
 }
 .ysb-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.ysb-labelcreate { display: flex; align-items: center; gap: 8px; }
-.ysb-labelcreate .ysb-input { flex: 1; }
+.ysb-labelmodal { width: min(560px, 100%); }
+.ysb-labelcomposer {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid var(--ysb-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ysb-fg) 3%, transparent);
+}
+.ysb-labelcomposer .ysb-input {
+  flex: 1;
+  height: 30px;
+  border-color: transparent;
+  background: transparent;
+}
+.ysb-labelcomposer:focus-within {
+  border-color: color-mix(in srgb, var(--ysb-fg) 26%, transparent);
+}
+.ysb-labelcomposer .ysb-input:focus { border-color: transparent; }
+.ysb-labeladdicon {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ysb-fg) 8%, transparent);
+  color: var(--ysb-muted);
+  font-size: 15px;
+  line-height: 1;
+}
+.ysb-labelcreatehint { margin: -4px 0 2px; }
+.ysb-labellisthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 3px;
+  color: var(--ysb-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .ysb-labellist { display: flex; flex-direction: column; gap: 6px; }
-.ysb-labelrow { display: flex; align-items: center; gap: 8px; }
-.ysb-labelrow .ysb-input { flex: 1; }
-.ysb-labelcount {
-  min-width: 28px;
+.ysb-labelrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 8px 10px;
+  border: 1px solid var(--ysb-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--ysb-fg) 2%, transparent);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.ysb-labelrow:hover {
+  border-color: color-mix(in srgb, var(--ysb-fg) 22%, transparent);
+  background: color-mix(in srgb, var(--ysb-fg) 4%, transparent);
+}
+.ysb-labelrow.is-editing,
+.ysb-labelrow.is-confirming {
+  border-color: color-mix(in srgb, var(--ysb-accent) 36%, var(--ysb-border));
+  background: color-mix(in srgb, var(--ysb-accent) 5%, transparent);
+}
+.ysb-labeldot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--ysb-label, var(--ysb-muted));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ysb-label, var(--ysb-muted)) 12%, transparent);
+}
+.ysb-labelmain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.ysb-labelname {
+  overflow: hidden;
+  color: var(--ysb-fg);
+  font-size: 13px;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-labelmeta {
+  color: var(--ysb-muted);
+  font-size: 10.5px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.ysb-labelactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex: none;
+}
+.ysb-labelrename { flex: 1; height: 30px; }
+.ysb-labelconfirm {
   color: var(--ysb-muted);
   font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+  white-space: nowrap;
+}
+.ysb-danger-text { color: #e06c75; }
+.ysb-danger-text:hover:not(:disabled) {
+  background: color-mix(in srgb, #e06c75 12%, transparent);
+}
+.ysb-labelempty {
+  padding: 26px 16px;
+  border: 1px dashed var(--ysb-border);
+  border-radius: 10px;
+  color: var(--ysb-muted);
+  font-size: 12px;
+  text-align: center;
 }
 .ysb-tag {
   display: inline-flex;
