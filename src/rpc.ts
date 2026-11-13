@@ -30,6 +30,63 @@ export const BoardRpc = {
       },
       output: { type: "object" },
     },
+    get: {
+      input: {
+        type: "object",
+        properties: { taskId: { type: "string" } },
+        required: ["taskId"],
+      },
+      output: { type: "object" },
+    },
+    documentGet: {
+      input: {
+        type: "object",
+        properties: { taskId: { type: "string" } },
+        required: ["taskId"],
+      },
+      output: { type: "object" },
+    },
+    sessionList: {
+      input: {
+        type: "object",
+        properties: { taskId: { type: "string" } },
+        required: ["taskId"],
+      },
+      output: { type: "object" },
+    },
+    sessionCreate: {
+      input: {
+        type: "object",
+        properties: {
+          taskId: { type: "string" },
+          goal: { type: "string" },
+          directory: { type: "string" },
+          agent: { type: "string" },
+        },
+        required: ["taskId", "goal"],
+      },
+      output: { type: "object" },
+    },
+    sessionLink: {
+      input: {
+        type: "object",
+        properties: {
+          taskId: { type: "string" },
+          sessionID: { type: "string" },
+          goal: { type: "string" },
+        },
+        required: ["taskId", "sessionID", "goal"],
+      },
+      output: { type: "object" },
+    },
+    sessionTail: {
+      input: {
+        type: "object",
+        properties: { sessionID: { type: "string" } },
+        required: ["sessionID"],
+      },
+      output: { type: "object" },
+    },
     setDocument: {
       input: {
         type: "object",

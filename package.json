@@ -1,6 +1,6 @@
 {
   "name": "zmultica",
-  "version": "0.13.12",
+  "version": "0.14.0",
   "description": "ZMultica — a session-backed task board for Yuri",
   "type": "module",
   "private": true,
@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "npm run build:server && vite build",
+    "build": "npm run build:server && npm run build:cli && vite build",
     "dev": "vite build --watch",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.ts",
@@ -21,7 +21,8 @@
     "format": "prettier --write src test scripts *.ts *.json README.md",
     "format:check": "prettier --check src test scripts *.ts *.json README.md",
     "check": "npm run typecheck && npm test && npm run build && npm run smoke",
-    "build:server": "esbuild src/server.ts --bundle --format=esm --platform=node --target=node22 --outfile=dist/index.mjs --external:@opencode/plugin --external:@opencode/ai --external:effect --external:bun:sqlite"
+    "build:server": "esbuild src/server.ts --bundle --format=esm --platform=node --target=node22 --outfile=dist/index.mjs --external:@opencode/plugin --external:@opencode/ai --external:effect --external:bun:sqlite",
+    "build:cli": "esbuild src/cli.ts --bundle --format=esm --platform=node --target=node22 --outfile=dist/cli.mjs && chmod +x dist/cli.mjs"
   },
   "dependencies": {
     "@opencode/plugin": "2.2.1",
@@ -40,5 +41,8 @@
     "vite": "7.3.7",
     "vite-plugin-solid": "2.11.10"
   },
-  "main": "./dist/index.mjs"
+  "main": "./dist/index.mjs",
+  "bin": {
+    "zmultica": "./dist/cli.mjs"
+  }
 }

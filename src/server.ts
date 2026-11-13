@@ -247,6 +247,30 @@ export default Plugin.define({
       return child.id;
     }
 
+    async function requireTask(taskId: string): Promise<Task> {
+      const task = await readTask(taskId);
+      if (!task) throw new Error("任务不存在");
+      return task;
+    }
+
+    async function tail(sessionID: string) {
+      const session = await getSession(sessionID);
+      const messages = await ctx.session.context({ sessionID });
+      const assistant = [...messages].reverse().find((message) => {
+        if (message.type !== "assistant" || !("content" in message)) return false;
+        return message.content.some((part) => part.type === "text" && part.text.trim());
+      });
+      const content = assistant && "content" in assistant ? assistant.content : [];
+      const textPart = content.findLast((part) => part.type === "text" && part.text.trim());
+      return {
+        sessionID,
+        title: session.title,
+        outcome: session.outcome,
+        updatedAt: session.time.updated,
+        text: textPart?.type === "text" ? textPart.text : "",
+      };
+    }
+
     async function createTask(input: {
       title: string;
       description?: string;
@@ -287,6 +311,20 @@ export default Plugin.define({
           return store.list();
         },
         create: async (input: any) => createTask(input),
+        get: async (input: any) => requireTask(input.taskId),
+        documentGet: async (input: any) => (await requireTask(input.taskId)).document,
+        sessionList: async (input: any) => requireTask(input.taskId),
+        sessionCreate: async (input: any) => {
+          const task = await requireTask(input.taskId);
+          const sessionID = await createChild(task.mainSessionId, input);
+          const updated = await requireTask(task.id);
+          return updated.sessions.find((link) => link.sessionId === sessionID);
+        },
+        sessionLink: async (input: any) => {
+          const task = await requireTask(input.taskId);
+          return linkChild(task.mainSessionId, input.sessionID, input.goal);
+        },
+        sessionTail: async (input: any) => tail(input.sessionID),
         update: async (input: any) =>
           mutate(input.taskId, (task) => {
             Object.assign(task, input.patch);
@@ -351,23 +389,7 @@ export default Plugin.define({
             properties: { sessionID: { type: "string" } },
             required: ["sessionID"],
           },
-          execute: async (input: any) => {
-            const session = await getSession(input.sessionID);
-            const messages = await ctx.session.context({ sessionID: input.sessionID });
-            const assistant = [...messages].reverse().find((message) => {
-              if (message.type !== "assistant" || !("content" in message)) return false;
-              return message.content.some((part) => part.type === "text" && part.text.trim());
-            });
-            const content = assistant && "content" in assistant ? assistant.content : [];
-            const textPart = content.findLast((part) => part.type === "text" && part.text.trim());
-            return text({
-              sessionID: input.sessionID,
-              title: session.title,
-              outcome: session.outcome,
-              updatedAt: session.time.updated,
-              text: textPart?.type === "text" ? textPart.text : "",
-            });
-          },
+          execute: async (input: any) => text(await tail(input.sessionID)),
         });
 
         editor.add({
