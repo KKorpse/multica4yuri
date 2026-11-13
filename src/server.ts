@@ -90,6 +90,12 @@ export default Plugin.define({
       }
       const updated = await putTask(task);
       if (updated.title !== previousTitle) {
+        const main = await getSession(updated.mainSessionId);
+        if (main.title !== updated.title) {
+          await ctx.session
+            .update({ sessionID: updated.mainSessionId, title: updated.title })
+            .catch(() => undefined);
+        }
         for (const link of updated.sessions.filter((entry) => entry.role === "sub")) {
           await ctx.session
             .update({ sessionID: link.sessionId, title: link.title })
@@ -264,9 +270,9 @@ export default Plugin.define({
       const textPart = content.findLast((part) => part.type === "text" && part.text.trim());
       return {
         sessionID,
-        title: session.title,
-        outcome: session.outcome,
-        updatedAt: session.time.updated,
+        title: session.title ?? "",
+        outcome: session.outcome ?? null,
+        updatedAt: session.time.updated ?? 0,
         text: textPart?.type === "text" ? textPart.text : "",
       };
     }
