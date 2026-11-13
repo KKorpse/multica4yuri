@@ -504,6 +504,28 @@ export function createBoard(ctx: Context, t: T) {
     }
   }
 
+  async function setUrgent(id: string, urgent: boolean): Promise<void> {
+    const task = taskById(id);
+    if (!task) return;
+    const record = task.record;
+    if (record) {
+      await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: { urgent } });
+      void reload(true);
+      return;
+    }
+    const session = sessionById(id);
+    if (!session) return;
+    const previous = taskMeta(session);
+    const next: TaskMeta = { ...previous, urgent };
+    patchMeta(id, next);
+    try {
+      await api.writeBoardMeta(ctx, session, next, ctx.signal);
+    } catch (caught) {
+      patchMeta(id, previous);
+      throw caught;
+    }
+  }
+
   async function reopen(id: string): Promise<void> {
     const task = taskById(id);
     if (!task || (task.status !== "已完成" && task.status !== "废弃")) return;
@@ -717,6 +739,7 @@ export function createBoard(ctx: Context, t: T) {
     save,
     saveDocument,
     reopen,
+    setUrgent,
     move,
     archive,
     open,

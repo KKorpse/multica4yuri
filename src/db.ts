@@ -21,6 +21,7 @@ export class BoardStore {
         description TEXT NOT NULL DEFAULT '',
         status TEXT NOT NULL DEFAULT '待分配' CHECK (status IN ('待分配', '执行中', '已完成', '废弃')),
         labels TEXT NOT NULL DEFAULT '[]',
+        urgent INTEGER NOT NULL DEFAULT 0,
         rank REAL NOT NULL,
         main_session_id TEXT NOT NULL,
         document_content TEXT NOT NULL DEFAULT '',
@@ -52,6 +53,11 @@ export class BoardStore {
 
     try {
       this.db.exec("ALTER TABLE task ADD COLUMN code TEXT NOT NULL DEFAULT ''");
+    } catch {
+      /* the column already exists on newer databases */
+    }
+    try {
+      this.db.exec("ALTER TABLE task ADD COLUMN urgent INTEGER NOT NULL DEFAULT 0");
     } catch {
       /* the column already exists on newer databases */
     }
@@ -97,6 +103,7 @@ export class BoardStore {
       description: String(row.description),
       status: row.status as Task["status"],
       labels: JSON.parse(String(row.labels)),
+      urgent: Boolean(row.urgent),
       rank: Number(row.rank),
       mainSessionId: String(row.main_session_id),
       sessions: this.sessions(id),
@@ -129,10 +136,10 @@ export class BoardStore {
       .prepare(
         `
       INSERT OR REPLACE INTO task (
-        id, code, title, description, status, labels, rank, main_session_id,
+        id, code, title, description, status, labels, urgent, rank, main_session_id,
         document_content, document_updated_at, document_updated_by,
         revision, created_at, updated_at, status_changed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
@@ -142,6 +149,7 @@ export class BoardStore {
         task.description,
         task.status,
         JSON.stringify(task.labels),
+        task.urgent ? 1 : 0,
         task.rank,
         task.mainSessionId,
         task.document.content,

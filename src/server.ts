@@ -141,6 +141,7 @@ export default Plugin.define({
         description: legacy.goal ?? legacy.description ?? "",
         status: legacy.status ?? "执行中",
         labels: legacy.labels ?? [],
+        urgent: legacy.urgent === true,
         rank: legacy.rank ?? -(legacy.createdAt ?? now),
         mainSessionId: legacy.mainSessionId ?? session.id,
         sessions: legacy.sessions,

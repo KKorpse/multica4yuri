@@ -624,6 +624,17 @@ export function BoardPage(props: { board: Board; t: T }) {
                     <Show when={task()}>
                       {(task) => (
                         <>
+                          <button
+                            class="ysb-menuitem"
+                            type="button"
+                            onClick={() => {
+                              void board.setUrgent(task().id, !task().urgent);
+                              setMenu(undefined);
+                            }}
+                          >
+                            {task().urgent ? t("menu.notUrgent") : t("menu.urgent")}
+                          </button>
+                          <div class="ysb-menusep" />
                           <Show when={task().status !== "已完成"}>
                             <button
                               class="ysb-menuitem"
@@ -721,7 +732,7 @@ function Card(props: {
   return (
     <article
       class="ysb-card"
-      classList={{ "is-dragging": props.dragging }}
+      classList={{ "is-dragging": props.dragging, "is-urgent": props.task.urgent }}
       data-ysb-card={props.task.id}
       draggable={props.canDrag}
       title={props.t("card.chatHint")}

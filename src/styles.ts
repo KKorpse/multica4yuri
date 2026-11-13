@@ -313,6 +313,13 @@ export const CSS = `
   box-shadow: 0 2px 6px rgb(0 0 0 / 0.06);
 }
 .ysb-card.is-dragging { opacity: 0.4; }
+.ysb-card.is-urgent {
+  border-color: color-mix(in srgb, #e06c75 38%, var(--ysb-border));
+  background: color-mix(in srgb, #e06c75 6%, var(--ysb-card));
+}
+.ysb-card.is-urgent:hover {
+  background: color-mix(in srgb, #e06c75 10%, var(--ysb-card));
+}
 .ysb-cardtop { display: flex; align-items: center; justify-content: space-between; min-height: 14px; gap: 6px; }
 .ysb-cardid {
   color: var(--ysb-muted);

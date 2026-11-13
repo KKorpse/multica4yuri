@@ -18,6 +18,7 @@ export type TaskMeta = {
   labels: string[];
   rank: number;
   outputs: Output[];
+  urgent?: boolean;
 };
 
 export interface Task extends TaskMeta {
@@ -28,6 +29,7 @@ export interface Task extends TaskMeta {
   projectID: string;
   agent: string;
   planned: boolean;
+  urgent: boolean;
   parentID?: string;
   archived: boolean;
   running: boolean;
@@ -170,6 +172,7 @@ export function toTaskFromRecord(
     projectID: session?.projectID ?? "",
     agent: session?.agent || "默认 Agent",
     planned: true,
+    urgent: taskRecord.urgent,
     parentID: session?.parentID,
     archived: session
       ? typeof archive === "number"
@@ -189,10 +192,12 @@ export function toTask(session: SessionInfo, running = false): Task {
   const archive = record(record(session.metadata?.yuri).archive).archivedAt;
   const meta = taskMeta(session);
   const planned = hasBoardMeta(session);
+  const urgent = record(session.metadata?.[METADATA_KEY]).urgent === true;
   return {
     ...meta,
     status: planned ? meta.status : deriveStatus(session, running),
     planned,
+    urgent,
     id: session.id,
     title: session.title?.trim() || "未命名会话",
     directory: session.location.directory,
@@ -231,6 +236,7 @@ export function filterTasks(tasks: readonly Task[], filters: Filters): Task[] {
 
 export function sortTasks(tasks: readonly Task[], sort: Sort): Task[] {
   return [...tasks].sort((a, b) => {
+    if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
     const delta =
       sort === "manual"
         ? a.rank - b.rank

@@ -28,6 +28,7 @@ export type Task = {
   description: string;
   status: Status;
   labels: string[];
+  urgent: boolean;
   rank: number;
   mainSessionId: string;
   sessions: SessionLink[];
@@ -75,6 +76,7 @@ export function newTask(
     description,
     status: "待分配",
     labels,
+    urgent: false,
     rank: -now,
     mainSessionId: main.id,
     sessions: [
