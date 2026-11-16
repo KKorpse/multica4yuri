@@ -99,6 +99,7 @@ export function BoardPage(props: { board: Board; t: T }) {
   const [limits, setLimits] = createSignal<Record<string, number>>({});
   const PAGE_SIZE = 40;
   let draggedAt = 0;
+  let searchInput: HTMLInputElement | undefined;
 
   createEffect(() => {
     if (narrow()) board.deactivate();
@@ -121,6 +122,12 @@ export function BoardPage(props: { board: Board; t: T }) {
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        searchInput?.focus();
+        searchInput?.select();
+        return;
+      }
       if (event.key !== "Escape") return;
       if (board.createOpen()) {
         event.stopPropagation();
@@ -282,6 +289,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                 <label class="ysb-searchbox">
                   <IconSearch />
                   <input
+                    ref={searchInput}
                     type="search"
                     value={board.view.filters.search}
                     placeholder={t("search.placeholder")}
