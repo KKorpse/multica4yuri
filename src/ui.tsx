@@ -26,6 +26,7 @@ import {
   type Grouping,
   type Sort,
   type Task,
+  type ViewMode,
 } from "./model";
 
 type DropTarget = { column: string; index: number };
@@ -172,6 +173,12 @@ export function BoardPage(props: { board: Board; t: T }) {
   function showMore(key: string) {
     setLimits((previous) => ({ ...previous, [key]: limitOf(key) + PAGE_SIZE }));
   }
+
+  const viewModes: Array<{ id: ViewMode; labelKey: string }> = [
+    { id: "board", labelKey: "view.board" },
+    { id: "list", labelKey: "view.list" },
+    { id: "table", labelKey: "view.table" },
+  ];
 
   const labelChips = createMemo(() => {
     const list = board.labelCounts().slice(0, 14);
@@ -373,18 +380,36 @@ export function BoardPage(props: { board: Board; t: T }) {
             </div>
 
             <div class="ysb-toolbar">
-              <label class="ysb-tool">
-                {t("filter.group")}
-                <select
-                  value={board.view.grouping}
-                  onChange={(event) => board.setGrouping(event.currentTarget.value as Grouping)}
-                >
-                  <option value="status">{t("group.status")}</option>
-                  <option value="agent">{t("group.agent")}</option>
-                  <option value="directory">{t("group.directory")}</option>
-                  <option value="label">{t("group.label")}</option>
-                </select>
-              </label>
+              <div class="ysb-viewswitch" role="group" aria-label={t("view.label")}>
+                <For each={viewModes}>
+                  {(mode) => (
+                    <button
+                      class="ysb-viewbtn"
+                      classList={{ "is-on": board.view.mode === mode.id }}
+                      type="button"
+                      data-ysb-view={mode.id}
+                      aria-pressed={board.view.mode === mode.id}
+                      onClick={() => board.setMode(mode.id)}
+                    >
+                      {t(mode.labelKey)}
+                    </button>
+                  )}
+                </For>
+              </div>
+              <Show when={board.view.mode === "board"}>
+                <label class="ysb-tool">
+                  {t("filter.group")}
+                  <select
+                    value={board.view.grouping}
+                    onChange={(event) => board.setGrouping(event.currentTarget.value as Grouping)}
+                  >
+                    <option value="status">{t("group.status")}</option>
+                    <option value="agent">{t("group.agent")}</option>
+                    <option value="directory">{t("group.directory")}</option>
+                    <option value="label">{t("group.label")}</option>
+                  </select>
+                </label>
+              </Show>
               <button class="ysb-btn small" type="button" onClick={() => setLabelsOpen(true)}>
                 {t("label.manage")}
               </button>
@@ -541,7 +566,12 @@ export function BoardPage(props: { board: Board; t: T }) {
             </Show>
           </header>
 
-          <main class="ysb-board">
+          <main
+            classList={{
+              "ysb-board": board.view.mode === "board",
+              "ysb-view": board.view.mode !== "board",
+            }}
+          >
             <Show when={board.loading() && board.total() === 0}>
               <div class="ysb-loading" role="status">
                 {t("board.loading")}
@@ -562,117 +592,141 @@ export function BoardPage(props: { board: Board; t: T }) {
                 <p>{t("board.emptyHint")}</p>
               </div>
             </Show>
-            <Index each={board.columns()}>
-              {(column) => (
-                <section
-                  class="ysb-col"
-                  classList={{ "is-over": drop()?.column === column().key }}
-                  data-ysb-column={column().key}
-                  onDragOver={(event) => onDragOver(column().key, event)}
-                  onDragLeave={(event) => {
-                    if (
-                      !(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)
-                    ) {
-                      const current = drop();
-                      if (current?.column === column().key) setDrop(undefined);
-                    }
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    void onDropCard(column().key);
-                  }}
-                >
-                  <div class="ysb-colhead">
-                    <Show
-                      when={board.view.grouping === "status"}
-                      fallback={
-                        <span
-                          class="ysb-chipdot"
-                          style={`background:${column().color}`}
-                          aria-hidden="true"
-                        />
+            <Show when={board.view.mode === "board"}>
+              <Index each={board.columns()}>
+                {(column) => (
+                  <section
+                    class="ysb-col"
+                    classList={{ "is-over": drop()?.column === column().key }}
+                    data-ysb-column={column().key}
+                    onDragOver={(event) => onDragOver(column().key, event)}
+                    onDragLeave={(event) => {
+                      if (
+                        !(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)
+                      ) {
+                        const current = drop();
+                        if (current?.column === column().key) setDrop(undefined);
                       }
-                    >
-                      <StatusIcon status={column().key} size={13} />
-                    </Show>
-                    <span class="ysb-coltitle">
-                      {board.view.grouping === "directory" ? basename(column().key) : column().key}
-                    </span>
-                    <span class="ysb-colcount">{column().tasks.length}</span>
-                    <button
-                      class="ysb-coladd"
-                      type="button"
-                      title={t("action.create")}
-                      aria-label={t("action.create")}
-                      onClick={() =>
-                        board.requestCreate(board.view.grouping === "status" ? column().key : "")
-                      }
-                    >
-                      <IconPlus />
-                    </button>
-                  </div>
-                  <div class="ysb-colbody">
-                    <Index each={shownTasks(column())}>
-                      {(task, index) => (
-                        <>
-                          <Show
-                            when={
-                              insertionIndex(
-                                shownTasks(column()),
-                                column().key,
-                                dragging(),
-                                drop(),
-                              ) === index
-                            }
-                          >
-                            <div class="ysb-insert" />
-                          </Show>
-                          <Card
-                            task={task()}
-                            t={t}
-                            colorOf={board.colorOfLabel}
-                            canDrag={canDrag()}
-                            dragging={dragging() === task().id}
-                            onEdit={edit}
-                            onChat={chat}
-                            onContextMenu={(id, x, y) => setMenu({ id, x, y })}
-                            onDragStart={startDrag}
-                            onDragEnd={endDrag}
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      void onDropCard(column().key);
+                    }}
+                  >
+                    <div class="ysb-colhead">
+                      <Show
+                        when={board.view.grouping === "status"}
+                        fallback={
+                          <span
+                            class="ysb-chipdot"
+                            style={`background:${column().color}`}
+                            aria-hidden="true"
                           />
-                        </>
-                      )}
-                    </Index>
-                    <Show
-                      when={
-                        insertionIndex(shownTasks(column()), column().key, dragging(), drop()) ===
-                        shownTasks(column()).length
-                      }
-                    >
-                      <div class="ysb-insert" />
-                    </Show>
-                    <Show when={shownTasks(column()).length === 0}>
-                      <div class="ysb-colempty">
-                        {dragging() ? t("column.drop") : t("column.empty")}
-                      </div>
-                    </Show>
-                    <Show when={column().tasks.length > shownTasks(column()).length}>
-                      <button
-                        class="ysb-loadmore"
-                        type="button"
-                        onClick={() => showMore(column().key)}
+                        }
                       >
-                        {t("column.more", {
-                          count: Math.min(
-                            PAGE_SIZE,
-                            column().tasks.length - shownTasks(column()).length,
-                          ),
-                        })}
+                        <StatusIcon status={column().key} size={13} />
+                      </Show>
+                      <span class="ysb-coltitle">
+                        {board.view.grouping === "directory"
+                          ? basename(column().key)
+                          : column().key}
+                      </span>
+                      <span class="ysb-colcount">{column().tasks.length}</span>
+                      <button
+                        class="ysb-coladd"
+                        type="button"
+                        title={t("action.create")}
+                        aria-label={t("action.create")}
+                        onClick={() =>
+                          board.requestCreate(board.view.grouping === "status" ? column().key : "")
+                        }
+                      >
+                        <IconPlus />
                       </button>
-                    </Show>
-                  </div>
-                </section>
-              )}
-            </Index>
+                    </div>
+                    <div class="ysb-colbody">
+                      <Index each={shownTasks(column())}>
+                        {(task, index) => (
+                          <>
+                            <Show
+                              when={
+                                insertionIndex(
+                                  shownTasks(column()),
+                                  column().key,
+                                  dragging(),
+                                  drop(),
+                                ) === index
+                              }
+                            >
+                              <div class="ysb-insert" />
+                            </Show>
+                            <Card
+                              task={task()}
+                              t={t}
+                              colorOf={board.colorOfLabel}
+                              canDrag={canDrag()}
+                              dragging={dragging() === task().id}
+                              onEdit={edit}
+                              onChat={chat}
+                              onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+                              onDragStart={startDrag}
+                              onDragEnd={endDrag}
+                            />
+                          </>
+                        )}
+                      </Index>
+                      <Show
+                        when={
+                          insertionIndex(shownTasks(column()), column().key, dragging(), drop()) ===
+                          shownTasks(column()).length
+                        }
+                      >
+                        <div class="ysb-insert" />
+                      </Show>
+                      <Show when={shownTasks(column()).length === 0}>
+                        <div class="ysb-colempty">
+                          {dragging() ? t("column.drop") : t("column.empty")}
+                        </div>
+                      </Show>
+                      <Show when={column().tasks.length > shownTasks(column()).length}>
+                        <button
+                          class="ysb-loadmore"
+                          type="button"
+                          onClick={() => showMore(column().key)}
+                        >
+                          {t("column.more", {
+                            count: Math.min(
+                              PAGE_SIZE,
+                              column().tasks.length - shownTasks(column()).length,
+                            ),
+                          })}
+                        </button>
+                      </Show>
+                    </div>
+                  </section>
+                )}
+              </Index>
+            </Show>
+            <Show when={board.view.mode === "list"}>
+              <TaskList
+                board={board}
+                t={t}
+                tasks={board.visible()}
+                onEdit={edit}
+                onChat={chat}
+                onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+              />
+            </Show>
+            <Show when={board.view.mode === "table"}>
+              <TaskTable
+                board={board}
+                t={t}
+                tasks={board.visible()}
+                onEdit={edit}
+                onChat={chat}
+                onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+              />
+            </Show>
           </main>
 
           <Show when={board.createOpen()}>
@@ -889,6 +943,223 @@ function Card(props: {
         <span class="ysb-time">{relativeTime(props.task.updated)}</span>
       </div>
     </article>
+  );
+}
+
+function TaskList(props: {
+  board: Board;
+  t: T;
+  tasks: Task[];
+  onEdit(id: string): void;
+  onChat(id: string): void;
+  onContextMenu(id: string, x: number, y: number): void;
+}) {
+  const groups = createMemo(() => {
+    const byStatus = new Map<string, Task[]>();
+    for (const status of props.board.statuses()) byStatus.set(status, []);
+    for (const task of props.tasks) {
+      const list = byStatus.get(task.status) ?? [];
+      list.push(task);
+      byStatus.set(task.status, list);
+    }
+    return [...byStatus.entries()].filter(([, list]) => list.length > 0);
+  });
+
+  return (
+    <div class="ysb-list">
+      <For each={groups()}>
+        {([status, tasks]) => (
+          <section class="ysb-listgroup">
+            <header class="ysb-listgrouphead">
+              <StatusIcon status={status} size={13} />
+              <span class="ysb-listgrouptitle">{status}</span>
+              <span class="ysb-listgroupcount">{tasks.length}</span>
+            </header>
+            <div class="ysb-listrows">
+              <For each={tasks}>
+                {(task) => (
+                  <div
+                    class="ysb-listrow"
+                    role="button"
+                    tabindex="0"
+                    data-ysb-listrow
+                    onClick={() => props.onChat(task.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") props.onChat(task.id);
+                    }}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      props.onContextMenu(task.id, event.clientX, event.clientY);
+                    }}
+                  >
+                    <span class="ysb-listcode">#{task.code ?? shortId(task.id)}</span>
+                    <span class="ysb-listtitle">{task.title}</span>
+                    <span class="ysb-listlabels">
+                      <For each={task.labels.slice(0, 3)}>
+                        {(label) => (
+                          <span
+                            class="ysb-label"
+                            style={`--ysb-label:${props.board.colorOfLabel(label)}`}
+                          >
+                            <span class="ysb-chipdot" />
+                            {label}
+                          </span>
+                        )}
+                      </For>
+                      <Show when={task.labels.length > 3}>
+                        <span class="ysb-label ysb-label-more">+{task.labels.length - 3}</span>
+                      </Show>
+                    </span>
+                    <span class="ysb-listagent">{task.agent}</span>
+                    <span class="ysb-listdir" title={task.directory}>
+                      {basename(task.directory)}
+                    </span>
+                    <span class="ysb-listtime">{relativeTime(task.updated)}</span>
+                    <button
+                      class="ysb-listdetails"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        props.onEdit(task.id);
+                      }}
+                    >
+                      {props.t("widget.details")}
+                    </button>
+                  </div>
+                )}
+              </For>
+            </div>
+          </section>
+        )}
+      </For>
+    </div>
+  );
+}
+
+type TableSortKey = "code" | "title" | "status" | "agent" | "directory" | "updated";
+
+function TaskTable(props: {
+  board: Board;
+  t: T;
+  tasks: Task[];
+  onEdit(id: string): void;
+  onChat(id: string): void;
+  onContextMenu(id: string, x: number, y: number): void;
+}) {
+  const [sort, setSort] = createSignal<{ key: TableSortKey; desc: boolean }>({
+    key: "updated",
+    desc: true,
+  });
+  const sorted = createMemo(() => {
+    const statuses = props.board.statuses();
+    const { key, desc } = sort();
+    return [...props.tasks].sort((a, b) => {
+      let result = 0;
+      if (key === "updated") result = a.updated - b.updated;
+      else if (key === "code")
+        result =
+          Number((a.code || "").replace(/\D/g, "")) - Number((b.code || "").replace(/\D/g, ""));
+      else if (key === "status") result = statuses.indexOf(a.status) - statuses.indexOf(b.status);
+      else result = String(a[key]).localeCompare(String(b[key]), "zh-CN", { numeric: true });
+      return desc ? -result : result;
+    });
+  });
+
+  function toggleSort(key: TableSortKey) {
+    setSort((current) =>
+      current.key === key
+        ? { key, desc: !current.desc }
+        : { key, desc: key === "updated" || key === "code" },
+    );
+  }
+
+  function header(key: TableSortKey, label: string) {
+    return (
+      <th>
+        <button class="ysb-thbtn" type="button" onClick={() => toggleSort(key)}>
+          {label}
+          <Show when={sort().key === key}>
+            <span class="ysb-thsort">{sort().desc ? "↓" : "↑"}</span>
+          </Show>
+        </button>
+      </th>
+    );
+  }
+
+  return (
+    <div class="ysb-tablewrap">
+      <table class="ysb-table" data-ysb-table>
+        <thead>
+          <tr>
+            {header("code", props.t("field.code"))}
+            {header("title", props.t("field.title"))}
+            {header("status", props.t("field.status"))}
+            <th>{props.t("field.labels")}</th>
+            {header("agent", props.t("field.agent"))}
+            {header("directory", props.t("field.directory"))}
+            {header("updated", props.t("dialog.updated"))}
+            <th aria-label={props.t("widget.details")} />
+          </tr>
+        </thead>
+        <tbody>
+          <For each={sorted()}>
+            {(task) => (
+              <tr
+                onClick={() => props.onChat(task.id)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  props.onContextMenu(task.id, event.clientX, event.clientY);
+                }}
+              >
+                <td class="ysb-tablecode">#{task.code ?? shortId(task.id)}</td>
+                <td class="ysb-tabletitle">{task.title}</td>
+                <td>
+                  <span class="ysb-tablestatus">
+                    <StatusIcon status={task.status} size={12} />
+                    {task.status}
+                  </span>
+                </td>
+                <td>
+                  <span class="ysb-chips">
+                    <For each={task.labels.slice(0, 3)}>
+                      {(label) => (
+                        <span
+                          class="ysb-label"
+                          style={`--ysb-label:${props.board.colorOfLabel(label)}`}
+                        >
+                          <span class="ysb-chipdot" />
+                          {label}
+                        </span>
+                      )}
+                    </For>
+                    <Show when={task.labels.length > 3}>
+                      <span class="ysb-label ysb-label-more">+{task.labels.length - 3}</span>
+                    </Show>
+                  </span>
+                </td>
+                <td class="ysb-tablemuted">{task.agent}</td>
+                <td class="ysb-tablemuted" title={task.directory}>
+                  {basename(task.directory)}
+                </td>
+                <td class="ysb-tablemuted">{relativeTime(task.updated)}</td>
+                <td>
+                  <button
+                    class="ysb-tabledetails"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      props.onEdit(task.id);
+                    }}
+                  >
+                    {props.t("widget.details")}
+                  </button>
+                </td>
+              </tr>
+            )}
+          </For>
+        </tbody>
+      </table>
+    </div>
   );
 }
 

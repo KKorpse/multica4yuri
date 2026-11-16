@@ -429,6 +429,28 @@ dom.window.document
   ?.dispatchEvent(new dom.window.MouseEvent("mousedown", { bubbles: true }));
 await new Promise((resolve) => setTimeout(resolve, 50));
 
+// List and table views expose the same task set as the board.
+document.querySelector('[data-ysb-view="list"]').click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-listrow]").length,
+  3,
+  "list view renders every task",
+);
+document.querySelector('[data-ysb-view="table"]').click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-table] tbody tr").length,
+  3,
+  "table view renders every task",
+);
+document.querySelector('[data-ysb-view="board"]').click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.ok(
+  dom.window.document.querySelectorAll("[data-ysb-column]").length > 0,
+  "board view returns after switching views",
+);
+
 // Grouping by tag and the tag manager must render from the label catalog.
 const groupSelect = dom.window.document.querySelector(".ysb-toolbar select");
 groupSelect.value = "label";

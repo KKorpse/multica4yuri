@@ -41,6 +41,7 @@ export interface Task extends TaskMeta {
 }
 
 export type Grouping = "status" | "agent" | "directory" | "label";
+export type ViewMode = "board" | "list" | "table";
 export type Sort = "manual" | "updated" | "created" | "title";
 export type ArchiveFilter = "active" | "all" | "archived";
 

@@ -27,12 +27,14 @@ import {
   type Sort,
   type Task,
   type TaskMeta,
+  type ViewMode,
 } from "./model";
 import type { Task as TaskRecord } from "./task";
 import { BoardRpc } from "./rpc";
 import type { T } from "./i18n";
 
 export interface ViewState {
+  mode: ViewMode;
   grouping: Grouping;
   sort: Sort;
   filters: Filters;
@@ -67,6 +69,7 @@ export interface SaveInput {
 
 const VIEW_KEY = "yuri-session-board:view:v1";
 const DEFAULT_VIEW: ViewState = {
+  mode: "board",
   grouping: "status",
   sort: "manual",
   filters: { ...EMPTY_FILTERS },
@@ -89,6 +92,7 @@ function loadView(): ViewState {
       typeof filters[key] === "boolean" ? (filters[key] as boolean) : fallback;
     const archive = text("archive", "active");
     return {
+      mode: parsed.mode === "list" || parsed.mode === "table" ? parsed.mode : "board",
       grouping:
         parsed.grouping === "agent" ||
         parsed.grouping === "directory" ||
@@ -770,6 +774,7 @@ export function createBoard(ctx: Context, t: T) {
     runningCount,
     task: taskById,
     total: () => tasks().length,
+    setMode: (mode: ViewMode) => setView("mode", mode),
     setGrouping: (grouping: Grouping) => setView("grouping", grouping),
     setSort: (sort: Sort) => setView("sort", sort),
     setFilters,

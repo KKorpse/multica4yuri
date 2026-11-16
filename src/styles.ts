@@ -217,6 +217,204 @@ export const CSS = `
 .ysb-tool select:active { background-color: var(--ysb-active); }
 .ysb-toolbar-meta { margin-left: auto; color: var(--ysb-muted); font-size: 11px; }
 
+.ysb-viewswitch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--ysb-border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--ysb-card);
+}
+.ysb-viewbtn {
+  height: 22px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ysb-muted);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+.ysb-viewbtn:hover { background: var(--ysb-hover); color: var(--ysb-fg); }
+.ysb-viewbtn.is-on {
+  background: var(--ysb-surface);
+  color: var(--ysb-fg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ysb-fg) 6%, transparent);
+}
+
+.ysb-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 20px 24px;
+}
+.ysb-list {
+  width: min(1200px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.ysb-listgroup { display: flex; flex-direction: column; gap: 6px; }
+.ysb-listgrouphead {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 4px;
+  color: var(--ysb-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.ysb-listgroupcount {
+  min-width: 18px;
+  color: var(--ysb-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.ysb-listrows {
+  overflow: hidden;
+  border: 1px solid var(--ysb-border);
+  border-radius: 10px;
+  background: var(--ysb-card);
+}
+.ysb-listrow {
+  display: grid;
+  grid-template-columns: 64px minmax(180px, 1fr) minmax(120px, auto) 96px 96px 72px 56px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ysb-fg) 7%, transparent);
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+.ysb-listrow:first-child { border-top: 0; }
+.ysb-listrow:hover { background: var(--ysb-hover); }
+.ysb-listrow:focus-visible {
+  outline: 2px solid var(--ysb-focus);
+  outline-offset: -2px;
+}
+.ysb-listcode {
+  color: var(--ysb-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.ysb-listtitle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ysb-fg);
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-listlabels { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.ysb-listagent,
+.ysb-listdir,
+.ysb-listtime {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ysb-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-listdetails,
+.ysb-tabledetails {
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--ysb-border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ysb-muted);
+  font: inherit;
+  font-size: 10.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ysb-listdetails:hover,
+.ysb-tabledetails:hover {
+  background: var(--ysb-hover);
+  color: var(--ysb-fg);
+}
+
+.ysb-tablewrap {
+  width: min(1400px, 100%);
+  margin: 0 auto;
+  overflow: auto;
+  border: 1px solid var(--ysb-border);
+  border-radius: 10px;
+  background: var(--ysb-card);
+}
+.ysb-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+.ysb-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0;
+  border-bottom: 1px solid var(--ysb-border);
+  background: var(--ysb-card);
+  color: var(--ysb-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.ysb-thbtn {
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ysb-thbtn:hover { color: var(--ysb-fg); }
+.ysb-thsort { margin-left: 4px; color: var(--ysb-fg); }
+.ysb-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ysb-fg) 7%, transparent);
+  vertical-align: middle;
+}
+.ysb-table tbody tr { cursor: pointer; transition: background-color 150ms ease-out; }
+.ysb-table tbody tr:hover { background: var(--ysb-hover); }
+.ysb-table tbody tr:last-child td { border-bottom: 0; }
+.ysb-tablecode {
+  color: var(--ysb-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ysb-tabletitle {
+  max-width: 420px;
+  overflow: hidden;
+  color: var(--ysb-fg);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-tablestatus { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ysb-tablemuted {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--ysb-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-table .ysb-chips { flex-wrap: nowrap; overflow: hidden; }
+.ysb-table .ysb-label { height: 18px; font-size: 10px; }
+
 .ysb-filterpanel {
   display: flex;
   flex-direction: column;
