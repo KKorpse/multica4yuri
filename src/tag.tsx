@@ -45,6 +45,7 @@ export function TagEditor(props: {
         class="ysb-input ysb-taginput"
         value={draft()}
         placeholder={props.placeholder}
+        aria-label={props.placeholder}
         onInput={(event) => setDraft(event.currentTarget.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {

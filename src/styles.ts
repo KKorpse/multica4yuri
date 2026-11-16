@@ -1289,7 +1289,8 @@ export const CSS = `
   justify-content: flex-end;
   gap: 8px;
 }
-.ysb-detail-section > h3 {
+.ysb-detail-section > h3,
+.ysb-detail-sectionhead > h3 {
   margin: 0;
   color: var(--foreground);
   font-size: 12px;

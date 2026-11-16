@@ -129,6 +129,12 @@ export function BoardPage(props: { board: Board; t: T }) {
         return;
       }
       if (event.key !== "Escape") return;
+      if (menu()) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeMenu(true);
+        return;
+      }
       if (board.createOpen()) {
         event.stopPropagation();
         board.closeCreate();
@@ -245,6 +251,45 @@ export function BoardPage(props: { board: Board; t: T }) {
     setDrop(undefined);
   }
 
+  function closeMenu(restoreFocus = false) {
+    const id = menu()?.id;
+    setMenu(undefined);
+    if (!restoreFocus || !id) return;
+    requestAnimationFrame(() => {
+      const card = [...document.querySelectorAll<HTMLElement>("[data-ysb-card]")].find(
+        (element) => element.dataset.ysbCard === id,
+      );
+      card?.focus();
+    });
+  }
+
+  function onMenuKeyDown(event: KeyboardEvent) {
+    if (event.key === "Escape" || event.key === "Tab") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMenu(true);
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const items = [
+      ...(event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        ".ysb-menuitem:not(:disabled)",
+      ),
+    ];
+    if (items.length === 0) return;
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+          ? items.length - 1
+          : event.key === "ArrowUp"
+            ? (current <= 0 ? items.length : current) - 1
+            : (current + 1) % items.length;
+    items[next]?.focus();
+  }
+
   function edit(id: string) {
     if (Date.now() - draggedAt < 250) return;
     board.edit(id);
@@ -267,7 +312,7 @@ export function BoardPage(props: { board: Board; t: T }) {
       <ErrorBoundary
         fallback={(error, reset) => (
           <div class="ysb-root">
-            <div class="ysb-errorbox">
+            <div class="ysb-errorbox" role="alert">
               <strong>{t("board.crashed")}</strong>
               <span>{String(error)}</span>
               <button class="ysb-btn small" type="button" onClick={reset}>
@@ -301,6 +346,8 @@ export function BoardPage(props: { board: Board; t: T }) {
                   class="ysb-btn"
                   classList={{ "is-active": filtersOpen() }}
                   type="button"
+                  aria-expanded={filtersOpen()}
+                  aria-controls="ysb-filter-panel"
                   onClick={() => setFiltersOpen((open) => !open)}
                 >
                   <IconFilter />
@@ -370,7 +417,7 @@ export function BoardPage(props: { board: Board; t: T }) {
             </div>
 
             <Show when={filtersOpen()}>
-              <div class="ysb-filterpanel">
+              <div class="ysb-filterpanel" id="ysb-filter-panel">
                 <div class="ysb-filtergroup">
                   <span class="ysb-filterlabel">{t("filter.statuses")}</span>
                   <div class="ysb-chips">
@@ -378,6 +425,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                       class="ysb-chip"
                       classList={{ "is-on": board.view.filters.statuses.length === 0 }}
                       type="button"
+                      aria-pressed={board.view.filters.statuses.length === 0}
                       onClick={() => board.setFilters({ statuses: [] })}
                     >
                       {t("filter.all")}
@@ -388,6 +436,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                           class="ysb-chip"
                           classList={{ "is-on": board.view.filters.statuses.includes(status) }}
                           type="button"
+                          aria-pressed={board.view.filters.statuses.includes(status)}
                           onClick={() => board.toggleStatus(status)}
                         >
                           <StatusIcon status={status} />
@@ -409,6 +458,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                             class="ysb-chip"
                             classList={{ "is-on": board.view.filters.labels.includes(label.name) }}
                             type="button"
+                            aria-pressed={board.view.filters.labels.includes(label.name)}
                             onClick={() => board.toggleLabel(label.name)}
                           >
                             <span
@@ -493,10 +543,12 @@ export function BoardPage(props: { board: Board; t: T }) {
 
           <main class="ysb-board">
             <Show when={board.loading() && board.total() === 0}>
-              <div class="ysb-loading">{t("board.loading")}</div>
+              <div class="ysb-loading" role="status">
+                {t("board.loading")}
+              </div>
             </Show>
             <Show when={board.error()}>
-              <div class="ysb-errorbox">
+              <div class="ysb-errorbox" role="alert">
                 <strong>{t("board.error")}</strong>
                 <span>{board.error()}</span>
                 <button class="ysb-btn small" type="button" onClick={() => void board.reload()}>
@@ -647,8 +699,15 @@ export function BoardPage(props: { board: Board; t: T }) {
                     }}
                   />
                   <div
-                    class="ysb-menu"
+                    class="ysb-menu yuri-mobile-overlay-surface yuri-popup-surface"
                     role="menu"
+                    ref={(element) =>
+                      queueMicrotask(() => {
+                        if (element.isConnected)
+                          element.querySelector<HTMLButtonElement>(".ysb-menuitem")?.focus();
+                      })
+                    }
+                    onKeyDown={onMenuKeyDown}
                     style={{
                       left: `${Math.min(menu().x, window.innerWidth - 168)}px`,
                       top: `${Math.min(menu().y, window.innerHeight - 196)}px`,
@@ -659,22 +718,26 @@ export function BoardPage(props: { board: Board; t: T }) {
                         <>
                           <button
                             class="ysb-menuitem"
+                            role="menuitem"
+                            tabIndex={-1}
                             type="button"
                             onClick={() => {
                               void board.setUrgent(task().id, !task().urgent);
-                              setMenu(undefined);
+                              closeMenu(true);
                             }}
                           >
                             {task().urgent ? t("menu.notUrgent") : t("menu.urgent")}
                           </button>
-                          <div class="ysb-menusep" />
+                          <div class="ysb-menusep yuri-popup-separator" role="separator" />
                           <Show when={task().status !== "已完成"}>
                             <button
                               class="ysb-menuitem"
+                              role="menuitem"
+                              tabIndex={-1}
                               type="button"
                               onClick={() => {
                                 void board.move(task().id, "已完成");
-                                setMenu(undefined);
+                                closeMenu(true);
                               }}
                             >
                               {t("menu.complete")}
@@ -683,10 +746,12 @@ export function BoardPage(props: { board: Board; t: T }) {
                           <Show when={task().status !== "废弃"}>
                             <button
                               class="ysb-menuitem danger"
+                              role="menuitem"
+                              tabIndex={-1}
                               type="button"
                               onClick={() => {
                                 void board.move(task().id, "废弃");
-                                setMenu(undefined);
+                                closeMenu(true);
                               }}
                             >
                               {t("menu.discard")}
@@ -695,10 +760,12 @@ export function BoardPage(props: { board: Board; t: T }) {
                           <Show when={task().status === "已完成" || task().status === "废弃"}>
                             <button
                               class="ysb-menuitem"
+                              role="menuitem"
+                              tabIndex={-1}
                               type="button"
                               onClick={() => {
                                 void board.reopen(task().id);
-                                setMenu(undefined);
+                                closeMenu(true);
                               }}
                             >
                               {t("menu.reopen")}
@@ -826,6 +893,7 @@ function Card(props: {
 }
 
 function useDialogKeys(close: () => void, submit: () => void) {
+  const returnFocus = document.activeElement as HTMLElement | null;
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -836,7 +904,10 @@ function useDialogKeys(close: () => void, submit: () => void) {
     }
   };
   onMount(() => window.addEventListener("keydown", onKeyDown));
-  onCleanup(() => window.removeEventListener("keydown", onKeyDown));
+  onCleanup(() => {
+    window.removeEventListener("keydown", onKeyDown);
+    if (returnFocus?.isConnected) returnFocus.focus();
+  });
 }
 
 function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
@@ -1024,7 +1095,9 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
 
           <p class="ysb-hint">{form.send ? t("create.sendHint") : t("create.hint")}</p>
           <Show when={problem()}>
-            <p class="ysb-error">{problem()}</p>
+            <p class="ysb-error" role="alert">
+              {problem()}
+            </p>
           </Show>
         </div>
 
@@ -1037,6 +1110,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
               class="ysb-btn primary"
               type="button"
               disabled={busy()}
+              aria-busy={busy()}
               onClick={() => void submit()}
             >
               {busy() ? "…" : t("create.submit")}
@@ -1146,8 +1220,13 @@ function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
             <input
               class="ysb-input"
               value={name()}
-              ref={(element) => element.focus()}
+              ref={(element) =>
+                queueMicrotask(() => {
+                  if (element.isConnected) element.focus();
+                })
+              }
               placeholder={t("label.placeholder")}
+              aria-label={t("label.placeholder")}
               onInput={(event) => setName(event.currentTarget.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -1205,10 +1284,14 @@ function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
                       <input
                         class="ysb-input ysb-labelrename"
                         value={draft()}
-                        ref={(element) => {
-                          element.focus();
-                          element.select();
-                        }}
+                        aria-label={t("label.rename")}
+                        ref={(element) =>
+                          queueMicrotask(() => {
+                            if (!element.isConnected) return;
+                            element.focus();
+                            element.select();
+                          })
+                        }
                         onInput={(event) => setDraft(event.currentTarget.value)}
                         onKeyDown={(event) => {
                           if (event.key === "Enter") {
@@ -1297,7 +1380,9 @@ function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
           </Show>
 
           <Show when={problem()}>
-            <p class="ysb-error">{problem()}</p>
+            <p class="ysb-error" role="alert">
+              {problem()}
+            </p>
           </Show>
         </div>
 

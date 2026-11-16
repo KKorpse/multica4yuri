@@ -22,6 +22,11 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
   const [labelValue, setLabelValue] = createSignal<string[]>(task()?.labels ?? []);
   const [labelsEditing, setLabelsEditing] = createSignal(false);
   const [busy, setBusy] = createSignal(false);
+  const returnFocus = document.activeElement as HTMLElement | null;
+
+  onCleanup(() => {
+    if (returnFocus?.isConnected) returnFocus.focus();
+  });
 
   function openLink(href: string) {
     props.board.openLink(href, task()?.directory);
@@ -137,6 +142,11 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                   class="ysb-detail-close"
                   type="button"
                   aria-label={props.t("action.close")}
+                  ref={(element) =>
+                    queueMicrotask(() => {
+                      if (element.isConnected) element.focus();
+                    })
+                  }
                   onClick={props.onClose}
                 >
                   <SpriteIcon name="close" size={14} />
@@ -173,6 +183,7 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                           <textarea
                             class="ysb-textarea"
                             value={descDraft()}
+                            aria-label={props.t("widget.goal")}
                             onInput={(event) => setDescDraft(event.currentTarget.value)}
                           />
                           <div class="ysb-detail-docactions">
@@ -239,6 +250,7 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                             class="ysb-widget-action primary"
                             type="button"
                             disabled={busy()}
+                            aria-busy={busy()}
                             onClick={() => void saveLabels()}
                           >
                             {props.t("action.save")}
@@ -289,6 +301,7 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                           <textarea
                             class="ysb-textarea"
                             value={docDraft()}
+                            aria-label={props.t("widget.outputs")}
                             onInput={(event) => setDocDraft(event.currentTarget.value)}
                           />
                           <div class="ysb-detail-docactions">
@@ -395,6 +408,7 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                       class="ysb-widget-action primary"
                       type="button"
                       disabled={busy()}
+                      aria-busy={busy()}
                       onClick={() => void saveSettings()}
                     >
                       {props.t("action.save")}

@@ -106,18 +106,20 @@ function workspaceCode(code: string): string {
 
 export function sessionTitle(task: Pick<Task, "code" | "title">): string {
   const code = workspaceCode(task.code ?? "");
-  return code ? `[${code}]${task.title}` : task.title;
+  return code ? `【${code}】${task.title}` : task.title;
 }
 
 export function stripCodePrefix(title: string, code?: string): string {
   const clean = title.trim();
   const raw = code?.trim() ?? "";
   const ws = workspaceCode(raw);
-  const prefixes = [ws ? `[${ws}]` : "", raw ? `【${raw}】` : ""].filter(Boolean);
-  for (const prefix of prefixes) {
-    if (!clean.startsWith(prefix)) continue;
-    const rest = clean.slice(prefix.length).replace(/^\[S-\d+\]/, "");
-    return rest.trim();
+  const patterns = [
+    ws ? new RegExp(`^【${ws}(?:-\\d+)?】`) : null,
+    ws ? new RegExp(`^\\[${ws}\\](?:\\[S-\\d+\\])?`) : null,
+    raw ? new RegExp(`^【${raw}】`) : null,
+  ].filter((pattern): pattern is RegExp => Boolean(pattern));
+  for (const pattern of patterns) {
+    if (pattern.test(clean)) return clean.replace(pattern, "").trim();
   }
   return clean;
 }
@@ -137,8 +139,8 @@ export function childTitle(
   const existing = exceptId ? subs.findIndex((link) => link.sessionId === exceptId) : -1;
   const sequence = existing >= 0 ? existing + 1 : subs.length + 1;
   const ws = workspaceCode(task.code);
-  const prefix = ws ? `[${ws}][S-${sequence}]` : "";
-  return `${prefix}${task.title} · ${label}${duplicate ? ` · ${directory.split("/").filter(Boolean).at(-1)}` : ""}`;
+  const prefix = ws ? `【${ws}-${sequence}】` : "";
+  return `${prefix}${label}${duplicate ? ` · ${directory.split("/").filter(Boolean).at(-1)}` : ""}`;
 }
 
 function roster(task: Task): string {

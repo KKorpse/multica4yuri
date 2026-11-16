@@ -74,6 +74,7 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                     <button
                       class="ysb-widget-sectiontoggle"
                       type="button"
+                      aria-expanded={expanded()}
                       onClick={() => setExpanded((value) => !value)}
                     >
                       {props.t(expanded() ? "widget.collapse" : "widget.expand")}
@@ -120,6 +121,7 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                     <button
                       class="ysb-widget-sectiontoggle"
                       type="button"
+                      aria-expanded={outputsExpanded()}
                       onClick={() => setOutputsExpanded((value) => !value)}
                     >
                       {props.t(outputsExpanded() ? "widget.collapse" : "widget.expand")}

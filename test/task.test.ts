@@ -14,20 +14,18 @@ function task() {
 
 test("session titles carry the workspace prefix", () => {
   const value = task();
-  assert.equal(sessionTitle(value), "[WS-10]Multica 插件支持");
+  assert.equal(sessionTitle(value), "【WS-10】Multica 插件支持");
   assert.equal(sessionTitle({ code: "", title: "No code" }), "No code");
 });
 
 test("manual renames strip workspace and legacy prefixes", () => {
-  assert.equal(stripCodePrefix("[WS-10]Multica 插件支持", "ZM-10"), "Multica 插件支持");
+  assert.equal(stripCodePrefix("【WS-10】Multica 插件支持", "ZM-10"), "Multica 插件支持");
+  assert.equal(stripCodePrefix("【WS-10-1】子目标", "ZM-10"), "子目标");
   assert.equal(stripCodePrefix("【ZM-10】Multica 插件支持", "ZM-10"), "Multica 插件支持");
   assert.equal(stripCodePrefix("Multica 插件支持", "ZM-10"), "Multica 插件支持");
-  assert.equal(stripCodePrefix("[WS-9]旧标题", "ZM-10"), "[WS-9]旧标题");
+  assert.equal(stripCodePrefix("【WS-9】旧标题", "ZM-10"), "【WS-9】旧标题");
 });
 
-test("child session titles include the workspace and child sequence", () => {
-  assert.equal(
-    childTitle(task(), "补齐文档", "/work/project", 1),
-    "[WS-10][S-1]Multica 插件支持 · 补齐文档",
-  );
+test("child session titles use the child sequence without repeating the task title", () => {
+  assert.equal(childTitle(task(), "补齐文档", "/work/project", 1), "【WS-10-1】补齐文档");
 });

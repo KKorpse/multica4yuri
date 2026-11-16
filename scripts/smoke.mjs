@@ -346,14 +346,26 @@ assert.ok(cardsWithDetails.every(Boolean), "details buttons are present");
 const plainCard = [...dom.window.document.querySelectorAll("[data-ysb-card]")].find((card) =>
   card.textContent.includes("Plain session"),
 );
-plainCard.querySelector(".ysb-carddetails").click();
+const plainDetailsButton = plainCard.querySelector(".ysb-carddetails");
+plainDetailsButton.focus();
+plainDetailsButton.click();
 await new Promise((resolve) => setTimeout(resolve, 50));
 const plainDetail = dom.window.document.querySelector(".ysb-detail");
 assert.ok(plainDetail, "details button opens the task dialog");
+assert.equal(
+  dom.window.document.activeElement,
+  plainDetail.querySelector(".ysb-detail-close"),
+  "details dialog has an initial keyboard focus target",
+);
 assert.match(plainDetail.textContent, /filter\.labels/, "details always shows the tag section");
 assert.match(plainDetail.textContent, /label\.none/, "details shows the empty tag hint");
 dom.window.document.querySelector(".ysb-detail-close").click();
 await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  dom.window.document.activeElement,
+  plainDetailsButton,
+  "closing details restores focus to its trigger",
+);
 
 const firstCard = dom.window.document.querySelector("[data-ysb-card]");
 firstCard.click();
@@ -386,6 +398,32 @@ const menuText = dom.window.document.querySelector(".ysb-menu")?.textContent ?? 
 assert.match(menuText, /menu\.urgent/, "context menu rendered");
 assert.equal(menuText.includes("widget.details"), false, "context menu has no details entry");
 assert.equal(menuText.includes("action.chat"), false, "context menu has no open-chat entry");
+const menuElement = dom.window.document.querySelector(".ysb-menu");
+const menuItems = [...menuElement.querySelectorAll(".ysb-menuitem")];
+assert.equal(
+  dom.window.document.activeElement,
+  menuItems[0],
+  "context menu focuses its first action",
+);
+menuElement.dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+);
+assert.equal(
+  dom.window.document.activeElement,
+  menuItems[1],
+  "arrow keys move through menu actions",
+);
+menuItems[1].dispatchEvent(
+  new dom.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(dom.window.document.querySelector(".ysb-menu"), null, "Escape dismisses the menu");
+assert.equal(dom.window.document.activeElement, firstCard, "menu dismissal restores card focus");
+
+firstCard.dispatchEvent(
+  new dom.window.MouseEvent("contextmenu", { bubbles: true, clientX: 12, clientY: 12 }),
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
 dom.window.document
   .querySelector(".ysb-menu-backdrop")
   ?.dispatchEvent(new dom.window.MouseEvent("mousedown", { bubbles: true }));
@@ -408,9 +446,15 @@ const manageButton = [...dom.window.document.querySelectorAll("button")].find((b
   button.textContent.includes("label.manage"),
 );
 assert.ok(manageButton, "tag manager button rendered");
+manageButton.focus();
 manageButton.click();
 await new Promise((resolve) => setTimeout(resolve, 50));
 assert.match(dom.window.document.body.textContent, /label\.title/, "tag manager opened");
+assert.equal(
+  dom.window.document.activeElement,
+  dom.window.document.querySelector(".ysb-labelcomposer input"),
+  "tag manager focuses its create input",
+);
 assert.equal(
   dom.window.document.querySelectorAll(".ysb-labelrow").length,
   1,
