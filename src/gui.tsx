@@ -6,7 +6,6 @@ import {
   isMobileSurface,
   isTouchDevice,
   openPluginPage,
-  openSession,
   PAGE_ID,
   WorkStatus,
   YuriPage,
@@ -50,9 +49,8 @@ export default Plugin.define({
         openBoard();
         return;
       }
-      const previous = consumeReturnSession();
-      if (previous) openSession(previous);
-      else window.history.back();
+      consumeReturnSession();
+      window.history.back();
     };
 
     ctx.add(WorkStatus, {
