@@ -2,9 +2,11 @@ import { Command, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
 import {
   BUILD,
+  consumeReturnSession,
   isMobileSurface,
   isTouchDevice,
   openPluginPage,
+  openSession,
   PAGE_ID,
   WorkStatus,
   YuriPage,
@@ -38,6 +40,21 @@ export default Plugin.define({
       openPluginPage(ctx);
     };
 
+    const boardVisible = () => {
+      const page = document.querySelector<HTMLElement>("[data-ysb-page]");
+      return Boolean(page && page.getClientRects().length > 0);
+    };
+
+    const toggleBoard = () => {
+      if (!boardVisible()) {
+        openBoard();
+        return;
+      }
+      const previous = consumeReturnSession();
+      if (previous) openSession(previous);
+      else window.history.back();
+    };
+
     ctx.add(WorkStatus, {
       id: "task",
       order: 0,
@@ -52,7 +69,7 @@ export default Plugin.define({
       description: ctx.t("page.subtitle"),
       keywords: "session board kanban task 看板 任务",
       bind: "mod+m",
-      run: () => openBoard(),
+      run: () => toggleBoard(),
     }));
 
     ctx.add(Command, (): Command => ({
