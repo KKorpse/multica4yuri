@@ -195,15 +195,17 @@ export const CSS = `
 }
 .ysb-tool select {
   appearance: none;
-  height: 24px;
-  padding: 0 22px 0 8px;
+  height: 26px;
+  padding: 0 24px 0 9px;
   border: 1px solid var(--ysb-border);
   border-radius: var(--radius-md, 8px);
-  background-color: transparent;
+  background-color: var(--ysb-card);
   color: var(--ysb-fg);
   font: inherit;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ysb-fg) 4%, transparent);
   background-image: linear-gradient(45deg, transparent 50%, var(--ysb-muted) 50%),
     linear-gradient(135deg, var(--ysb-muted) 50%, transparent 50%);
   background-position: calc(100% - 10px) 9px, calc(100% - 6px) 9px;

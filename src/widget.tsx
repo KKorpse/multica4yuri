@@ -29,7 +29,7 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
   const parts = () => preview(description());
   const canExpand = () => !!parts().tail;
   const doc = () => task()?.record?.document?.content ?? "";
-  const docParts = () => (doc().length <= 800 ? { head: doc(), tail: "" } : preview(doc()));
+  const docParts = () => (doc().length <= 100 ? { head: doc(), tail: "" } : preview(doc()));
   const canExpandDoc = () => !!docParts().tail;
 
   const openLink = (href: string) => props.board.openLink(href, task()?.directory);
