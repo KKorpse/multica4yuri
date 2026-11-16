@@ -137,15 +137,15 @@ function roster(task: Task): string {
 export function renderBrief(task: Task, self: SessionLink, documentPath?: string): string {
   const docPath = documentPath ?? task.document.path ?? "（任务文档）";
   const outputStyle = `[输出风格]
-最终回复只允许「结论」和「产出」两段；禁止输出评审正文、方案、标题、列表、代码、过程叙述或重复任务描述。
-任务描述里要求“输出报告/文档”时，只指写入任务文档，不是聊天回复。
-先调用 zmultica_document_set 写文档；聊天里只给文档链接，不要粘贴正文。
-文档路径: ${docPath}
-结论：一句话。
-产出：
-- [文档标题](${docPath})
-- [MR 标题](MR 链接)
-描述、方案、证据放文档；代码、diff、验证细节放 MR。`;
+产出按需：只有任务描述明确要求 MR、文档、报告、评审结论等交付物时，才写入任务文档。
+- 没有产出要求：直接简洁回答，不要调用 zmultica_document_set，不要生成文档链接，也不要输出「产出」段。
+- 有产出要求：先调用 zmultica_document_set 写文档；聊天只输出：
+  结论：一句话。
+  产出：
+  - [文档标题](${docPath})
+  - [MR 标题](MR 链接)
+  描述、方案、证据放文档；代码、diff、验证细节放 MR。
+任何情况下都不要过程叙述、不要重复任务描述、不要在聊天里贴完整正文。`;
 
   if (self.role === "main") {
     return `${outputStyle}
@@ -174,7 +174,8 @@ ${roster(task)}
 接口变更由主会话先定，再派子会话实现；不要让两个子会话同时改互相依赖的接口。
 
 [回复格式再确认]
-聊天只输出「结论」和「产出」两段，完整内容写入 ${docPath}；不要粘贴正文。`;
+没有明确要求产出的任务，直接简要回答，不写文档、不给产出链接。
+需要产出时，聊天只输出「结论」和「产出」两段，完整内容写入 ${docPath}；不要粘贴正文。`;
   }
 
   return `${outputStyle}
@@ -198,5 +199,6 @@ ${roster(task)}
 - 任务状态由系统和用户维护，不要修改。
 
 [回复格式再确认]
-聊天只输出「结论」和「产出」两段，完整内容写入 ${docPath}；不要粘贴正文。`;
+没有明确要求产出的任务，直接简要回答，不写文档、不给产出链接。
+需要产出时，聊天只输出「结论」和「产出」两段，完整内容写入 ${docPath}；不要粘贴正文。`;
 }
