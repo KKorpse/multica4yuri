@@ -334,6 +334,22 @@ function startSession(sessionID: string | undefined) {
   console.log(`已启动会话 ${sessionID}`);
 }
 
+function listAgents() {
+  const directory = flag("directory") || process.cwd();
+  const result = rpc("agentList", { directory }) as {
+    agents?: Array<{ id: string; name?: string; mode?: string; hidden?: boolean }>;
+  };
+  const agents = (result.agents ?? []).filter((agent) => !agent.hidden);
+  if (json) return print(agents);
+  if (!agents.length) {
+    console.log(`目录 ${directory} 没有可用 agent`);
+    return;
+  }
+  for (const agent of agents) {
+    console.log(`${agent.id.padEnd(24)}  ${(agent.mode ?? "").padEnd(8)}  ${agent.name ?? ""}`);
+  }
+}
+
 function listLabels() {
   const result = rpc("labelList") as LabelInfo[];
   if (json) return print(result);
@@ -394,6 +410,9 @@ function help() {
   task complete <ZM-0>
   task discard <ZM-0>
 
+Agent
+  agent list [--directory /path] [--json]
+
 标签
   label list
   label create <名称> [--color #8b8cdd]
@@ -434,6 +453,7 @@ try {
   else if (group === "session" && action === "start") startSession(ref);
   else if (group === "session" && action === "link") sessionLink(ref);
   else if (group === "session" && action === "tail") sessionTail(ref);
+  else if (group === "agent" && action === "list") listAgents();
   else if (group === "label" && action === "list") listLabels();
   else if (group === "label" && action === "create") createLabel();
   else if (group === "label" && action === "rename") renameLabel();
