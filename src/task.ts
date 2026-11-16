@@ -99,15 +99,27 @@ export function newTask(
   };
 }
 
+function workspaceCode(code: string): string {
+  const clean = code.trim();
+  return clean ? clean.replace(/^ZM-/i, "WS-") : "";
+}
+
 export function sessionTitle(task: Pick<Task, "code" | "title">): string {
-  const code = task.code?.trim();
-  return code ? `【${code}】${task.title}` : task.title;
+  const code = workspaceCode(task.code ?? "");
+  return code ? `[${code}]${task.title}` : task.title;
 }
 
 export function stripCodePrefix(title: string, code?: string): string {
   const clean = title.trim();
-  const prefix = code?.trim() ? `【${code.trim()}】` : "";
-  return prefix && clean.startsWith(prefix) ? clean.slice(prefix.length).trim() : clean;
+  const raw = code?.trim() ?? "";
+  const ws = workspaceCode(raw);
+  const prefixes = [ws ? `[${ws}]` : "", raw ? `【${raw}】` : ""].filter(Boolean);
+  for (const prefix of prefixes) {
+    if (!clean.startsWith(prefix)) continue;
+    const rest = clean.slice(prefix.length).replace(/^\[S-\d+\]/, "");
+    return rest.trim();
+  }
+  return clean;
 }
 
 export function childTitle(
@@ -121,7 +133,12 @@ export function childTitle(
   const duplicate = task.sessions.some(
     (link) => link.sessionId !== exceptId && link.goal === goal.trim() && goal.trim(),
   );
-  return `${sessionTitle(task)} · ${label}${duplicate ? ` · ${directory.split("/").filter(Boolean).at(-1)}` : ""}`;
+  const subs = task.sessions.filter((link) => link.role === "sub");
+  const existing = exceptId ? subs.findIndex((link) => link.sessionId === exceptId) : -1;
+  const sequence = existing >= 0 ? existing + 1 : subs.length + 1;
+  const ws = workspaceCode(task.code);
+  const prefix = ws ? `[${ws}][S-${sequence}]` : "";
+  return `${prefix}${task.title} · ${label}${duplicate ? ` · ${directory.split("/").filter(Boolean).at(-1)}` : ""}`;
 }
 
 function roster(task: Task): string {
