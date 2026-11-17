@@ -46,6 +46,8 @@ export interface Task extends TaskMeta {
   urgent: boolean;
   parentID?: string;
   running: boolean;
+  /** Finished after the user last opened the task. */
+  unread: boolean;
   outcome?: SessionInfo["outcome"];
   created: number;
   updated: number;
@@ -73,6 +75,7 @@ export interface Filters {
   agents: readonly string[];
   directories: readonly string[];
   runningOnly: boolean;
+  unreadOnly: boolean;
   plannedOnly: boolean;
   showChildren: boolean;
 }
@@ -84,6 +87,7 @@ export const EMPTY_FILTERS: Filters = {
   agents: [],
   directories: [],
   runningOnly: false,
+  unreadOnly: false,
   plannedOnly: false,
   showChildren: false,
 };
@@ -195,6 +199,7 @@ export function toTaskFromRecord(
     urgent: taskRecord.urgent,
     parentID: session?.parentID,
     running,
+    unread: taskRecord.lastFinishedAt > taskRecord.lastOpenedAt,
     outcome: session?.outcome,
     created: taskRecord.createdAt,
     updated: taskRecord.updatedAt,
@@ -220,6 +225,7 @@ export function toTask(session: SessionInfo, running = false): Task {
     agent: session.agent || "默认 Agent",
     parentID: session.parentID,
     running,
+    unread: false,
     outcome: session.outcome,
     created: session.time.created,
     updated: session.time.updated,
@@ -234,6 +240,7 @@ export function filterTasks(tasks: readonly Task[], filters: Filters): Task[] {
   return tasks.filter((task) => {
     if (!filters.showChildren && task.parentID) return false;
     if (filters.runningOnly && !task.running) return false;
+    if (filters.unreadOnly && (!task.unread || task.running)) return false;
     if (filters.plannedOnly && !task.planned) return false;
     if (filters.statuses.length && !filters.statuses.includes(task.status)) return false;
     if (filters.agents.length && !filters.agents.includes(task.agent)) return false;

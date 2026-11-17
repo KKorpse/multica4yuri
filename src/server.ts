@@ -176,6 +176,8 @@ export default Plugin.define({
         createdAt: legacy.createdAt ?? now,
         updatedAt: now,
         statusChangedAt: legacy.statusChangedAt ?? now,
+        lastFinishedAt: 0,
+        lastOpenedAt: now,
       };
       store.write(task);
       tasks.set(task.id, task);
@@ -464,6 +466,14 @@ export default Plugin.define({
           store.deleteLabel(input.id);
           return { ok: true };
         },
+        taskOpen: async (input: any) => {
+          const task = await requireTask(input.taskId);
+          const at = Date.now();
+          store.markOpened(task.id, at);
+          task.lastOpenedAt = at;
+          tasks.set(task.id, task);
+          return { ok: true, taskId: task.id, lastOpenedAt: at };
+        },
         taskDelete: async (input: any) => {
           const task = await requireTask(input.taskId);
           const discard = store.discardStatus();
@@ -693,6 +703,24 @@ export default Plugin.define({
           if (event.type === "session.deleted") {
             links.delete(sessionID);
             tasks.delete(sessionID);
+            continue;
+          }
+          if (
+            event.type === "session.execution.succeeded" ||
+            event.type === "session.execution.failed" ||
+            event.type === "session.execution.interrupted"
+          ) {
+            if (!links.has(sessionID)) await refresh(sessionID).catch(() => undefined);
+            const link = links.get(sessionID);
+            if (link) {
+              const at = Date.now();
+              store.markFinished(link.taskId, at);
+              const task = tasks.get(link.taskId);
+              if (task) {
+                task.lastFinishedAt = at;
+                task.updatedAt = at;
+              }
+            }
             continue;
           }
           if (event.type === "session.renamed") {

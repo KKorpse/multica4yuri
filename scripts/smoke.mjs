@@ -156,6 +156,8 @@ const taskRecords = [
     createdAt: now - 60_000,
     updatedAt: now - 30_000,
     statusChangedAt: now - 30_000,
+    lastFinishedAt: 0,
+    lastOpenedAt: now - 60_000,
   },
   {
     id: "ses_board_b",
@@ -183,6 +185,8 @@ const taskRecords = [
     createdAt: now - 120_000,
     updatedAt: now - 90_000,
     statusChangedAt: now - 90_000,
+    lastFinishedAt: 0,
+    lastOpenedAt: now - 120_000,
   },
   {
     id: "ses_board_done",
@@ -210,6 +214,8 @@ const taskRecords = [
     createdAt: now - 300_000,
     updatedAt: now - 200_000,
     statusChangedAt: now - 200_000,
+    lastFinishedAt: now - 200_000,
+    lastOpenedAt: now - 300_000,
   },
 ];
 
@@ -296,6 +302,7 @@ const ctx = {
           .sort((a, b) => a.position - b.position)
           .map((status) => ({ ...status }));
       },
+      taskOpen: async () => ({ ok: true }),
       create: async () => {
         throw new Error("not implemented in smoke");
       },
@@ -395,6 +402,14 @@ assert.ok(
 assert.equal(doneColumn?.textContent.includes("Plain session"), false);
 assert.ok(!cards.some((text) => text.includes("Hidden child")), "child session hidden");
 assert.match(dom.window.document.body.textContent, /page\.title/, "page title rendered");
+assert.equal(
+  dom.window.document.querySelectorAll(".ysb-activitybadge.is-unread").length,
+  1,
+  "finished-but-unread tasks are marked",
+);
+const unreadChip = dom.window.document.querySelector('[data-ysb-activity="unread"]');
+assert.ok(unreadChip, "unread summary chip rendered");
+assert.equal(unreadChip.querySelector("strong").textContent, "1", "unread chip counts tasks");
 
 // Card click opens the chat; every card has a separate details button.
 const pushes = [];
@@ -537,12 +552,22 @@ assert.equal(
   3,
   "list view renders every task",
 );
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-listrow] .ysb-activitybadge.is-unread").length,
+  1,
+  "list rows mark unread tasks",
+);
 document.querySelector('[data-ysb-view="table"]').click();
 await new Promise((resolve) => setTimeout(resolve, 50));
 assert.equal(
   dom.window.document.querySelectorAll("[data-ysb-table] tbody tr").length,
   3,
   "table view renders every task",
+);
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-table] .ysb-activitybadge.is-unread").length,
+  1,
+  "table rows mark unread tasks",
 );
 document.querySelector('[data-ysb-view="board"]').click();
 await new Promise((resolve) => setTimeout(resolve, 50));

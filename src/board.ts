@@ -110,6 +110,7 @@ function loadView(): ViewState {
         agents: list("agents"),
         directories: list("directories"),
         runningOnly: bool("runningOnly", false),
+        unreadOnly: bool("unreadOnly", false),
         plannedOnly: bool("plannedOnly", false),
         showChildren: bool("showChildren", false),
       },
@@ -167,7 +168,11 @@ export function createBoard(ctx: Context, t: T) {
     const active = running();
     const byId = new Map(sessions().map((session) => [session.id, session]));
     return records().map((record) =>
-      toTaskFromRecord(record, byId.get(record.mainSessionId), active.has(record.mainSessionId)),
+      toTaskFromRecord(
+        record,
+        byId.get(record.mainSessionId),
+        record.sessions.some((link) => active.has(link.sessionId)),
+      ),
     );
   });
 
@@ -278,6 +283,10 @@ export function createBoard(ctx: Context, t: T) {
 
   const runningCount = createMemo(() => tasksInView().filter((task) => task.running).length);
 
+  const unreadCount = createMemo(
+    () => tasksInView().filter((task) => task.unread && !task.running).length,
+  );
+
   function sessionById(id: string): SessionInfo | undefined {
     return sessions().find((session) => session.id === id);
   }
@@ -387,7 +396,17 @@ export function createBoard(ctx: Context, t: T) {
       case "session.execution.succeeded":
       case "session.execution.failed":
       case "session.execution.interrupted":
-        if (id) setRunningState(id, false);
+        if (id) {
+          setRunningState(id, false);
+          const at = Date.now();
+          setRecords((list) =>
+            list.map((record) =>
+              record.sessions.some((link) => link.sessionId === id)
+                ? { ...record, lastFinishedAt: at, updatedAt: at }
+                : record,
+            ),
+          );
+        }
         return;
       case "session.deleted":
         if (id) remove(id);
@@ -669,6 +688,20 @@ export function createBoard(ctx: Context, t: T) {
     setDeleteId(undefined);
   }
 
+  function markOpened(id: string): void {
+    const task = taskById(id);
+    const record = task?.record;
+    if (!record || record.lastFinishedAt <= record.lastOpenedAt) return;
+    const at = Date.now();
+    setRecords((list) =>
+      list.map((item) => (item.id === record.id ? { ...item, lastOpenedAt: at } : item)),
+    );
+    void ctx.client
+      .rpc(BoardRpc)
+      .taskOpen({ taskId: record.id })
+      .catch(() => undefined);
+  }
+
   async function deleteTask(id: string): Promise<void> {
     await ctx.client.rpc(BoardRpc).taskDelete({ taskId: id });
     setDeleteId(undefined);
@@ -838,6 +871,8 @@ export function createBoard(ctx: Context, t: T) {
     agentOptions,
     directoryOptions,
     runningCount,
+    unreadCount,
+    markOpened,
     task: taskById,
     total: () => tasksInView().length,
     setMode: (mode: ViewMode) => setView("mode", mode),

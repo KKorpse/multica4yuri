@@ -140,6 +140,14 @@ export const BoardRpc = {
       },
       output: { type: "object" },
     },
+    taskOpen: {
+      input: {
+        type: "object",
+        properties: { taskId: { type: "string" } },
+        required: ["taskId"],
+      },
+      output: { type: "object" },
+    },
     taskDelete: {
       input: {
         type: "object",

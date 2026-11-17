@@ -32,6 +32,8 @@ const TASK_COLUMNS = [
   "created_at",
   "updated_at",
   "status_changed_at",
+  "last_finished_at",
+  "last_opened_at",
 ].join(", ");
 
 export class BoardStore {
@@ -71,7 +73,9 @@ export class BoardStore {
         revision INTEGER NOT NULL DEFAULT 1,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL,
-        status_changed_at INTEGER NOT NULL
+        status_changed_at INTEGER NOT NULL,
+        last_finished_at INTEGER NOT NULL DEFAULT 0,
+        last_opened_at INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS task_session (
@@ -120,10 +124,26 @@ export class BoardStore {
     } catch {
       /* the column already exists on newer databases */
     }
+    try {
+      this.db.exec("ALTER TABLE task ADD COLUMN last_finished_at INTEGER NOT NULL DEFAULT 0");
+    } catch {
+      /* the column already exists on newer databases */
+    }
+    try {
+      this.db.exec("ALTER TABLE task ADD COLUMN last_opened_at INTEGER NOT NULL DEFAULT 0");
+    } catch {
+      /* the column already exists on newer databases */
+    }
 
     this.seedStatuses();
     this.migrateStatuses();
     this.rebuildTaskTable();
+
+    if (!this.meta("task_activity_v1")) {
+      /* Existing tasks are treated as read; only later finishes become unread. */
+      this.db.exec("UPDATE task SET last_opened_at = updated_at WHERE last_opened_at = 0");
+      this.setMeta("task_activity_v1", "1");
+    }
 
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_task_status_updated ON task(status, updated_at DESC);
@@ -272,7 +292,9 @@ export class BoardStore {
           revision INTEGER NOT NULL DEFAULT 1,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL,
-          status_changed_at INTEGER NOT NULL
+          status_changed_at INTEGER NOT NULL,
+          last_finished_at INTEGER NOT NULL DEFAULT 0,
+          last_opened_at INTEGER NOT NULL DEFAULT 0
         )
       `);
       this.db.exec(
@@ -579,6 +601,8 @@ export class BoardStore {
       createdAt: Number(row.created_at),
       updatedAt: Number(row.updated_at),
       statusChangedAt: Number(row.status_changed_at),
+      lastFinishedAt: Number(row.last_finished_at),
+      lastOpenedAt: Number(row.last_opened_at),
     };
   }
 
@@ -601,8 +625,9 @@ export class BoardStore {
       INSERT OR REPLACE INTO task (
         id, code, title, description, status, labels, urgent, rank, main_session_id,
         document_content, document_updated_at, document_updated_by,
-        revision, created_at, updated_at, status_changed_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        revision, created_at, updated_at, status_changed_at,
+        last_finished_at, last_opened_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
@@ -622,6 +647,8 @@ export class BoardStore {
         task.createdAt,
         task.updatedAt,
         task.statusChangedAt,
+        task.lastFinishedAt,
+        task.lastOpenedAt,
       );
 
     const insert = this.db.prepare(`
@@ -643,6 +670,16 @@ export class BoardStore {
         link.createdAt,
       );
     }
+  }
+
+  markFinished(taskId: string, at: number): void {
+    this.db
+      .prepare("UPDATE task SET last_finished_at = ?, updated_at = ? WHERE id = ?")
+      .run(at, at, taskId);
+  }
+
+  markOpened(taskId: string, at: number): void {
+    this.db.prepare("UPDATE task SET last_opened_at = ? WHERE id = ?").run(at, taskId);
   }
 
   deleteTask(taskId: string): void {

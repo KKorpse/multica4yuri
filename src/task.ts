@@ -38,6 +38,9 @@ export type Task = {
   createdAt: number;
   updatedAt: number;
   statusChangedAt: number;
+  /** Last time the main session finished a run, and the last time the user opened the task. */
+  lastFinishedAt: number;
+  lastOpenedAt: number;
 };
 
 export type TaskLink = {
@@ -97,6 +100,8 @@ export function newTask(
     createdAt: now,
     updatedAt: now,
     statusChangedAt: now,
+    lastFinishedAt: 0,
+    lastOpenedAt: now,
   };
 }
 

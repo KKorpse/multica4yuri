@@ -65,8 +65,9 @@ export const CSS = `
 .ysb-header-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   min-width: 0;
-  gap: 6px;
+  gap: 4px 6px;
   margin-top: 2px;
   color: var(--ysb-muted);
   font-size: 11px;
@@ -76,6 +77,36 @@ export const CSS = `
 .ysb-header-meta > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .ysb-header-metasep { flex: none; opacity: 0.5; }
 .ysb-build { flex: none; color: var(--ysb-muted); font-size: 11px; }
+.ysb-activitychip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+.ysb-activitychip strong { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ysb-activitychip.is-running {
+  color: var(--ysb-success);
+  background: color-mix(in srgb, var(--ysb-success) 11%, transparent);
+}
+.ysb-activitychip.is-unread {
+  color: var(--ysb-accent);
+  background: color-mix(in srgb, var(--ysb-accent) 12%, transparent);
+}
+.ysb-activitychip:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.ysb-activitychip.is-on {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 38%, transparent);
+}
 .ysb-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ysb-pageactions { flex-wrap: nowrap; justify-content: flex-end; }
 
@@ -436,6 +467,8 @@ export const CSS = `
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ysb-listmain { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ysb-listmain .ysb-listtitle { flex: 1; }
 .ysb-listlabels { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .ysb-listagent,
 .ysb-listdir,
@@ -531,6 +564,14 @@ export const CSS = `
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.ysb-tablemain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 440px;
+  min-width: 0;
+}
+.ysb-tablemain .ysb-tabletitle { flex: 1; }
 .ysb-tabletitle {
   max-width: 420px;
   overflow: hidden;
@@ -711,6 +752,12 @@ export const CSS = `
 }
 .ysb-card:active { background: color-mix(in srgb, var(--ysb-fg) 3%, var(--ysb-card)); }
 .ysb-card.is-dragging { opacity: 0.4; }
+.ysb-card.is-running {
+  border-color: color-mix(in srgb, var(--ysb-success) 42%, var(--ysb-border));
+}
+.ysb-card.is-unread {
+  border-color: color-mix(in srgb, var(--ysb-accent) 40%, var(--ysb-border));
+}
 .ysb-card.is-urgent {
   border-color: color-mix(in srgb, var(--ysb-error) 36%, var(--ysb-border));
   background: color-mix(in srgb, var(--ysb-error) 7%, var(--ysb-card));
@@ -745,13 +792,36 @@ export const CSS = `
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
-.ysb-run {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--ysb-success);
-  animation: ysb-pulse 1.8s ease-in-out infinite;
+.ysb-activitybadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
   flex: none;
+}
+.ysb-activitybadge.is-running {
+  color: var(--ysb-success);
+  background: color-mix(in srgb, var(--ysb-success) 12%, transparent);
+}
+.ysb-activitybadge.is-unread {
+  color: var(--ysb-accent);
+  background: color-mix(in srgb, var(--ysb-accent) 13%, transparent);
+}
+.ysb-badgedot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.ysb-activitybadge.is-running .ysb-badgedot {
+  animation: ysb-pulse 1.8s ease-in-out infinite;
 }
 .ysb-cardtitle {
   margin: 0;

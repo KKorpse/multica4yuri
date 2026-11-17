@@ -34,8 +34,8 @@ function shortId(id: string): string {
   return id.replace(/^ses_/, "").slice(-6);
 }
 
-function summary(t: T, total: number, shown: number, running: number): string {
-  return t("board.summary", { total, shown, running });
+function summary(t: T, total: number, shown: number): string {
+  return t("board.summary", { total, shown });
 }
 
 const SEARCH_HISTORY_KEY = "zmultica:search-history:v1";
@@ -308,6 +308,7 @@ export function BoardPage(props: { board: Board; t: T }) {
       filters.agents.length +
       filters.directories.length +
       (filters.runningOnly ? 1 : 0) +
+      (filters.unreadOnly ? 1 : 0) +
       (filters.plannedOnly ? 1 : 0) +
       (filters.showChildren ? 1 : 0)
     );
@@ -440,12 +441,14 @@ export function BoardPage(props: { board: Board; t: T }) {
 
   function edit(id: string) {
     if (Date.now() - draggedAt < 250) return;
+    board.markOpened(id);
     board.edit(id);
   }
 
   function chat(id: string) {
     if (Date.now() - draggedAt < 250) return;
     resetSearch();
+    board.markOpened(id);
     board.open(id);
   }
 
@@ -479,9 +482,39 @@ export function BoardPage(props: { board: Board; t: T }) {
                   <h1 class="ysb-title">{t("page.title")}</h1>
                 </div>
                 <div class="ysb-header-meta">
-                  <span>
-                    {summary(t, board.total(), board.visible().length, board.runningCount())}
-                  </span>
+                  <span>{summary(t, board.total(), board.visible().length)}</span>
+                  <Show when={board.runningCount() > 0}>
+                    <button
+                      class="ysb-activitychip is-running"
+                      classList={{ "is-on": board.view.filters.runningOnly }}
+                      type="button"
+                      data-ysb-activity="running"
+                      aria-pressed={board.view.filters.runningOnly}
+                      onClick={() =>
+                        board.setFilters({ runningOnly: !board.view.filters.runningOnly })
+                      }
+                    >
+                      <span class="ysb-badgedot" />
+                      {t("card.running")}
+                      <strong>{board.runningCount()}</strong>
+                    </button>
+                  </Show>
+                  <Show when={board.unreadCount() > 0}>
+                    <button
+                      class="ysb-activitychip is-unread"
+                      classList={{ "is-on": board.view.filters.unreadOnly }}
+                      type="button"
+                      data-ysb-activity="unread"
+                      aria-pressed={board.view.filters.unreadOnly}
+                      onClick={() =>
+                        board.setFilters({ unreadOnly: !board.view.filters.unreadOnly })
+                      }
+                    >
+                      <span class="ysb-badgedot" />
+                      {t("card.unread")}
+                      <strong>{board.unreadCount()}</strong>
+                    </button>
+                  </Show>
                   <span class="ysb-header-metasep" aria-hidden="true">
                     ·
                   </span>
@@ -730,6 +763,16 @@ export function BoardPage(props: { board: Board; t: T }) {
                       }
                     />
                     {t("filter.running")}
+                  </label>
+                  <label class="ysb-check">
+                    <input
+                      type="checkbox"
+                      checked={board.view.filters.unreadOnly}
+                      onChange={(event) =>
+                        board.setFilters({ unreadOnly: event.currentTarget.checked })
+                      }
+                    />
+                    {t("filter.unread")}
                   </label>
                   <label class="ysb-check">
                     <input
@@ -1126,7 +1169,12 @@ function Card(props: {
   return (
     <article
       class="ysb-card"
-      classList={{ "is-dragging": props.dragging, "is-urgent": props.task.urgent }}
+      classList={{
+        "is-dragging": props.dragging,
+        "is-urgent": props.task.urgent,
+        "is-running": props.task.running,
+        "is-unread": props.task.unread && !props.task.running,
+      }}
       data-ysb-card={props.task.id}
       draggable={props.canDrag}
       title={props.t("card.chatHint")}
@@ -1155,7 +1203,16 @@ function Card(props: {
         <span class="ysb-cardid">#{props.task.code ?? shortId(props.task.id)}</span>
         <span class="ysb-cardtopmeta">
           <Show when={props.task.running}>
-            <span class="ysb-run" title={props.t("card.running")} />
+            <span class="ysb-activitybadge is-running" title={props.t("card.running")}>
+              <span class="ysb-badgedot" />
+              {props.t("card.running")}
+            </span>
+          </Show>
+          <Show when={!props.task.running && props.task.unread}>
+            <span class="ysb-activitybadge is-unread" title={props.t("card.unread")}>
+              <span class="ysb-badgedot" />
+              {props.t("card.unread")}
+            </span>
           </Show>
           <button
             class="ysb-carddetails"
@@ -1254,7 +1311,21 @@ function TaskList(props: {
                     }}
                   >
                     <span class="ysb-listcode">#{task.code ?? shortId(task.id)}</span>
-                    <span class="ysb-listtitle">{task.title}</span>
+                    <span class="ysb-listmain">
+                      <span class="ysb-listtitle">{task.title}</span>
+                      <Show when={task.running}>
+                        <span class="ysb-activitybadge is-running">
+                          <span class="ysb-badgedot" />
+                          {props.t("card.running")}
+                        </span>
+                      </Show>
+                      <Show when={!task.running && task.unread}>
+                        <span class="ysb-activitybadge is-unread">
+                          <span class="ysb-badgedot" />
+                          {props.t("card.unread")}
+                        </span>
+                      </Show>
+                    </span>
                     <span class="ysb-listlabels">
                       <For each={task.labels.slice(0, 3)}>
                         {(label) => (
@@ -1374,7 +1445,23 @@ function TaskTable(props: {
                 }}
               >
                 <td class="ysb-tablecode">#{task.code ?? shortId(task.id)}</td>
-                <td class="ysb-tabletitle">{task.title}</td>
+                <td>
+                  <span class="ysb-tablemain">
+                    <span class="ysb-tabletitle">{task.title}</span>
+                    <Show when={task.running}>
+                      <span class="ysb-activitybadge is-running">
+                        <span class="ysb-badgedot" />
+                        {props.t("card.running")}
+                      </span>
+                    </Show>
+                    <Show when={!task.running && task.unread}>
+                      <span class="ysb-activitybadge is-unread">
+                        <span class="ysb-badgedot" />
+                        {props.t("card.unread")}
+                      </span>
+                    </Show>
+                  </span>
+                </td>
                 <td>
                   <span class="ysb-tablestatus">
                     <StatusIcon

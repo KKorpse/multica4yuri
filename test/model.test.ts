@@ -225,6 +225,18 @@ test("filters hide children and unplanned tasks by default", () => {
   );
 });
 
+test("unread-only keeps finished tasks the user has not opened", () => {
+  const tasks = [
+    task({ id: "read", unread: false }),
+    task({ id: "unread", unread: true, running: false }),
+    task({ id: "running", unread: true, running: true }),
+  ];
+  assert.deepEqual(
+    filterTasks(tasks, filters({ unreadOnly: true })).map((item) => item.id),
+    ["unread"],
+  );
+});
+
 test("rankBetween keeps ordering and detects exhausted precision", () => {
   assert.equal(rankBetween(10, 20), 15);
   assert.equal(rankBetween(undefined, 20), 20 - 1024);

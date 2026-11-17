@@ -1,4 +1,4 @@
-import { For, Show, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import type { Board } from "./board";
 import type { T } from "./i18n";
 import { TaskDetails } from "./details";
@@ -25,6 +25,11 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
   const [outputsExpanded, setOutputsExpanded] = createSignal(false);
   const [details, setDetails] = createSignal(false);
   const task = () => (props.sessionID ? props.board.task(props.sessionID) : undefined);
+
+  createEffect(() => {
+    const current = task();
+    if (current) props.board.markOpened(current.id);
+  });
   const description = () => task()?.description.trim() ?? "";
   const parts = () => preview(description());
   const canExpand = () => !!parts().tail;
@@ -56,7 +61,10 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
               />
               <span class="ysb-widget-status">{task().status}</span>
               <Show when={task().running}>
-                <span class="ysb-widget-run" title={props.t("card.running")} />
+                <span class="ysb-activitybadge is-running" title={props.t("card.running")}>
+                  <span class="ysb-badgedot" />
+                  {props.t("card.running")}
+                </span>
               </Show>
               <span class="ysb-widget-time">{relativeTime(task().updated)}</span>
             </div>
