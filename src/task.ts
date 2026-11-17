@@ -1,8 +1,8 @@
 import type { SessionInfo } from "@opencode/client";
 
 export const META_VERSION = 2;
-export const STATUSES = ["待分配", "执行中", "已完成", "废弃"] as const;
-export type Status = (typeof STATUSES)[number];
+/** User-defined status names are arbitrary strings stored in the status catalog. */
+export type Status = string;
 export type Role = "main" | "sub";
 
 export type SessionLink = {
@@ -68,6 +68,7 @@ export function newTask(
   description: string,
   labels: string[],
   main: { id: string; title: string; directory: string },
+  status = "待分配",
 ): Task {
   const now = Date.now();
   return {
@@ -75,7 +76,7 @@ export function newTask(
     code: "",
     title,
     description,
-    status: "待分配",
+    status,
     labels,
     urgent: false,
     rank: -now,

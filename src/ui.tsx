@@ -22,7 +22,6 @@ import {
   basename,
   labelColor,
   relativeTime,
-  type ArchiveFilter,
   type Grouping,
   type Sort,
   type Task,
@@ -127,6 +126,7 @@ export function BoardPage(props: { board: Board; t: T }) {
   const [drop, setDrop] = createSignal<DropTarget>();
   const [filtersOpen, setFiltersOpen] = createSignal(false);
   const [labelsOpen, setLabelsOpen] = createSignal(false);
+  const [statusOpen, setStatusOpen] = createSignal(false);
   const [menu, setMenu] = createSignal<{ id: string; x: number; y: number }>();
   const [narrow, setNarrow] = createSignal(isMobileSurface());
   const [limits, setLimits] = createSignal<Record<string, number>>({});
@@ -229,6 +229,16 @@ export function BoardPage(props: { board: Board; t: T }) {
         setLabelsOpen(false);
         return;
       }
+      if (statusOpen()) {
+        event.stopPropagation();
+        setStatusOpen(false);
+        return;
+      }
+      if (board.deleteId()) {
+        event.stopPropagation();
+        board.closeDelete();
+        return;
+      }
       const id = consumeReturnSession();
       event.preventDefault();
       if (id) openSession(id);
@@ -275,8 +285,7 @@ export function BoardPage(props: { board: Board; t: T }) {
       filters.directories.length +
       (filters.runningOnly ? 1 : 0) +
       (filters.plannedOnly ? 1 : 0) +
-      (filters.showChildren ? 1 : 0) +
-      (filters.archive !== "active" ? 1 : 0)
+      (filters.showChildren ? 1 : 0)
     );
   });
 
@@ -549,23 +558,12 @@ export function BoardPage(props: { board: Board; t: T }) {
                     <option value="title">{t("sort.title")}</option>
                   </select>
                 </label>
-                <label class="ysb-tool ysb-toolbar-select">
-                  <select
-                    value={board.view.filters.archive}
-                    aria-label={t("filter.archive")}
-                    title={t("filter.archive")}
-                    onChange={(event) =>
-                      board.setArchive(event.currentTarget.value as ArchiveFilter)
-                    }
-                  >
-                    <option value="active">{t("archive.active")}</option>
-                    <option value="all">{t("archive.all")}</option>
-                    <option value="archived">{t("archive.archived")}</option>
-                  </select>
-                </label>
               </div>
               <span class="ysb-toolbar-separator" aria-hidden="true" />
               <div class="ysb-toolbar-actions">
+                <button class="ysb-toolbarbtn" type="button" onClick={() => setStatusOpen(true)}>
+                  {t("status.manage")}
+                </button>
                 <button class="ysb-toolbarbtn" type="button" onClick={() => setLabelsOpen(true)}>
                   {t("label.manage")}
                 </button>
@@ -609,7 +607,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                           aria-pressed={board.view.filters.statuses.includes(status)}
                           onClick={() => board.toggleStatus(status)}
                         >
-                          <StatusIcon status={status} />
+                          <StatusIcon status={status} color={board.colorOfStatus(status)} />
                           {status}
                           <span class="ysb-chipcount">{board.statusCounts().get(status) ?? 0}</span>
                         </button>
@@ -769,7 +767,11 @@ export function BoardPage(props: { board: Board; t: T }) {
                           />
                         }
                       >
-                        <StatusIcon status={column().key} size={13} />
+                        <StatusIcon
+                          status={column().key}
+                          size={13}
+                          color={board.colorOfStatus(column().key)}
+                        />
                       </Show>
                       <span class="ysb-coltitle">
                         {board.view.grouping === "directory"
@@ -883,6 +885,14 @@ export function BoardPage(props: { board: Board; t: T }) {
           <Show when={labelsOpen()}>
             <LabelDialog board={board} t={t} onClose={() => setLabelsOpen(false)} />
           </Show>
+          <Show when={statusOpen()}>
+            <StatusDialog board={board} t={t} onClose={() => setStatusOpen(false)} />
+          </Show>
+          <Show when={board.deleteId()}>
+            {(id) => (
+              <DeleteTaskDialog board={board} t={t} id={id()} onClose={() => board.closeDelete()} />
+            )}
+          </Show>
 
           <Show when={menu()}>
             {(menu) => {
@@ -908,8 +918,12 @@ export function BoardPage(props: { board: Board; t: T }) {
                     }
                     onKeyDown={onMenuKeyDown}
                     style={{
-                      left: `${Math.min(menu().x, window.innerWidth - 168)}px`,
+                      left: `${Math.min(menu().x, window.innerWidth - 188)}px`,
                       top: `${Math.min(menu().y, window.innerHeight - 196)}px`,
+                      "max-height": `${Math.max(
+                        180,
+                        window.innerHeight - Math.min(menu().y, window.innerHeight - 196) - 12,
+                      )}px`,
                     }}
                   >
                     <Show when={task()}>
@@ -928,46 +942,60 @@ export function BoardPage(props: { board: Board; t: T }) {
                             {task().urgent ? t("menu.notUrgent") : t("menu.urgent")}
                           </button>
                           <div class="ysb-menusep yuri-popup-separator" role="separator" />
-                          <Show when={task().status !== "已完成"}>
-                            <button
-                              class="ysb-menuitem"
-                              role="menuitem"
-                              tabIndex={-1}
-                              type="button"
-                              onClick={() => {
-                                void board.move(task().id, "已完成");
-                                closeMenu(true);
-                              }}
-                            >
-                              {t("menu.complete")}
-                            </button>
-                          </Show>
-                          <Show when={task().status !== "废弃"}>
+                          <div class="ysb-menulabel">{t("menu.moveTo")}</div>
+                          <For each={board.statusList()}>
+                            {(status) => (
+                              <button
+                                class="ysb-menuitem ysb-menustatus"
+                                classList={{ "is-current": status.name === task().status }}
+                                role="menuitem"
+                                tabIndex={-1}
+                                type="button"
+                                disabled={status.name === task().status}
+                                onClick={() => {
+                                  void board.move(task().id, status.name);
+                                  closeMenu(true);
+                                }}
+                              >
+                                <StatusIcon status={status.name} size={12} color={status.color} />
+                                <span class="ysb-menustatusname">{status.name}</span>
+                                <Show when={status.name === task().status}>
+                                  <span class="ysb-menustatuscheck" aria-hidden="true">
+                                    ✓
+                                  </span>
+                                </Show>
+                              </button>
+                            )}
+                          </For>
+                          <div class="ysb-menusep yuri-popup-separator" role="separator" />
+                          <Show
+                            when={!board.isDiscarded(task().status)}
+                            fallback={
+                              <button
+                                class="ysb-menuitem danger"
+                                role="menuitem"
+                                tabIndex={-1}
+                                type="button"
+                                onClick={() => {
+                                  board.requestDelete(task().id);
+                                  closeMenu(true);
+                                }}
+                              >
+                                {t("menu.deleteForever")}
+                              </button>
+                            }
+                          >
                             <button
                               class="ysb-menuitem danger"
                               role="menuitem"
                               tabIndex={-1}
                               type="button"
                               onClick={() => {
-                                void board.move(task().id, "废弃");
+                                void board.move(task().id, board.discardStatusName());
                                 closeMenu(true);
                               }}
                             >
                               {t("menu.discard")}
-                            </button>
-                          </Show>
-                          <Show when={task().status === "已完成" || task().status === "废弃"}>
-                            <button
-                              class="ysb-menuitem"
-                              role="menuitem"
-                              tabIndex={-1}
-                              type="button"
-                              onClick={() => {
-                                void board.reopen(task().id);
-                                closeMenu(true);
-                              }}
-                            >
-                              {t("menu.reopen")}
                             </button>
                           </Show>
                         </>
@@ -1116,7 +1144,7 @@ function TaskList(props: {
         {([status, tasks]) => (
           <section class="ysb-listgroup">
             <header class="ysb-listgrouphead">
-              <StatusIcon status={status} size={13} />
+              <StatusIcon status={status} size={13} color={props.board.colorOfStatus(status)} />
               <span class="ysb-listgrouptitle">{status}</span>
               <span class="ysb-listgroupcount">{tasks.length}</span>
             </header>
@@ -1262,7 +1290,11 @@ function TaskTable(props: {
                 <td class="ysb-tabletitle">{task.title}</td>
                 <td>
                   <span class="ysb-tablestatus">
-                    <StatusIcon status={task.status} size={12} />
+                    <StatusIcon
+                      status={task.status}
+                      size={12}
+                      color={props.board.colorOfStatus(task.status)}
+                    />
                     {task.status}
                   </span>
                 </td>
@@ -1342,7 +1374,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
     description: "",
     directory: initialDirectory,
     agent: "",
-    status: board.createStatus() || "待分配",
+    status: board.createStatusSeed() || board.defaultStatusName(),
     labels: [] as string[],
     send: true,
   });
@@ -1387,7 +1419,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
         description: form.description,
         directory: form.directory.trim(),
         agent: form.agent,
-        status: "待分配",
+        status: form.status,
         labels: form.labels,
         send: form.send,
       });
@@ -1485,8 +1517,14 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
           <div class="ysb-formrow">
             <label class="ysb-formitem">
               <span>{t("field.status")}</span>
-              <select class="ysb-select" value="待分配" disabled>
-                <option value="待分配">待分配</option>
+              <select
+                class="ysb-select"
+                value={form.status}
+                onChange={(event) => setForm("status", event.currentTarget.value)}
+              >
+                <For each={board.statusList()}>
+                  {(status) => <option value={status.name}>{status.name}</option>}
+                </For>
               </select>
             </label>
             <label class="ysb-check ysb-sendcheck">
@@ -1808,6 +1846,406 @@ function LabelDialog(props: { board: Board; t: T; onClose(): void }) {
           <div class="ysb-footright">
             <button class="ysb-btn" type="button" onClick={props.onClose}>
               {t("action.close")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusDialog(props: { board: Board; t: T; onClose(): void }) {
+  const t = props.t;
+  const [name, setName] = createSignal("");
+  const [color, setColor] = createSignal("#8b8cdd");
+  const [editingId, setEditingId] = createSignal<string>();
+  const [deletingId, setDeletingId] = createSignal<string>();
+  const [draft, setDraft] = createSignal("");
+  const [busy, setBusy] = createSignal(false);
+  const [problem, setProblem] = createSignal("");
+
+  const statuses = () => props.board.statusList();
+
+  async function run(action: () => Promise<void>) {
+    if (busy()) return;
+    setProblem("");
+    setBusy(true);
+    try {
+      await action();
+    } catch (caught) {
+      setProblem(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function create() {
+    const value = name().trim();
+    if (!value) return;
+    void run(async () => {
+      await props.board.createStatus(value, color());
+      setName("");
+    });
+  }
+
+  function startRename(id: string, value: string) {
+    setDeletingId(undefined);
+    setEditingId(id);
+    setDraft(value);
+  }
+
+  function commitRename(id: string, current: string) {
+    const value = draft().trim();
+    if (!value || value === current) {
+      setEditingId(undefined);
+      return;
+    }
+    void run(async () => {
+      await props.board.updateStatus(id, { name: value });
+      setEditingId(undefined);
+    });
+  }
+
+  function move(id: string, offset: number) {
+    const list = statuses();
+    const index = list.findIndex((status) => status.id === id);
+    const target = index + offset;
+    if (index < 0 || target < 0 || target >= list.length) return;
+    const ids = list.map((status) => status.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    void run(async () => {
+      await props.board.reorderStatuses(ids);
+    });
+  }
+
+  function remove(id: string) {
+    void run(async () => {
+      await props.board.deleteStatus(id);
+      setDeletingId(undefined);
+    });
+  }
+
+  useDialogKeys(props.onClose, create);
+
+  return (
+    <div
+      class="ysb-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) props.onClose();
+      }}
+    >
+      <div
+        class="ysb-modal ysb-statusmodal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("status.title")}
+      >
+        <div class="ysb-modalhead">
+          <div>
+            <h2 class="ysb-modaltitle">{t("status.title")}</h2>
+            <p class="ysb-modalsub">{t("status.hint")}</p>
+          </div>
+          <button
+            class="ysb-iconbtn"
+            type="button"
+            title={t("action.close")}
+            aria-label={t("action.close")}
+            onClick={props.onClose}
+          >
+            ×
+          </button>
+        </div>
+
+        <div class="ysb-form">
+          <div class="ysb-labelcomposer">
+            <input
+              class="ysb-statuscolor"
+              type="color"
+              value={color()}
+              title={t("status.color")}
+              aria-label={t("status.color")}
+              onInput={(event) => setColor(event.currentTarget.value)}
+            />
+            <input
+              class="ysb-input"
+              value={name()}
+              ref={(element) =>
+                queueMicrotask(() => {
+                  if (element.isConnected) element.focus();
+                })
+              }
+              placeholder={t("status.placeholder")}
+              aria-label={t("status.placeholder")}
+              onInput={(event) => setName(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  create();
+                }
+              }}
+            />
+            <button
+              class="ysb-btn primary"
+              type="button"
+              disabled={busy() || !name().trim()}
+              onClick={create}
+            >
+              {t("status.add")}
+            </button>
+          </div>
+
+          <div class="ysb-labellisthead">
+            <span>{t("status.all")}</span>
+            <span>{t("status.total", { count: statuses().length })}</span>
+          </div>
+
+          <div class="ysb-labellist">
+            <For each={statuses()}>
+              {(status, index) => (
+                <div
+                  class="ysb-labelrow"
+                  classList={{
+                    "is-editing": editingId() === status.id,
+                    "is-confirming": deletingId() === status.id,
+                  }}
+                >
+                  <input
+                    class="ysb-statuscolor"
+                    type="color"
+                    value={status.color}
+                    title={t("status.color")}
+                    aria-label={t("status.color")}
+                    disabled={busy()}
+                    onChange={(event) => {
+                      const value = event.currentTarget.value;
+                      void run(async () => {
+                        await props.board.updateStatus(status.id, { color: value });
+                      });
+                    }}
+                  />
+                  <Show
+                    when={editingId() === status.id}
+                    fallback={
+                      <div class="ysb-labelmain">
+                        <span class="ysb-labelname">{status.name}</span>
+                        <span class="ysb-labelmeta">
+                          {t("status.taskCount", { count: status.count })}
+                          <Show when={status.kind !== "normal"}>
+                            {" · "}
+                            {status.kind === "default" ? t("status.default") : t("status.discard")}
+                          </Show>
+                        </span>
+                      </div>
+                    }
+                  >
+                    <input
+                      class="ysb-input ysb-labelrename"
+                      value={draft()}
+                      aria-label={t("status.rename")}
+                      ref={(element) =>
+                        queueMicrotask(() => {
+                          if (!element.isConnected) return;
+                          element.focus();
+                          element.select();
+                        })
+                      }
+                      onInput={(event) => setDraft(event.currentTarget.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          commitRename(status.id, status.name);
+                        } else if (event.key === "Escape") {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setEditingId(undefined);
+                        }
+                      }}
+                    />
+                  </Show>
+                  <div class="ysb-labelactions">
+                    <Show
+                      when={editingId() === status.id}
+                      fallback={
+                        <Show
+                          when={deletingId() === status.id}
+                          fallback={
+                            <>
+                              <button
+                                class="ysb-btn small ghost"
+                                type="button"
+                                title={t("status.moveUp")}
+                                aria-label={t("status.moveUp")}
+                                disabled={busy() || index() === 0}
+                                onClick={() => move(status.id, -1)}
+                              >
+                                ↑
+                              </button>
+                              <button
+                                class="ysb-btn small ghost"
+                                type="button"
+                                title={t("status.moveDown")}
+                                aria-label={t("status.moveDown")}
+                                disabled={busy() || index() === statuses().length - 1}
+                                onClick={() => move(status.id, 1)}
+                              >
+                                ↓
+                              </button>
+                              <button
+                                class="ysb-btn small ghost"
+                                type="button"
+                                disabled={busy()}
+                                onClick={() => startRename(status.id, status.name)}
+                              >
+                                {t("status.rename")}
+                              </button>
+                              <button
+                                class="ysb-btn small ghost ysb-danger-text"
+                                type="button"
+                                disabled={busy() || status.kind !== "normal"}
+                                title={status.kind === "normal" ? undefined : t("status.locked")}
+                                onClick={() => {
+                                  setEditingId(undefined);
+                                  setDeletingId(status.id);
+                                }}
+                              >
+                                {t("action.delete")}
+                              </button>
+                            </>
+                          }
+                        >
+                          <span class="ysb-labelconfirm">
+                            {t("status.deleteInline", {
+                              count: status.count,
+                              target: props.board.discardStatusName(),
+                            })}
+                          </span>
+                          <button
+                            class="ysb-btn small danger"
+                            type="button"
+                            disabled={busy()}
+                            onClick={() => remove(status.id)}
+                          >
+                            {t("action.delete")}
+                          </button>
+                          <button
+                            class="ysb-btn small ghost"
+                            type="button"
+                            onClick={() => setDeletingId(undefined)}
+                          >
+                            {t("action.cancel")}
+                          </button>
+                        </Show>
+                      }
+                    >
+                      <button
+                        class="ysb-btn small primary"
+                        type="button"
+                        disabled={busy()}
+                        onClick={() => commitRename(status.id, status.name)}
+                      >
+                        {t("action.save")}
+                      </button>
+                      <button
+                        class="ysb-btn small ghost"
+                        type="button"
+                        onClick={() => setEditingId(undefined)}
+                      >
+                        {t("action.cancel")}
+                      </button>
+                    </Show>
+                  </div>
+                </div>
+              )}
+            </For>
+          </div>
+
+          <Show when={problem()}>
+            <p class="ysb-error" role="alert">
+              {problem()}
+            </p>
+          </Show>
+        </div>
+
+        <div class="ysb-modalfoot">
+          <div class="ysb-footright">
+            <button class="ysb-btn" type="button" onClick={props.onClose}>
+              {t("action.close")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteTaskDialog(props: { board: Board; t: T; id: string; onClose(): void }) {
+  const t = props.t;
+  const [busy, setBusy] = createSignal(false);
+  const task = () => props.board.task(props.id);
+  const sessionCount = () => task()?.record?.sessions.length ?? 1;
+
+  async function remove() {
+    if (busy()) return;
+    setBusy(true);
+    try {
+      await props.board.deleteTask(props.id);
+      props.onClose();
+    } catch (caught) {
+      props.board.fail(caught, "error.deleteTask");
+      setBusy(false);
+    }
+  }
+
+  useDialogKeys(props.onClose, () => undefined);
+
+  return (
+    <div
+      class="ysb-overlay"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) props.onClose();
+      }}
+    >
+      <div
+        class="ysb-modal ysb-confirmmodal"
+        role="alertdialog"
+        aria-modal="true"
+        aria-label={t("deleteTask.title")}
+      >
+        <div class="ysb-modalhead">
+          <div>
+            <h2 class="ysb-modaltitle">{t("deleteTask.title")}</h2>
+            <p class="ysb-modalsub">
+              {t("deleteTask.body", {
+                title: task()?.title ?? props.id,
+                count: sessionCount(),
+              })}
+            </p>
+          </div>
+          <button
+            class="ysb-iconbtn"
+            type="button"
+            title={t("action.close")}
+            aria-label={t("action.close")}
+            onClick={props.onClose}
+          >
+            ×
+          </button>
+        </div>
+        <div class="ysb-modalfoot">
+          <div class="ysb-footright">
+            <button class="ysb-btn" type="button" onClick={props.onClose}>
+              {t("action.cancel")}
+            </button>
+            <button
+              class="ysb-btn danger"
+              type="button"
+              disabled={busy()}
+              aria-busy={busy()}
+              onClick={() => void remove()}
+            >
+              {t("deleteTask.confirm")}
             </button>
           </div>
         </div>

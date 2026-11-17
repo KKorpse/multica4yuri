@@ -100,15 +100,22 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
     }
   }
 
-  async function toggleArchive() {
+  async function discard() {
     const current = task();
     if (!current || busy()) return;
     setBusy(true);
     try {
-      await props.board.archive(current.id, !current.archived);
+      await props.board.move(current.id, props.board.discardStatusName());
     } finally {
       setBusy(false);
     }
+  }
+
+  function remove() {
+    const current = task();
+    if (!current) return;
+    props.board.requestDelete(current.id);
+    props.onClose();
   }
 
   onMount(() => {
@@ -134,7 +141,11 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
             <section class="ysb-detail" role="dialog" aria-modal="true" aria-label={task().title}>
               <header class="ysb-detail-head">
                 <div class="ysb-detail-heading">
-                  <StatusIcon status={task().status} size={14} />
+                  <StatusIcon
+                    status={task().status}
+                    size={14}
+                    color={props.board.colorOfStatus(task().status)}
+                  />
                   <h2 class="ysb-detail-title">{task().title}</h2>
                   <span class="ysb-detail-code">{task().code ?? task().id}</span>
                 </div>
@@ -389,21 +400,35 @@ export function TaskDetails(props: { board: Board; t: T; id: string; onClose(): 
                         value={status()}
                         onChange={(event) => setStatus(event.currentTarget.value)}
                       >
-                        <For each={[...new Set([status(), "已完成", "废弃"])]}>
+                        <For each={props.board.statuses()}>
                           {(value) => <option value={value}>{value}</option>}
                         </For>
                       </select>
                     </label>
                   </div>
                   <div class="ysb-detail-docactions">
-                    <button
-                      class="ysb-widget-action"
-                      type="button"
-                      disabled={busy()}
-                      onClick={() => void toggleArchive()}
+                    <Show
+                      when={props.board.isDiscarded(task().status)}
+                      fallback={
+                        <button
+                          class="ysb-widget-action ysb-danger-text"
+                          type="button"
+                          disabled={busy()}
+                          onClick={() => void discard()}
+                        >
+                          {props.t("action.discard")}
+                        </button>
+                      }
                     >
-                      {task().archived ? props.t("action.unarchive") : props.t("action.archive")}
-                    </button>
+                      <button
+                        class="ysb-widget-action ysb-danger-text"
+                        type="button"
+                        disabled={busy()}
+                        onClick={remove}
+                      >
+                        {props.t("action.deleteForever")}
+                      </button>
+                    </Show>
                     <button
                       class="ysb-widget-action primary"
                       type="button"

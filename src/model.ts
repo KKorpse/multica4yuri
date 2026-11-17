@@ -3,7 +3,20 @@ import type { Task as TaskRecord } from "./task";
 
 export const METADATA_KEY = "sessionBoard";
 export const DESCRIPTION_KEY = "session-board.task";
-export const DEFAULT_STATUSES = ["待分配", "执行中", "已完成", "废弃"];
+export const DEFAULT_STATUS = "待分配";
+export const DISCARD_STATUS = "废弃";
+export const DEFAULT_STATUSES = [DEFAULT_STATUS, "执行中", "已完成", DISCARD_STATUS];
+
+export type StatusKind = "default" | "discard" | "normal";
+
+export type StatusInfo = {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+  kind: StatusKind;
+  count: number;
+};
 
 export type Output = {
   type: "text" | "file" | "url";
@@ -31,7 +44,6 @@ export interface Task extends TaskMeta {
   planned: boolean;
   urgent: boolean;
   parentID?: string;
-  archived: boolean;
   running: boolean;
   outcome?: SessionInfo["outcome"];
   created: number;
@@ -45,7 +57,6 @@ export interface Task extends TaskMeta {
 export type Grouping = "status" | "agent" | "directory" | "label";
 export type ViewMode = "board" | "list" | "table";
 export type Sort = "manual" | "updated" | "created" | "title";
-export type ArchiveFilter = "active" | "all" | "archived";
 
 export type LabelInfo = {
   id: string;
@@ -63,7 +74,6 @@ export interface Filters {
   runningOnly: boolean;
   plannedOnly: boolean;
   showChildren: boolean;
-  archive: ArchiveFilter;
 }
 
 export const EMPTY_FILTERS: Filters = {
@@ -75,7 +85,6 @@ export const EMPTY_FILTERS: Filters = {
   runningOnly: false,
   plannedOnly: false,
   showChildren: false,
-  archive: "active",
 };
 
 export function record(value: unknown): Record<string, unknown> {
@@ -115,10 +124,11 @@ const STATUS_ALIASES: Record<string, string> = {
   已搁置: "废弃",
 };
 
+/** Custom status names pass through; only legacy aliases and empty values are rewritten. */
 export function normalizeStatus(status: unknown): string {
   const value = typeof status === "string" ? status.trim() : "";
-  if (DEFAULT_STATUSES.includes(value)) return value;
-  return STATUS_ALIASES[value] ?? DEFAULT_STATUSES[0];
+  if (!value) return DEFAULT_STATUS;
+  return STATUS_ALIASES[value] ?? value;
 }
 
 export function taskMeta(session: SessionInfo): TaskMeta {
@@ -166,7 +176,6 @@ export function toTaskFromRecord(
   session?: SessionInfo,
   running = false,
 ): Task {
-  const archive = record(record(session?.metadata?.yuri).archive).archivedAt;
   const main = taskRecord.sessions.find((link) => link.role === "main") ?? taskRecord.sessions[0];
   return {
     version: 2,
@@ -184,11 +193,6 @@ export function toTaskFromRecord(
     planned: true,
     urgent: taskRecord.urgent,
     parentID: session?.parentID,
-    archived: session
-      ? typeof archive === "number"
-        ? archive > 0
-        : !!session.time.archived
-      : false,
     running,
     outcome: session?.outcome,
     created: taskRecord.createdAt,
@@ -200,7 +204,6 @@ export function toTaskFromRecord(
 }
 
 export function toTask(session: SessionInfo, running = false): Task {
-  const archive = record(record(session.metadata?.yuri).archive).archivedAt;
   const meta = taskMeta(session);
   const planned = hasBoardMeta(session);
   const urgent = record(session.metadata?.[METADATA_KEY]).urgent === true;
@@ -215,7 +218,6 @@ export function toTask(session: SessionInfo, running = false): Task {
     projectID: session.projectID,
     agent: session.agent || "默认 Agent",
     parentID: session.parentID,
-    archived: typeof archive === "number" ? archive > 0 : !!session.time.archived,
     running,
     outcome: session.outcome,
     created: session.time.created,
@@ -230,8 +232,6 @@ export function filterTasks(tasks: readonly Task[], filters: Filters): Task[] {
   const labels = new Set(filters.labels.map((s) => s.toLocaleLowerCase()));
   return tasks.filter((task) => {
     if (!filters.showChildren && task.parentID) return false;
-    if (filters.archive === "active" && task.archived) return false;
-    if (filters.archive === "archived" && !task.archived) return false;
     if (filters.runningOnly && !task.running) return false;
     if (filters.plannedOnly && !task.planned) return false;
     if (filters.statuses.length && !filters.statuses.includes(task.status)) return false;

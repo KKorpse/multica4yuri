@@ -6,19 +6,21 @@ Yuri chat.
 
 ## What it does
 
-- **Board over sessions** — every root session is a task; sub-agent and Yuri
-  system sessions are hidden. Sessions without task data are auto-classified
-  from their own history: running → 执行中, `outcome: succeeded` → 已完成,
-  failed/interrupted → 待确认, previously executed → 待确认, never run → 待规划.
-  The first edit persists the task data on the session.
+- **Board over tasks** — tasks live in the plugin's SQLite store; a task owns
+  one main session plus optional child sessions. Sub-agent and Yuri system
+  sessions are hidden. All tasks are created explicitly, so nothing is
+  auto-classified from session history.
 - **Agent is already bound** — the card reads `session.agent`; changing it in
   the chat composer updates the card. New tasks can pick an agent at creation.
-- **Statuses** — `待规划 / 待开始 / 执行中 / 待确认 / 已完成 / 已搁置`, plus any
-  custom status you type. Drag cards between columns (when grouped by status).
+- **Custom statuses** — a user-managed catalog with names, colors and order.
+  The seeded catalog is `待分配 / 执行中 / 已完成 / 废弃`; rename, recolor,
+  reorder, add or delete any of them. `待分配` is the default for new tasks and
+  `废弃` is the discard target; both roles are protected from deletion. Drag
+  cards between columns, or use the right-click menu to move a task anywhere.
 - **Tags** — free-form, per task, with deterministic colors; filter by one or
   more tags.
-- **Search & filters** — title, description, tag or session ID; status, tag,
-  agent, directory, running-only, tasks-only, sub-sessions and archive state.
+- **Search & filters** — title, description, tag, task ID or output document;
+  status, tag, agent, directory, running-only, tasks-only and sub-sessions.
 - **Grouping & sorting** — group by status, agent or directory; sort manually,
   by update time, creation time or title.
 - **Create task** — title, description, directory, initial status, tags and an
@@ -34,8 +36,10 @@ Yuri chat.
   and `task_session` tables. Each task has one output document
   (`document_content`); latest replies are read on demand with
   `zmultica_session_tail`. Main/sub briefs are durable instruction entries.
-- **Four statuses** — `待分配 / 执行中 / 已完成 / 废弃`. Execution start moves
-  待分配 → 执行中 automatically; completion and discard are manual only.
+- **Manual flow only** — statuses never change automatically. Right-click a
+  task to move it to any status; **废弃** moves it to the discard status, and
+  **彻底删除** (only inside the discard status) permanently deletes the task and
+  all of its sessions.
 - **Outputs** — `sessionBoard.outputs` holds deliverables of type `text`,
   `file` or `url`. The details dialog edits the task document. Artifacts live
   under `zmultica-artifacts/<sessionId>/`.
@@ -47,7 +51,7 @@ Yuri chat.
   toggle; **详情** opens a wider dialog with the full task details. It shares
   the board state, so status and rename changes update live.
 - **Live** — running badges follow `session.execution.*` events; renames,
-  metadata, archive and agent changes update without a reload.
+  metadata, status and agent changes update without a reload.
 
 ## Using it
 
@@ -59,8 +63,12 @@ Yuri chat.
 - The **+** in a column header creates a task directly in that status.
 - **仅任务** hides sessions that have no board data yet; untick it to see every
   root session. **含子会话** includes sub-agent sessions.
-- Archive is Yuri's own session archive, so both views agree. The archive
-  selector decides whether archived sessions are listed.
+- Right-click a task to move it to any status or to mark it **废弃**. Tasks in
+  the discard status expose **彻底删除**, which deletes the task record, its
+  artifact directory and every linked session.
+- **状态** in the toolbar opens the status manager: add, rename, recolor,
+  reorder and delete statuses. Deleting a status moves its tasks to the discard
+  status; the default and discard statuses cannot be deleted.
 
 ## CLI
 
@@ -71,19 +79,24 @@ board. Build it with `npm run build:cli`, then link it into PATH:
 ln -sfn "$PWD/dist/cli.mjs" ~/bin/zmultica
 zmultica task list
 zmultica task get ZM-0
-zmultica task create --title "..." --description "..." --directory "$PWD" --send
+zmultica task create --title "..." --description "..." --status 执行中 --directory "$PWD" --send
 zmultica task start ZM-0
 zmultica session create ZM-0 --goal "补齐文档"
 zmultica session start ses_xxx
 zmultica session tail ses_xxx
 zmultica document set ZM-0 --file ./output.md
+zmultica status list
+zmultica status add 待评审 --color "#8b8cdd"
+zmultica status rename 待评审 评审中
+zmultica status delete 评审中
 ```
 
-Read commands accept `--json`. Manual status changes are limited to
-`已完成` and `废弃`; `执行中` is entered by execution events. `task create --send`
-starts the main session immediately; `task create` without `--send` only creates
-the task shell. `session create` starts the child by default; pass `--no-start`
-to only link it.
+Read commands accept `--json`. `task update --status` and `task create --status`
+accept any status in the catalog; statuses never change on their own.
+`task discard` moves a task to the discard status, while `task delete --yes`
+permanently deletes it and its sessions. `task create --send` starts the main
+session immediately; `task create` without `--send` only creates the task shell.
+`session create` starts the child by default; pass `--no-start` to only link it.
 
 The matching skill lives at `~/.config/opencode/skills/zmultica/SKILL.md` and is
 also created in the Multica workspace as the `zmultica` skill.
@@ -175,15 +188,16 @@ Plugin options and `ZMULTICA_DATA_DIR` are local configuration. The SQLite file
 itself is not synchronized between machines; sharing a board across hosts still
 requires the multi-host support discussed in the design notes.
 
-Archiving uses Yuri's own archive endpoint, so the board and the native session
-list agree.
+The status catalog lives in the `status` table; tasks reference status names
+with `ON UPDATE CASCADE`, so renaming a status is a single-row write. Deleting a
+status reassigns its tasks to the discard status in one transaction.
 
 ## Code map
 
 | File           | Responsibility                                                |
 | -------------- | ------------------------------------------------------------- |
 | `src/model.ts` | Pure task model, metadata parsing, filtering, sorting, colors |
-| `src/data.ts`  | Session/agent/project calls and Host metadata/archive writes  |
+| `src/data.ts`  | Session/agent/project calls and Host metadata writes          |
 | `src/board.ts` | Reactive board state, events, optimistic updates              |
 | `src/ui.tsx`   | Page, columns, cards, filters, create/edit dialogs            |
 | `src/host.ts`  | Yuri page registration and native URL navigation              |
@@ -198,8 +212,6 @@ list agree.
   styled from the host theme tokens.
 - Task metadata is read from `session.list`; boards are therefore scoped to the
   sessions a host returns (root sessions, max 2000 per load).
-- Archive writes are optimistic; a failed Host write is rolled back and shown as
-  a toast.
 - Manual ordering uses fractional ranks. A gap exhausted by float precision
   falls back to the nearest representable position; rebalancing a whole column
   is intentionally not part of v1.
@@ -219,5 +231,5 @@ list agree.
 - Server part + RPC so agents can query/create tasks (`board.query`,
   `board.create`) without the GUI.
 - Saved views and per-project boards.
-- Swimlanes and a list/table view.
-- Optional auto-transition on execution start/finish.
+- Swimlanes.
+- Optional auto-transition on execution start/finish (deliberately absent today).

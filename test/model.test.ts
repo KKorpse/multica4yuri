@@ -9,6 +9,7 @@ import {
   filterTasks,
   isSystemSession,
   labelColor,
+  normalizeStatus,
   rankBetween,
   sortTasks,
   taskMeta,
@@ -29,6 +30,12 @@ function session(overrides: Partial<SessionInfo> = {}): SessionInfo {
     ...overrides,
   } as SessionInfo;
 }
+
+test("custom status names pass through normalization", () => {
+  assert.equal(normalizeStatus("待规划"), "待分配");
+  assert.equal(normalizeStatus("待评审"), "待评审");
+  assert.equal(normalizeStatus(""), "待分配");
+});
 
 test("taskMeta reads the stored task and applies defaults", () => {
   assert.deepEqual(taskMeta(session()), {
@@ -61,25 +68,22 @@ test("taskMeta reads the stored task and applies defaults", () => {
   });
 });
 
-test("toTask marks planned, archived and running sessions", () => {
+test("toTask marks planned and running sessions", () => {
   const planned = toTask(
     session({
       metadata: {
         [METADATA_KEY]: { version: 1, description: "", status: "已完成", labels: [], rank: 1 },
-        yuri: { archive: { archivedAt: 99 } },
       },
     } as Partial<SessionInfo>),
     true,
   );
   assert.equal(planned.planned, true);
-  assert.equal(planned.archived, true);
   assert.equal(planned.running, true);
   assert.equal(planned.title, "Example");
   assert.equal(planned.agent, "默认 Agent");
 
   const plain = toTask(session());
   assert.equal(plain.planned, false);
-  assert.equal(plain.archived, false);
 });
 
 test("executed sessions derive a first status from their own history", () => {
@@ -125,7 +129,6 @@ function task(overrides: Record<string, unknown> = {}) {
     labels: [] as string[],
     description: "",
     running: false,
-    archived: false,
     planned: true,
     parentID: undefined,
     agent: "build",
@@ -197,12 +200,11 @@ test("task records expose lowercased document text for search", () => {
   );
 });
 
-test("filters hide children, unplanned and archived tasks by default", () => {
+test("filters hide children and unplanned tasks by default", () => {
   const tasks = [
     task({ id: "root" }),
     task({ id: "child", parentID: "root" }),
     task({ id: "plain", planned: false }),
-    task({ id: "archived", archived: true }),
     task({ id: "running", running: true }),
   ];
   assert.deepEqual(
@@ -220,10 +222,6 @@ test("filters hide children, unplanned and archived tasks by default", () => {
   assert.deepEqual(
     filterTasks(tasks, filters({ runningOnly: true })).map((item) => item.id),
     ["running"],
-  );
-  assert.deepEqual(
-    filterTasks(tasks, filters({ archive: "archived" })).map((item) => item.id),
-    ["archived"],
   );
 });
 

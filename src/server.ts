@@ -1,5 +1,5 @@
 import { Plugin } from "@opencode/plugin";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { BoardStore } from "./db";
 import { resolvePaths } from "./paths";
@@ -158,7 +158,7 @@ export default Plugin.define({
         code: legacy.code ?? "",
         title: legacy.title,
         description: legacy.goal ?? legacy.description ?? "",
-        status: legacy.status ?? "执行中",
+        status: store.ensureStatus(legacy.status ?? "执行中"),
         labels: legacy.labels ?? [],
         urgent: legacy.urgent === true,
         rank: legacy.rank ?? -(legacy.createdAt ?? now),
@@ -281,6 +281,27 @@ export default Plugin.define({
       return task;
     }
 
+    function defaultStatus(): string {
+      return store.defaultStatus().name;
+    }
+
+    function requireStatus(raw: string): string {
+      const status = store.statusByName(raw);
+      if (!status) throw new Error(`状态不存在：${raw}`);
+      return status.name;
+    }
+
+    /** Rewrite resident briefs after a catalog rename/delete changes task statuses. */
+    async function refreshBriefs(): Promise<void> {
+      tasks.clear();
+      for (const task of store.list()) {
+        tasks.set(task.id, task);
+        for (const link of task.sessions) {
+          if (links.has(link.sessionId)) await writeBrief(link.sessionId).catch(() => undefined);
+        }
+      }
+    }
+
     async function validateAgent(directory: string, agentID?: string): Promise<void> {
       if (!agentID) return;
       try {
@@ -337,6 +358,7 @@ export default Plugin.define({
       labels?: string[];
       directory: string;
       agent?: string;
+      status?: string;
     }): Promise<Task> {
       const agent = input.agent?.trim() || undefined;
       await validateAgent(input.directory, agent);
@@ -354,6 +376,7 @@ export default Plugin.define({
           title: session.title || input.title.trim(),
           directory: session.location.directory,
         },
+        input.status?.trim() ? requireStatus(input.status) : defaultStatus(),
       );
       task.code = store.nextCode();
       task.sessions[0].title = sessionTitle(task);
@@ -411,7 +434,12 @@ export default Plugin.define({
         sessionTail: async (input: any) => tail(input.sessionID),
         update: async (input: any) =>
           mutate(input.taskId, (task) => {
+            const previous = task.status;
             Object.assign(task, input.patch);
+            if (typeof input.patch?.status === "string") {
+              task.status = requireStatus(input.patch.status);
+            }
+            if (task.status !== previous) task.statusChangedAt = Date.now();
           }),
         labelList: async () => store.listLabels(),
         labelCreate: async (input: any) => store.createLabel(input.name, input.color),
@@ -423,6 +451,45 @@ export default Plugin.define({
           store.deleteLabel(input.id);
           return { ok: true };
         },
+        taskDelete: async (input: any) => {
+          const task = await requireTask(input.taskId);
+          const discard = store.discardStatus();
+          if (task.status !== discard.name) {
+            throw new Error(`只有「${discard.name}」状态的任务可以彻底删除`);
+          }
+          const ordered = [...task.sessions].sort((a, b) =>
+            a.role === "main" ? 1 : b.role === "main" ? -1 : 0,
+          );
+          for (const link of ordered) {
+            await ctx.session.remove({ sessionID: link.sessionId }).catch(() => undefined);
+            links.delete(link.sessionId);
+          }
+          store.deleteTask(task.id);
+          tasks.delete(task.id);
+          try {
+            rmSync(join(artifactRoot, task.id), { recursive: true, force: true });
+          } catch {
+            /* the artifact directory is best-effort */
+          }
+          return { ok: true, taskId: task.id };
+        },
+        statusList: async () => store.listStatuses(),
+        statusCreate: async (input: any) => store.createStatus(input.name, input.color),
+        statusUpdate: async (input: any) => {
+          const status = store.updateStatus(input.id, {
+            name: input.name,
+            color: input.color,
+          });
+          await refreshBriefs();
+          return status;
+        },
+        statusDelete: async (input: any) => {
+          const result = store.deleteStatus(input.id);
+          await refreshBriefs();
+          return result;
+        },
+        statusReorder: async (input: any) =>
+          store.reorderStatuses(Array.isArray(input.ids) ? input.ids : []),
         setDocument: async (input: any) =>
           mutate(input.taskId, (task) => {
             task.document = {
@@ -536,18 +603,6 @@ export default Plugin.define({
           if (event.type === "session.deleted") {
             links.delete(sessionID);
             tasks.delete(sessionID);
-            continue;
-          }
-          if (event.type === "session.execution.started") {
-            if (!links.has(sessionID)) await refresh(sessionID).catch(() => undefined);
-            const link = links.get(sessionID);
-            const task = link && tasks.get(link.taskId);
-            if (task?.status === "待分配") {
-              await mutate(task.id, (draft) => {
-                draft.status = "执行中";
-                draft.statusChangedAt = Date.now();
-              }).catch(() => undefined);
-            }
             continue;
           }
           if (event.type === "session.renamed") {

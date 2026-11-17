@@ -234,6 +234,33 @@ const ctx = {
     rpc: () => ({
       list: async () => taskRecords,
       labelList: async () => [{ id: "lbl_ui", name: "ui", color: "#8b8cdd", count: 3 }],
+      statusList: async () => [
+        {
+          id: "stt_default",
+          name: "待分配",
+          color: "#8b94a5",
+          position: 0,
+          kind: "default",
+          count: 1,
+        },
+        {
+          id: "stt_doing",
+          name: "执行中",
+          color: "#d5a653",
+          position: 1,
+          kind: "normal",
+          count: 2,
+        },
+        { id: "stt_done", name: "已完成", color: "#5b9bd5", position: 2, kind: "normal", count: 0 },
+        {
+          id: "stt_discard",
+          name: "废弃",
+          color: "#b38086",
+          position: 3,
+          kind: "discard",
+          count: 0,
+        },
+      ],
       create: async () => {
         throw new Error("not implemented in smoke");
       },
@@ -396,10 +423,12 @@ firstCard.dispatchEvent(
 await new Promise((resolve) => setTimeout(resolve, 50));
 const menuText = dom.window.document.querySelector(".ysb-menu")?.textContent ?? "";
 assert.match(menuText, /menu\.urgent/, "context menu rendered");
+assert.match(menuText, /menu\.moveTo/, "context menu exposes status targets");
+assert.match(menuText, /废弃/, "context menu lists the discard status");
 assert.equal(menuText.includes("widget.details"), false, "context menu has no details entry");
 assert.equal(menuText.includes("action.chat"), false, "context menu has no open-chat entry");
 const menuElement = dom.window.document.querySelector(".ysb-menu");
-const menuItems = [...menuElement.querySelectorAll(".ysb-menuitem")];
+const menuItems = [...menuElement.querySelectorAll(".ysb-menuitem:not(:disabled)")];
 assert.equal(
   dom.window.document.activeElement,
   menuItems[0],
@@ -428,6 +457,26 @@ dom.window.document
   .querySelector(".ysb-menu-backdrop")
   ?.dispatchEvent(new dom.window.MouseEvent("mousedown", { bubbles: true }));
 await new Promise((resolve) => setTimeout(resolve, 50));
+
+// The status manager lists the catalog and marks the built-in roles.
+const statusButton = [...dom.window.document.querySelectorAll(".ysb-toolbarbtn")].find((button) =>
+  button.textContent.includes("status.manage"),
+);
+assert.ok(statusButton, "status manager button rendered");
+statusButton.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+const statusDialog = dom.window.document.querySelector(".ysb-statusmodal");
+assert.ok(statusDialog, "status manager opens");
+assert.equal(
+  statusDialog.querySelectorAll(".ysb-labelrow").length,
+  4,
+  "status manager lists the built-in catalog",
+);
+assert.match(statusDialog.textContent, /status\.default/, "default status is marked");
+assert.match(statusDialog.textContent, /status\.discard/, "discard status is marked");
+statusDialog.querySelector(".ysb-modalhead .ysb-iconbtn").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(dom.window.document.querySelector(".ysb-statusmodal"), null, "status manager closes");
 
 // List and table views expose the same task set as the board.
 document.querySelector('[data-ysb-view="list"]').click();

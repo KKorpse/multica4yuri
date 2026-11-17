@@ -2,9 +2,37 @@ import { Database } from "bun:sqlite";
 import { randomBytes } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import {
+  DEFAULT_STATUS,
+  DEFAULT_STATUSES,
+  DISCARD_STATUS,
+  normalizeStatus,
+  statusColor,
+  type StatusInfo,
+  type StatusKind,
+} from "./model";
 import type { SessionLink, Task } from "./task";
 
 type Row = Record<string, unknown>;
+
+const TASK_COLUMNS = [
+  "id",
+  "code",
+  "title",
+  "description",
+  "status",
+  "labels",
+  "urgent",
+  "rank",
+  "main_session_id",
+  "document_content",
+  "document_updated_at",
+  "document_updated_by",
+  "revision",
+  "created_at",
+  "updated_at",
+  "status_changed_at",
+].join(", ");
 
 export class BoardStore {
   private db: Database;
@@ -16,11 +44,22 @@ export class BoardStore {
       PRAGMA journal_mode = WAL;
       PRAGMA foreign_keys = ON;
 
+      CREATE TABLE IF NOT EXISTS status (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        color TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        kind TEXT NOT NULL DEFAULT 'normal' CHECK (kind IN ('default', 'discard', 'normal')),
+        created_at INTEGER NOT NULL
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_status_kind ON status(kind) WHERE kind <> 'normal';
+
       CREATE TABLE IF NOT EXISTS task (
         id TEXT PRIMARY KEY,
+        code TEXT NOT NULL DEFAULT '',
         title TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
-        status TEXT NOT NULL DEFAULT '待分配' CHECK (status IN ('待分配', '执行中', '已完成', '废弃')),
+        status TEXT NOT NULL REFERENCES status(name) ON UPDATE CASCADE ON DELETE RESTRICT,
         labels TEXT NOT NULL DEFAULT '[]',
         urgent INTEGER NOT NULL DEFAULT 0,
         rank REAL NOT NULL,
@@ -63,12 +102,6 @@ export class BoardStore {
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       );
-
-      CREATE INDEX IF NOT EXISTS idx_task_status_updated ON task(status, updated_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_task_updated ON task(updated_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_task_session_session ON task_session(session_id);
-      CREATE INDEX IF NOT EXISTS idx_task_session_parent ON task_session(parent_id);
-      CREATE INDEX IF NOT EXISTS idx_task_label_label ON task_label(label_id);
     `);
 
     try {
@@ -81,6 +114,19 @@ export class BoardStore {
     } catch {
       /* the column already exists on newer databases */
     }
+
+    this.seedStatuses();
+    this.migrateStatuses();
+    this.rebuildTaskTable();
+
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_task_status_updated ON task(status, updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_task_updated ON task(updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_task_session_session ON task_session(session_id);
+      CREATE INDEX IF NOT EXISTS idx_task_session_parent ON task_session(parent_id);
+      CREATE INDEX IF NOT EXISTS idx_task_label_label ON task_label(label_id);
+    `);
+
     const missing = this.db
       .prepare("SELECT id FROM task WHERE code = '' ORDER BY created_at ASC")
       .all() as Row[];
@@ -119,6 +165,245 @@ export class BoardStore {
 
   private setMeta(key: string, value: string): void {
     this.db.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(key, value);
+  }
+
+  private statusId(): string {
+    return `stt_${randomBytes(6).toString("hex")}`;
+  }
+
+  private insertStatus(name: string, color: string, position: number, kind: StatusKind): void {
+    this.db
+      .prepare(
+        "INSERT INTO status (id, name, color, position, kind, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      )
+      .run(this.statusId(), name, color, position, kind, Date.now());
+  }
+
+  /** Create the built-in catalog on first run and repair a missing default/discard role. */
+  private seedStatuses(): void {
+    const total = Number(
+      (this.db.prepare("SELECT COUNT(*) AS count FROM status").get() as Row).count,
+    );
+    if (!total) {
+      DEFAULT_STATUSES.forEach((name, position) => {
+        const kind: StatusKind =
+          name === DEFAULT_STATUS ? "default" : name === DISCARD_STATUS ? "discard" : "normal";
+        this.insertStatus(name, statusColor(name), position, kind);
+      });
+      return;
+    }
+    const roles = new Set(
+      this.db
+        .prepare("SELECT kind FROM status WHERE kind <> 'normal'")
+        .all()
+        .map((row: Row) => String(row.kind)),
+    );
+    let position =
+      Number(
+        (this.db.prepare("SELECT COALESCE(MAX(position), -1) AS value FROM status").get() as Row)
+          .value,
+      ) + 1;
+    for (const [kind, name] of [
+      ["default", DEFAULT_STATUS],
+      ["discard", DISCARD_STATUS],
+    ] as const) {
+      if (roles.has(kind)) continue;
+      const named = this.db
+        .prepare("SELECT id FROM status WHERE name = ? COLLATE NOCASE")
+        .get(name) as Row | undefined;
+      if (named) this.db.prepare("UPDATE status SET kind = ? WHERE id = ?").run(kind, named.id);
+      else this.insertStatus(name, statusColor(name), position++, kind);
+    }
+  }
+
+  /** Every status used by a task must exist in the catalog before the foreign key is enforced. */
+  private migrateStatuses(): void {
+    const rows = this.db.prepare("SELECT DISTINCT status FROM task").all() as Row[];
+    let position =
+      Number(
+        (this.db.prepare("SELECT COALESCE(MAX(position), -1) AS value FROM status").get() as Row)
+          .value,
+      ) + 1;
+    for (const row of rows) {
+      const raw = String(row.status);
+      const clean = normalizeStatus(raw);
+      if (clean !== raw) {
+        this.db.prepare("UPDATE task SET status = ? WHERE status = ?").run(clean, raw);
+      }
+      const known = this.db
+        .prepare("SELECT id FROM status WHERE name = ? COLLATE NOCASE")
+        .get(clean) as Row | undefined;
+      if (!known) this.insertStatus(clean, statusColor(clean), position++, "normal");
+    }
+  }
+
+  /** Older databases declared `CHECK (status IN (...))`; rebuild once to a catalog foreign key. */
+  private rebuildTaskTable(): void {
+    const row = this.db
+      .prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'task'")
+      .get() as Row | undefined;
+    const sql = row ? String(row.sql ?? "") : "";
+    if (!sql.includes("CHECK (status IN")) return;
+
+    this.db.exec("PRAGMA foreign_keys = OFF");
+    try {
+      this.db.exec("BEGIN");
+      this.db.exec(`
+        CREATE TABLE task_status_migration (
+          id TEXT PRIMARY KEY,
+          code TEXT NOT NULL DEFAULT '',
+          title TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          status TEXT NOT NULL REFERENCES status(name) ON UPDATE CASCADE ON DELETE RESTRICT,
+          labels TEXT NOT NULL DEFAULT '[]',
+          urgent INTEGER NOT NULL DEFAULT 0,
+          rank REAL NOT NULL,
+          main_session_id TEXT NOT NULL,
+          document_content TEXT NOT NULL DEFAULT '',
+          document_updated_at INTEGER NOT NULL,
+          document_updated_by TEXT NOT NULL DEFAULT '',
+          revision INTEGER NOT NULL DEFAULT 1,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          status_changed_at INTEGER NOT NULL
+        )
+      `);
+      this.db.exec(
+        `INSERT INTO task_status_migration (${TASK_COLUMNS}) SELECT ${TASK_COLUMNS} FROM task`,
+      );
+      this.db.exec("DROP TABLE task");
+      this.db.exec("ALTER TABLE task_status_migration RENAME TO task");
+      this.db.exec("COMMIT");
+    } catch (error) {
+      try {
+        this.db.exec("ROLLBACK");
+      } catch {
+        /* the transaction never started */
+      }
+      throw error;
+    } finally {
+      this.db.exec("PRAGMA foreign_keys = ON");
+    }
+    const broken = this.db.prepare("PRAGMA foreign_key_check(task)").all();
+    if (broken.length) throw new Error("任务状态迁移未通过外键校验");
+  }
+
+  listStatuses(): StatusInfo[] {
+    return this.db
+      .prepare(
+        `SELECT s.id, s.name, s.color, s.position, s.kind, COUNT(t.id) AS count
+         FROM status s LEFT JOIN task t ON t.status = s.name
+         GROUP BY s.id ORDER BY s.position ASC, s.name ASC`,
+      )
+      .all()
+      .map((row: Row) => ({
+        id: String(row.id),
+        name: String(row.name),
+        color: String(row.color),
+        position: Number(row.position),
+        kind: row.kind === "default" || row.kind === "discard" ? row.kind : "normal",
+        count: Number(row.count),
+      }));
+  }
+
+  statusByName(name: string): StatusInfo | undefined {
+    return this.listStatuses().find(
+      (status) => status.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase(),
+    );
+  }
+
+  statusById(id: string): StatusInfo | undefined {
+    return this.listStatuses().find((status) => status.id === id);
+  }
+
+  defaultStatus(): StatusInfo {
+    const status = this.listStatuses().find((item) => item.kind === "default");
+    if (!status) throw new Error("缺少默认状态");
+    return status;
+  }
+
+  discardStatus(): StatusInfo {
+    const status = this.listStatuses().find((item) => item.kind === "discard");
+    if (!status) throw new Error("缺少废弃状态");
+    return status;
+  }
+
+  /** Used by legacy metadata migration; returns the canonical stored name. */
+  ensureStatus(name: string): string {
+    const clean = normalizeStatus(name);
+    const row = this.db
+      .prepare("SELECT name FROM status WHERE name = ? COLLATE NOCASE")
+      .get(clean) as Row | undefined;
+    if (row) return String(row.name);
+    const position =
+      Number(
+        (this.db.prepare("SELECT COALESCE(MAX(position), -1) AS value FROM status").get() as Row)
+          .value,
+      ) + 1;
+    this.insertStatus(clean, statusColor(clean), position, "normal");
+    return clean;
+  }
+
+  createStatus(name: string, color?: string): StatusInfo {
+    const clean = name.trim();
+    if (!clean) throw new Error("状态名不能为空");
+    const clash = this.db
+      .prepare("SELECT id FROM status WHERE name = ? COLLATE NOCASE")
+      .get(clean) as Row | undefined;
+    if (clash) throw new Error(`状态已存在：${clean}`);
+    const position =
+      Number(
+        (this.db.prepare("SELECT COALESCE(MAX(position), -1) AS value FROM status").get() as Row)
+          .value,
+      ) + 1;
+    this.insertStatus(clean, color || statusColor(clean), position, "normal");
+    return this.statusByName(clean)!;
+  }
+
+  updateStatus(id: string, input: { name?: string; color?: string }): StatusInfo {
+    const current = this.statusById(id);
+    if (!current) throw new Error("状态不存在");
+    const name = input.name === undefined ? current.name : input.name.trim();
+    if (!name) throw new Error("状态名不能为空");
+    const clash = this.db
+      .prepare("SELECT id FROM status WHERE name = ? COLLATE NOCASE AND id <> ?")
+      .get(name, id) as Row | undefined;
+    if (clash) throw new Error(`状态已存在：${name}`);
+    const color = input.color?.trim() || current.color;
+    this.db.prepare("UPDATE status SET name = ?, color = ? WHERE id = ?").run(name, color, id);
+    return this.statusById(id)!;
+  }
+
+  deleteStatus(id: string): { moved: number; target: string } {
+    const status = this.statusById(id);
+    if (!status) throw new Error("状态不存在");
+    if (status.kind !== "normal") throw new Error("默认状态和废弃状态不能删除");
+    const discard = this.discardStatus();
+    const now = Date.now();
+    const moved = this.db.transaction(() => {
+      const result = this.db
+        .prepare(
+          `UPDATE task SET status = ?, status_changed_at = ?, updated_at = ?, revision = revision + 1
+           WHERE status = ?`,
+        )
+        .run(discard.name, now, now, status.name);
+      this.db.prepare("DELETE FROM status WHERE id = ?").run(id);
+      return Number(result.changes);
+    })();
+    return { moved, target: discard.name };
+  }
+
+  reorderStatuses(ids: readonly string[]): StatusInfo[] {
+    const known = this.listStatuses();
+    const byId = new Map(known.map((status) => [status.id, status]));
+    const ordered = ids.filter((id) => byId.has(id));
+    const seen = new Set(ordered);
+    for (const status of known) if (!seen.has(status.id)) ordered.push(status.id);
+    this.db.transaction(() => {
+      const update = this.db.prepare("UPDATE status SET position = ? WHERE id = ?");
+      ordered.forEach((id, index) => update.run(index, id));
+    })();
+    return this.listStatuses();
   }
 
   private labelId(): string {
@@ -262,7 +547,7 @@ export class BoardStore {
       code: String(row.code ?? ""),
       title: String(row.title),
       description: String(row.description),
-      status: row.status as Task["status"],
+      status: String(row.status),
       labels: this.labelsFor(id),
       urgent: Boolean(row.urgent),
       rank: Number(row.rank),
@@ -341,6 +626,10 @@ export class BoardStore {
         link.createdAt,
       );
     }
+  }
+
+  deleteTask(taskId: string): void {
+    this.db.prepare("DELETE FROM task WHERE id = ?").run(taskId);
   }
 
   close(): void {

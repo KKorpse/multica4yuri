@@ -14,6 +14,7 @@ export const BoardRpc = {
           labels: { type: "array", items: { type: "string" } },
           directory: { type: "string" },
           agent: { type: "string" },
+          status: { type: "string" },
         },
         required: ["title", "directory"],
       },
@@ -138,6 +139,54 @@ export const BoardRpc = {
         required: ["id"],
       },
       output: { type: "object" },
+    },
+    taskDelete: {
+      input: {
+        type: "object",
+        properties: { taskId: { type: "string" } },
+        required: ["taskId"],
+      },
+      output: { type: "object" },
+    },
+    statusList: {
+      input: { type: "object", properties: {} },
+      output: { type: "array" },
+    },
+    statusCreate: {
+      input: {
+        type: "object",
+        properties: { name: { type: "string" }, color: { type: "string" } },
+        required: ["name"],
+      },
+      output: { type: "object" },
+    },
+    statusUpdate: {
+      input: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          color: { type: "string" },
+        },
+        required: ["id"],
+      },
+      output: { type: "object" },
+    },
+    statusDelete: {
+      input: {
+        type: "object",
+        properties: { id: { type: "string" } },
+        required: ["id"],
+      },
+      output: { type: "object" },
+    },
+    statusReorder: {
+      input: {
+        type: "object",
+        properties: { ids: { type: "array", items: { type: "string" } } },
+        required: ["ids"],
+      },
+      output: { type: "array" },
     },
     setDocument: {
       input: {

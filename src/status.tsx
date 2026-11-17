@@ -1,7 +1,7 @@
 import { statusColor } from "./model";
 
-export function StatusIcon(props: { status: string; size?: number }) {
-  const color = () => statusColor(props.status);
+export function StatusIcon(props: { status: string; size?: number; color?: string }) {
+  const color = () => props.color ?? statusColor(props.status);
   const shape = (): any => {
     switch (props.status) {
       case "待分配":

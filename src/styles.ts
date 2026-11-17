@@ -905,6 +905,23 @@ export const CSS = `
 }
 .ysb-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .ysb-labelmodal { width: min(560px, 100%); }
+.ysb-statusmodal { width: min(620px, 100%); }
+.ysb-confirmmodal { width: min(460px, 100%); }
+.ysb-statuscolor {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.ysb-statuscolor::-webkit-color-swatch-wrapper { padding: 0; }
+.ysb-statuscolor::-webkit-color-swatch {
+  border: 1px solid color-mix(in srgb, var(--ysb-fg) 18%, transparent);
+  border-radius: 6px;
+}
 .ysb-labelcomposer {
   display: flex;
   align-items: center;
@@ -1849,7 +1866,9 @@ export const CSS = `
 .ysb-menu {
   position: fixed;
   z-index: 81;
-  min-width: 160px;
+  min-width: 180px;
+  max-height: min(72vh, 520px);
+  overflow: auto;
   padding: 4px;
   border: 0;
   border-radius: var(--radius-xl, 12px);
@@ -1877,6 +1896,23 @@ export const CSS = `
 }
 .ysb-menuitem:hover, .ysb-menuitem:focus-visible { background: var(--ysb-hover); }
 .ysb-menuitem:active { background: var(--ysb-active); }
+.ysb-menulabel {
+  padding: 4px 8px 2px;
+  color: var(--ysb-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ysb-menustatus { gap: 7px; }
+.ysb-menustatus.is-current { color: var(--ysb-muted); }
+.ysb-menustatusname {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ysb-menustatuscheck { margin-left: auto; color: var(--ysb-muted); font-size: 11px; }
 .ysb-menuitem.danger { color: var(--ysb-error); }
 .ysb-menuitem.danger:hover, .ysb-menuitem.danger:focus-visible {
   background: color-mix(in srgb, var(--ysb-error) 10%, transparent);

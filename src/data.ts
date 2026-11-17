@@ -11,11 +11,7 @@ export function client(ctx: Context) {
   return ctx.client;
 }
 
-export async function listSessions(
-  ctx: Context,
-  archived: boolean,
-  signal: AbortSignal,
-): Promise<SessionInfo[]> {
+export async function listSessions(ctx: Context, signal: AbortSignal): Promise<SessionInfo[]> {
   const out: SessionInfo[] = [];
   let cursor: string | undefined;
   for (let page = 0; page < MAX_PAGES; page += 1) {
@@ -24,7 +20,7 @@ export async function listSessions(
         limit: PAGE,
         order: "desc",
         parentID: null,
-        archived,
+        archived: false,
         ...(cursor ? { cursor } : {}),
       },
       { signal },
@@ -108,7 +104,7 @@ export async function updateTitle(ctx: Context, sessionID: string, title: string
 
 /**
  * Yuri stores Host metadata through a merge-patch endpoint. Using it instead of
- * session.update keeps every other metadata key (title refresh, assist, archive)
+ * session.update keeps every other metadata key (title refresh, assist)
  * intact. The request goes through Yuri's authenticated window.fetch bridge.
  */
 export async function writeBoardMeta(
@@ -124,19 +120,6 @@ export async function writeBoardMeta(
   );
   signal.throwIfAborted();
   return response.metadata ?? {};
-}
-
-export async function setArchived(
-  ctx: Context,
-  session: Pick<SessionInfo, "id" | "location">,
-  archived: boolean,
-  signal: AbortSignal,
-): Promise<void> {
-  await hostRequest(ctx, `/api/yuri/sessions/${encodeURIComponent(session.id)}/archive`, {
-    archivedAt: archived ? Date.now() : 0,
-    directory: session.location.directory,
-  });
-  signal.throwIfAborted();
 }
 
 export function message(error: unknown): string {

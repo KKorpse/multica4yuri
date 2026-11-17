@@ -49,7 +49,11 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
         {(task) => (
           <>
             <div class="ysb-widget-head">
-              <StatusIcon status={task().status} size={12} />
+              <StatusIcon
+                status={task().status}
+                size={12}
+                color={props.board.colorOfStatus(task().status)}
+              />
               <span class="ysb-widget-status">{task().status}</span>
               <Show when={task().running}>
                 <span class="ysb-widget-run" title={props.t("card.running")} />

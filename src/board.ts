@@ -5,8 +5,9 @@ import { createStore } from "solid-js/store";
 import * as api from "./data";
 import { openSession } from "./host";
 import {
+  DEFAULT_STATUS,
+  DISCARD_STATUS,
   EMPTY_FILTERS,
-  DEFAULT_STATUSES,
   METADATA_KEY,
   basename,
   columnKeys,
@@ -20,11 +21,11 @@ import {
   taskMeta,
   toTaskFromRecord,
   uniqueLabels,
-  type ArchiveFilter,
   type Filters,
   type Grouping,
   type LabelInfo,
   type Sort,
+  type StatusInfo,
   type Task,
   type TaskMeta,
   type ViewMode,
@@ -90,7 +91,6 @@ function loadView(): ViewState {
         : [];
     const bool = (key: keyof Filters, fallback: boolean) =>
       typeof filters[key] === "boolean" ? (filters[key] as boolean) : fallback;
-    const archive = text("archive", "active");
     return {
       mode: parsed.mode === "list" || parsed.mode === "table" ? parsed.mode : "board",
       grouping:
@@ -112,8 +112,6 @@ function loadView(): ViewState {
         runningOnly: bool("runningOnly", false),
         plannedOnly: bool("plannedOnly", false),
         showChildren: bool("showChildren", false),
-        archive:
-          archive === "all" || archive === "archived" || archive === "active" ? archive : "active",
       },
       lastDirectory: typeof parsed.lastDirectory === "string" ? parsed.lastDirectory : "",
     };
@@ -135,6 +133,7 @@ export function createBoard(ctx: Context, t: T) {
   const [sessions, setSessions] = createSignal<SessionInfo[]>([]);
   const [records, setRecords] = createSignal<TaskRecord[]>([]);
   const [labels, setLabels] = createSignal<LabelInfo[]>([]);
+  const [statusList, setStatusList] = createSignal<StatusInfo[]>([]);
   const [projects, setProjects] = createSignal<Array<{ path: string; label: string }>>([]);
   const [running, setRunning] = createSignal<ReadonlySet<string>>(new Set());
   const [loading, setLoading] = createSignal(true);
@@ -143,6 +142,7 @@ export function createBoard(ctx: Context, t: T) {
   const [createOpen, setCreateOpen] = createSignal(false);
   const [createStatus, setCreateStatus] = createSignal("");
   const [editingId, setEditingId] = createSignal<string>();
+  const [deleteId, setDeleteId] = createSignal<string>();
   const [view, setView] = createStore<ViewState>(loadView());
 
   const agentCache = new Map<string, AgentInfo[]>();
@@ -173,12 +173,19 @@ export function createBoard(ctx: Context, t: T) {
 
   const visible = createMemo(() => sortTasks(filterTasks(tasks(), view.filters), view.sort));
 
-  const statuses = createMemo(() => {
-    const seen = new Set<string>();
-    for (const status of DEFAULT_STATUSES) seen.add(status);
-    for (const task of tasks()) seen.add(task.status);
-    return [...seen];
-  });
+  const statuses = createMemo(() => statusList().map((status) => status.name));
+
+  const colorOfStatus = (name: string): string =>
+    statusList().find((status) => status.name === name)?.color ?? statusColor(name);
+
+  const defaultStatusName = (): string =>
+    statusList().find((status) => status.kind === "default")?.name ?? DEFAULT_STATUS;
+
+  const discardStatusName = (): string =>
+    statusList().find((status) => status.kind === "discard")?.name ?? DISCARD_STATUS;
+
+  const isDiscarded = (name: string): boolean =>
+    statusList().find((status) => status.name === name)?.kind === "discard";
 
   const filteredForFacets = createMemo(() =>
     filterTasks(tasks(), { ...view.filters, statuses: [], labels: [] }),
@@ -251,7 +258,7 @@ export function createBoard(ctx: Context, t: T) {
       return {
         key,
         label: key,
-        color: view.grouping === "status" ? statusColor(key) : labelColor(key),
+        color: view.grouping === "status" ? colorOfStatus(key) : labelColor(key),
         tasks: items,
       };
     });
@@ -279,22 +286,6 @@ export function createBoard(ctx: Context, t: T) {
       ...session,
       metadata: { ...session.metadata, [METADATA_KEY]: meta },
     }));
-  }
-
-  function patchArchived(id: string, archived: boolean) {
-    patchSession(id, (session) => {
-      const yuri = record(session.metadata?.yuri);
-      return {
-        ...session,
-        metadata: {
-          ...session.metadata,
-          yuri: {
-            ...yuri,
-            archive: { ...record(yuri.archive), archivedAt: archived ? Date.now() : 0 },
-          },
-        },
-      };
-    });
   }
 
   function upsert(session: SessionInfo) {
@@ -344,22 +335,20 @@ export function createBoard(ctx: Context, t: T) {
     if (!silent) setLoading(true);
     setError("");
     try {
-      const active = await api.listSessions(ctx, false, ctx.signal);
-      const archived =
-        view.filters.archive === "active" ? [] : await api.listSessions(ctx, true, ctx.signal);
+      const active = await api.listSessions(ctx, ctx.signal);
       if (request !== generation) return;
-      const merged = new Map<string, SessionInfo>();
-      for (const session of [...active, ...archived]) merged.set(session.id, session);
-      const [live, taskRecords, labelList] = await Promise.all([
+      const [live, taskRecords, labelList, catalog] = await Promise.all([
         ctx.client.session.active({ signal: ctx.signal }).catch(() => ({})),
         ctx.client.rpc(BoardRpc).list({}) as Promise<TaskRecord[]>,
         ctx.client.rpc(BoardRpc).labelList({}) as Promise<LabelInfo[]>,
+        ctx.client.rpc(BoardRpc).statusList({}) as Promise<StatusInfo[]>,
       ]);
       if (request !== generation) return;
       batch(() => {
-        setSessions([...merged.values()]);
+        setSessions(active);
         setRecords(taskRecords);
         setLabels(labelList);
+        setStatusList(catalog);
         setRunning(new Set(Object.keys(live)));
         setLoading(false);
         setRefreshedAt(Date.now());
@@ -410,12 +399,6 @@ export function createBoard(ctx: Context, t: T) {
         if (id && agent) patchSession(id, (session) => ({ ...session, agent }));
         return;
       }
-      case "session.archived":
-        if (id) patchArchived(id, true);
-        return;
-      case "session.unarchived":
-        if (id) patchArchived(id, false);
-        return;
       case "session.created":
       case "session.moved":
       case "session.forked":
@@ -474,6 +457,7 @@ export function createBoard(ctx: Context, t: T) {
       labels: uniqueLabels(input.labels),
       directory: input.directory,
       agent: input.agent || undefined,
+      status: input.status || undefined,
     })) as TaskRecord;
     setRecords((list) => [task, ...list.filter((item) => item.id !== task.id)]);
     setView("lastDirectory", input.directory);
@@ -491,15 +475,11 @@ export function createBoard(ctx: Context, t: T) {
     return { id: task.mainSessionId, sent, sendError };
   }
 
-  function allowedStatus<P extends string>(next: string, previous: P): P {
-    return next === previous || next === "已完成" || next === "废弃" ? (next as P) : previous;
-  }
-
   async function save(id: string, input: SaveInput): Promise<void> {
-    const session = sessionById(id);
-    if (!session) return;
-    const record = taskById(id)?.record;
-    const title = input.title.trim() || session.title || "";
+    const task = taskById(id);
+    if (!task) return;
+    const record = task.record;
+    const title = input.title.trim() || record?.title || task.title || "";
 
     if (record) {
       await ctx.client.rpc(BoardRpc).update({
@@ -507,20 +487,23 @@ export function createBoard(ctx: Context, t: T) {
         patch: {
           title: title || record.title,
           description: input.description.trim(),
-          status: allowedStatus(input.status || record.status, record.status),
+          status: input.status || record.status,
           labels: uniqueLabels(input.labels),
         },
       });
-      if (title && title !== session.title) await api.updateTitle(ctx, id, title);
+      if (title && title !== task.title) await api.updateTitle(ctx, id, title);
       void reload(true);
       return;
     }
+
+    const session = sessionById(id);
+    if (!session) return;
 
     const previous = taskMeta(session);
     const next: TaskMeta = {
       ...previous,
       description: input.description.trim(),
-      status: allowedStatus(input.status || previous.status, previous.status),
+      status: input.status || previous.status,
       labels: uniqueLabels(input.labels),
     };
     patchMeta(id, next);
@@ -557,28 +540,6 @@ export function createBoard(ctx: Context, t: T) {
     }
   }
 
-  async function reopen(id: string): Promise<void> {
-    const task = taskById(id);
-    if (!task || (task.status !== "已完成" && task.status !== "废弃")) return;
-    const record = task.record;
-    if (record) {
-      await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: { status: "待分配" } });
-      void reload(true);
-      return;
-    }
-    const session = sessionById(id);
-    if (!session) return;
-    const previous = taskMeta(session);
-    const next: TaskMeta = { ...previous, status: "待分配" };
-    patchMeta(id, next);
-    try {
-      await api.writeBoardMeta(ctx, session, next, ctx.signal);
-    } catch (caught) {
-      patchMeta(id, previous);
-      throw caught;
-    }
-  }
-
   async function saveDocument(id: string, content: string): Promise<void> {
     await ctx.client.rpc(BoardRpc).setDocument({ taskId: id, content });
     void reload(true);
@@ -604,13 +565,71 @@ export function createBoard(ctx: Context, t: T) {
     await reload(true);
   }
 
+  async function addStatus(name: string, color?: string): Promise<StatusInfo> {
+    const status = (await ctx.client.rpc(BoardRpc).statusCreate({ name, color })) as StatusInfo;
+    await reload(true);
+    return status;
+  }
+
+  async function updateStatus(
+    id: string,
+    patch: { name?: string; color?: string },
+  ): Promise<StatusInfo> {
+    const previous = statusList().find((status) => status.id === id);
+    const status = (await ctx.client.rpc(BoardRpc).statusUpdate({
+      id,
+      ...patch,
+    })) as StatusInfo;
+    if (previous && previous.name !== status.name) {
+      setFilters({
+        statuses: view.filters.statuses.map((name) =>
+          name === previous.name ? status.name : name,
+        ),
+      });
+    }
+    await reload(true);
+    return status;
+  }
+
+  async function deleteStatus(id: string): Promise<{ moved: number; target: string }> {
+    const removed = statusList().find((status) => status.id === id)?.name;
+    const result = (await ctx.client.rpc(BoardRpc).statusDelete({ id })) as {
+      moved: number;
+      target: string;
+    };
+    if (removed) {
+      setFilters({ statuses: view.filters.statuses.filter((name) => name !== removed) });
+    }
+    await reload(true);
+    return result;
+  }
+
+  async function reorderStatuses(ids: string[]): Promise<void> {
+    const list = (await ctx.client.rpc(BoardRpc).statusReorder({ ids })) as StatusInfo[];
+    setStatusList(list);
+  }
+
+  function requestDelete(id: string) {
+    setDeleteId(id);
+  }
+
+  function closeDelete() {
+    setDeleteId(undefined);
+  }
+
+  async function deleteTask(id: string): Promise<void> {
+    await ctx.client.rpc(BoardRpc).taskDelete({ taskId: id });
+    setDeleteId(undefined);
+    await reload(true);
+  }
+
   async function move(id: string, status: string, index?: number): Promise<void> {
-    const session = sessionById(id);
     const task = taskById(id);
-    if (!session || !task || view.grouping !== "status") return;
-    const nextStatus = allowedStatus(status, task.status);
+    if (!task) return;
+    if (statusList().length && !statuses().includes(status)) return;
+    const nextStatus = status;
     let rank = task.rank;
-    if (view.sort === "manual" && index !== undefined) {
+    if (view.grouping === "status" && view.sort === "manual" && index !== undefined) {
       const siblings = tasks()
         .filter((item) => item.status === nextStatus && item.id !== id)
         .sort((a, b) => a.rank - b.rank);
@@ -626,12 +645,14 @@ export function createBoard(ctx: Context, t: T) {
     if (record) {
       await ctx.client.rpc(BoardRpc).update({
         taskId: record.id,
-        patch: { status: allowedStatus(status, record.status), rank },
+        patch: { status: nextStatus, rank },
       });
       void reload(true);
       return;
     }
 
+    const session = sessionById(id);
+    if (!session) return;
     const previous = taskMeta(session);
     const next: TaskMeta = { ...previous, status: nextStatus, rank };
     patchMeta(id, next);
@@ -639,19 +660,6 @@ export function createBoard(ctx: Context, t: T) {
       await api.writeBoardMeta(ctx, session, next, ctx.signal);
     } catch (caught) {
       patchMeta(id, previous);
-      throw caught;
-    }
-  }
-
-  async function archive(id: string, archived: boolean): Promise<void> {
-    const session = sessionById(id);
-    if (!session) return;
-    const was = taskById(id)?.archived ?? false;
-    patchArchived(id, archived);
-    try {
-      await api.setArchived(ctx, session, archived, ctx.signal);
-    } catch (caught) {
-      patchArchived(id, was);
       throw caught;
     }
   }
@@ -758,13 +766,18 @@ export function createBoard(ctx: Context, t: T) {
     error,
     refreshedAt,
     createOpen,
-    createStatus,
+    createStatusSeed: createStatus,
     editingId,
     tasks,
     visible,
     columns,
     statuses,
+    statusList,
     statusCounts,
+    colorOfStatus,
+    defaultStatusName,
+    discardStatusName,
+    isDiscarded,
     labelCounts,
     labels,
     labelOptions,
@@ -778,15 +791,11 @@ export function createBoard(ctx: Context, t: T) {
     setGrouping: (grouping: Grouping) => setView("grouping", grouping),
     setSort: (sort: Sort) => setView("sort", sort),
     setFilters,
-    setArchive: (archive: ArchiveFilter) => {
-      setFilters({ archive });
-      if (archive !== "active") void reload(true);
-    },
     toggleStatus: (status: string) => toggleIn("statuses", status),
     toggleLabel: (label: string) => toggleIn("labels", label),
     setAgentFilter,
     setDirectoryFilter,
-    resetFilters: () => setFilters({ ...EMPTY_FILTERS, archive: view.filters.archive }),
+    resetFilters: () => setFilters({ ...EMPTY_FILTERS }),
     reload,
     activate,
     deactivate,
@@ -796,10 +805,16 @@ export function createBoard(ctx: Context, t: T) {
     createLabel,
     renameLabel,
     deleteLabel,
-    reopen,
+    createStatus: addStatus,
+    updateStatus,
+    deleteStatus,
+    reorderStatuses,
     setUrgent,
     move,
-    archive,
+    deleteId,
+    requestDelete,
+    closeDelete,
+    deleteTask,
     open,
     openLink,
     loadAgents,

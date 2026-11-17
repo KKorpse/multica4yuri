@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import type { LabelInfo } from "./model";
+import type { LabelInfo, StatusInfo } from "./model";
 import type { Task } from "./task";
 
 type Json = any;
@@ -181,12 +181,14 @@ function createTask() {
     .filter(Boolean);
   const agent = flag("agent");
   validateAgent(directory, agent);
+  const status = flag("status");
   const task = rpc("create", {
     title,
     description: flag("description") || "",
     labels,
     directory,
     agent,
+    status: status ? resolveStatusInfo(status).name : undefined,
   }) as Task;
   let started = false;
   let startError: string | undefined;
@@ -223,12 +225,7 @@ function updateTask(ref: string | undefined) {
       .filter(Boolean);
   }
   const status = flag("status");
-  if (status) {
-    if (status !== "已完成" && status !== "废弃") {
-      throw new Error("CLI 只能手动设置为 已完成 或 废弃；执行中由系统自动进入");
-    }
-    patch.status = status;
-  }
+  if (status) patch.status = resolveStatusInfo(status).name;
   if (!Object.keys(patch).length) throw new Error("没有要修改的字段");
   const updated = rpc("update", { taskId: task.id, patch }) as Task;
   if (json) return print(updated);
@@ -350,6 +347,63 @@ function listAgents() {
   }
 }
 
+function statusCatalog(): StatusInfo[] {
+  return rpc("statusList") as StatusInfo[];
+}
+
+function resolveStatusInfo(ref: string | undefined): StatusInfo {
+  if (!ref) throw new Error("缺少状态名");
+  const all = statusCatalog();
+  const status =
+    all.find((item) => item.id === ref) ??
+    all.find((item) => item.name.toLocaleLowerCase() === ref.toLocaleLowerCase());
+  if (!status) {
+    throw new Error(`状态不存在：${ref}。可用：${all.map((item) => item.name).join(", ")}`);
+  }
+  return status;
+}
+
+function discardStatus(): StatusInfo {
+  const status = statusCatalog().find((item) => item.kind === "discard");
+  if (!status) throw new Error("缺少废弃状态");
+  return status;
+}
+
+function showStatuses() {
+  const all = statusCatalog();
+  if (json) return print(all);
+  for (const status of all) {
+    const kind = status.kind === "default" ? "默认" : status.kind === "discard" ? "废弃" : "普通";
+    console.log(
+      `${status.name.padEnd(12)}  ${String(status.count).padStart(3)}  ${status.color}  ${kind.padEnd(4)}  ${status.id}`,
+    );
+  }
+}
+
+function addStatus() {
+  const name = positionals[2];
+  if (!name) throw new Error("缺少状态名");
+  const status = rpc("statusCreate", { name, color: flag("color") }) as StatusInfo;
+  if (json) return print(status);
+  console.log(`已创建状态 ${status.name}  ${status.color}  ${status.id}`);
+}
+
+function renameStatus() {
+  const target = positionals[3];
+  if (!target) throw new Error("用法：status rename <旧名|ID> <新名>");
+  const status = resolveStatusInfo(positionals[2]);
+  const updated = rpc("statusUpdate", { id: status.id, name: target }) as StatusInfo;
+  if (json) return print(updated);
+  console.log(`已重命名 ${status.name} → ${updated?.name ?? target}`);
+}
+
+function removeStatus() {
+  const status = resolveStatusInfo(positionals[2]);
+  const result = rpc("statusDelete", { id: status.id }) as { moved: number; target: string };
+  if (json) return print({ ok: true, ...result });
+  console.log(`已删除状态 ${status.name}（${result.moved} 个任务移到 ${result.target}）`);
+}
+
 function listLabels() {
   const result = rpc("labelList") as LabelInfo[];
   if (json) return print(result);
@@ -404,11 +458,12 @@ function help() {
 任务
   task list [--status 执行中] [--since 7d] [--label 支付] [--group label] [--search 关键字] [--limit 50] [--json]
   task get <ZM-0>
-  task create --title "..." [--description "..."] [--labels a,b] [--directory /path] [--agent build] [--send]
+  task create --title "..." [--description "..."] [--labels a,b] [--status 状态名] [--directory /path] [--agent build] [--send]
   task start <ZM-0> [--text "..."]
-  task update <ZM-0> [--title "..."] [--description "..."] [--labels a,b] [--status 已完成|废弃]
+  task update <ZM-0> [--title "..."] [--description "..."] [--labels a,b] [--status 状态名]
   task complete <ZM-0>
   task discard <ZM-0>
+  task delete <ZM-0> --yes
 
 Agent
   agent list [--directory /path] [--json]
@@ -445,7 +500,9 @@ try {
   else if (group === "task" && action === "start") startTask(ref);
   else if (group === "task" && action === "update") updateTask(ref);
   else if (group === "task" && action === "complete") updateTaskWithStatus(ref, "已完成");
-  else if (group === "task" && action === "discard") updateTaskWithStatus(ref, "废弃");
+  else if (group === "task" && action === "discard")
+    updateTaskWithStatus(ref, discardStatus().name);
+  else if (group === "task" && action === "delete") deleteTask(ref);
   else if (group === "document" && action === "get") getDocument(ref);
   else if (group === "document" && action === "set") setDocument(ref);
   else if (group === "session" && action === "list") sessionList(ref);
@@ -458,6 +515,10 @@ try {
   else if (group === "label" && action === "create") createLabel();
   else if (group === "label" && action === "rename") renameLabel();
   else if (group === "label" && action === "delete") deleteLabel();
+  else if (group === "status" && action === "list") showStatuses();
+  else if (group === "status" && action === "add") addStatus();
+  else if (group === "status" && action === "rename") renameStatus();
+  else if (group === "status" && action === "delete") removeStatus();
   else {
     help();
     process.exitCode = 1;
@@ -471,5 +532,19 @@ function updateTaskWithStatus(ref: string | undefined, status: string) {
   const task = resolve(ref);
   const updated = rpc("update", { taskId: task.id, patch: { status } }) as Task;
   if (json) return print(updated);
-  console.log(`已标记 ${updated.code || updated.id} 为 ${status}`);
+  console.log(`已移动 ${updated.code || updated.id} 到 ${status}`);
+}
+
+function deleteTask(ref: string | undefined) {
+  const task = resolve(ref);
+  const discard = discardStatus();
+  if (task.status !== discard.name) {
+    throw new Error(`只有「${discard.name}」状态的任务可以彻底删除`);
+  }
+  if (!has("yes")) {
+    throw new Error("彻底删除会删除任务及其所有会话，请追加 --yes 确认");
+  }
+  rpc("taskDelete", { taskId: task.id });
+  if (json) return print({ ok: true, taskId: task.id, code: task.code });
+  console.log(`已彻底删除 ${task.code || task.id} 及其会话`);
 }
