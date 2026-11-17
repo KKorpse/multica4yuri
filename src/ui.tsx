@@ -13,7 +13,13 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { Board, Column } from "./board";
-import { BUILD, consumeReturnSession, isCoarsePointer, openSession } from "./host";
+import {
+  BUILD,
+  consumeOwnEscapeSuppression,
+  consumeReturnSession,
+  isCoarsePointer,
+  openSession,
+} from "./host";
 import { TaskDetails } from "./details";
 import { TagEditor } from "./tag";
 import { BookmarkIcon } from "./icons";
@@ -229,6 +235,7 @@ export function BoardPage(props: { board: Board; t: T }) {
         return;
       }
       if (event.key !== "Escape") return;
+      if (consumeOwnEscapeSuppression()) return;
       if (menu()) {
         event.preventDefault();
         event.stopPropagation();
@@ -262,7 +269,7 @@ export function BoardPage(props: { board: Board; t: T }) {
       }
       const id = consumeReturnSession();
       event.preventDefault();
-      if (id) openSession(id);
+      if (id) openSession(id, board.task(id)?.directory);
       else window.history.back();
     };
     document.addEventListener("keydown", onKey);

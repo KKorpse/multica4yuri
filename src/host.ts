@@ -2,7 +2,7 @@ import { Contract, Registry, type Context } from "@opencode/plugin/gui";
 import type { JSX } from "solid-js";
 
 export const PAGE_ID = "board";
-export const BUILD = "0.22.0";
+export const BUILD = "0.22.1";
 
 /** Touch devices never mount the board page at all. */
 /** HTML5 drag is unreliable on touch devices and can trigger WebKit drag bugs. */ export function isCoarsePointer(): boolean {
@@ -45,8 +45,67 @@ export const YuriPages = Contract.define<
 >("yuri.pages");
 
 /** Yuri 0.2.28 does not expose ctx.tabs; this uses its own route, then verifies the switch. */
-export function openSession(sessionID: string): void {
+let suppressOwnEscape = false;
+
+/** The board's Escape handler must not react to the synthetic dismiss used below. */
+export function consumeOwnEscapeSuppression(): boolean {
+  const value = suppressOwnEscape;
+  suppressOwnEscape = false;
+  return value;
+}
+
+export function openSession(sessionID: string, directory?: string): void {
   const path = `/session/${encodeURIComponent(sessionID)}`;
+  const capacitor = (
+    window as unknown as {
+      Capacitor?: {
+        isNativePlatform?: () => boolean;
+        Plugins?: { App?: { openUrl?: (options: { url: string }) => Promise<void> } };
+      };
+    }
+  ).Capacitor;
+  const narrow =
+    typeof window.matchMedia === "function" && window.matchMedia("(max-width: 760px)").matches;
+  const coarse =
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(pointer: coarse)").matches
+      : (navigator.maxTouchPoints || 0) > 0;
+  const mobile = capacitor?.isNativePlatform?.() === true || (narrow && coarse);
+  if (mobile) {
+    // The phone shell keeps navigation in the mobile store, not the URL router, and
+    // opens a chat through the same yuri:// deep link used by notifications.
+    const deepLink = `yuri://session/${encodeURIComponent(sessionID)}${
+      directory ? `?directory=${encodeURIComponent(directory)}` : ""
+    }`;
+    window.dispatchEvent(
+      new CustomEvent("yuri:open-session", { detail: { sessionId: sessionID, directory } }),
+    );
+    // Close the host's mobile plugin sheet first; it sits above the tab shell.
+    suppressOwnEscape = true;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    window.setTimeout(() => {
+      suppressOwnEscape = false;
+    }, 500);
+    window.setTimeout(() => {
+      // The mobile home is mounted behind the sheet; its row uses the app's own
+      // navigation coordinator, which is the most reliable phone path.
+      const row = [...document.querySelectorAll<HTMLElement>("[data-mobile-session-id]")].find(
+        (element) => element.dataset.mobileSessionId === sessionID,
+      );
+      if (row) {
+        row.click();
+        return;
+      }
+      if (capacitor?.isNativePlatform?.() && capacitor.Plugins?.App?.openUrl) {
+        void capacitor.Plugins.App.openUrl({ url: deepLink }).catch(() =>
+          window.location.assign(path),
+        );
+        return;
+      }
+      window.location.assign(path);
+    }, 180);
+    return;
+  }
   const route = {
     sessionId: sessionID,
     isNewSession: false,

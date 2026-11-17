@@ -777,7 +777,10 @@ export function createBoard(ctx: Context, t: T) {
   }
 
   function open(id: string) {
-    openSession(id);
+    const task = taskById(id);
+    const directory =
+      task?.record?.sessions.find((link) => link.sessionId === id)?.directory ?? task?.directory;
+    openSession(id, directory);
   }
 
   function openLink(href: string, directory?: string) {
