@@ -13,7 +13,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { Board, Column } from "./board";
-import { BUILD, consumeReturnSession, isCoarsePointer, isMobileSurface, openSession } from "./host";
+import { BUILD, consumeReturnSession, isCoarsePointer, openSession } from "./host";
 import { TaskDetails } from "./details";
 import { TagEditor } from "./tag";
 import { BookmarkIcon } from "./icons";
@@ -153,7 +153,11 @@ export function BoardPage(props: { board: Board; t: T }) {
   const [labelsOpen, setLabelsOpen] = createSignal(false);
   const [statusOpen, setStatusOpen] = createSignal(false);
   const [menu, setMenu] = createSignal<{ id: string; x: number; y: number }>();
-  const [narrow, setNarrow] = createSignal(isMobileSurface());
+  const [narrow, setNarrow] = createSignal(
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(max-width: 760px)").matches
+      : (window.innerWidth || 0) <= 760,
+  );
   const [limits, setLimits] = createSignal<Record<string, number>>({});
   const PAGE_SIZE = 40;
   const [history, setHistory] = createSignal<string[]>(readSearchHistory());
@@ -190,22 +194,14 @@ export function BoardPage(props: { board: Board; t: T }) {
     searchInput?.focus();
   }
 
-  createEffect(() => {
-    if (narrow()) board.deactivate();
-    else board.activate();
-  });
+  onMount(() => board.activate());
   onMount(() => {
     if (typeof window.matchMedia !== "function") return;
     const width = window.matchMedia("(max-width: 760px)");
-    const coarse = window.matchMedia("(pointer: coarse)");
-    const update = () => setNarrow(width.matches || coarse.matches);
+    const update = () => setNarrow(width.matches);
     update();
     width.addEventListener?.("change", update);
-    coarse.addEventListener?.("change", update);
-    onCleanup(() => {
-      width.removeEventListener?.("change", update);
-      coarse.removeEventListener?.("change", update);
-    });
+    onCleanup(() => width.removeEventListener?.("change", update));
   });
   onCleanup(() => {
     resetSearch();
@@ -292,6 +288,9 @@ export function BoardPage(props: { board: Board; t: T }) {
     { id: "list", labelKey: "view.list" },
     { id: "table", labelKey: "view.table" },
   ];
+
+  /** Table is desktop-only; a persisted table preference falls back to list on phones. */
+  const mode = () => (narrow() && board.view.mode === "table" ? "list" : board.view.mode);
 
   const labelChips = createMemo(() => {
     const list = board.labelCounts().slice(0, 14);
@@ -454,684 +453,671 @@ export function BoardPage(props: { board: Board; t: T }) {
   }
 
   return (
-    <Show
-      when={!narrow()}
-      fallback={
+    <ErrorBoundary
+      fallback={(error, reset) => (
         <div class="ysb-root">
-          <div class="ysb-mobile">{t("board.desktopOnly")}</div>
+          <div class="ysb-errorbox" role="alert">
+            <strong>{t("board.crashed")}</strong>
+            <span>{String(error)}</span>
+            <button class="ysb-btn small" type="button" onClick={reset}>
+              {t("board.retry")}
+            </button>
+          </div>
         </div>
-      }
+      )}
     >
-      <ErrorBoundary
-        fallback={(error, reset) => (
-          <div class="ysb-root">
-            <div class="ysb-errorbox" role="alert">
-              <strong>{t("board.crashed")}</strong>
-              <span>{String(error)}</span>
-              <button class="ysb-btn small" type="button" onClick={reset}>
-                {t("board.retry")}
+      <div class="ysb-root" classList={{ "is-mobile": narrow() }} data-ysb-page>
+        <header class="ysb-header">
+          <div class="ysb-headrow">
+            <div class="ysb-titleblock">
+              <div class="ysb-titlewrap">
+                <h1 class="ysb-title">{t("page.title")}</h1>
+              </div>
+              <div class="ysb-header-meta">
+                <span>{summary(t, board.total(), board.visible().length)}</span>
+                <Show when={board.runningCount() > 0}>
+                  <button
+                    class="ysb-activitychip is-running"
+                    classList={{ "is-on": board.view.filters.runningOnly }}
+                    type="button"
+                    data-ysb-activity="running"
+                    aria-pressed={board.view.filters.runningOnly}
+                    onClick={() =>
+                      board.setFilters({ runningOnly: !board.view.filters.runningOnly })
+                    }
+                  >
+                    <span class="ysb-badgedot" />
+                    {t("card.running")}
+                    <strong>{board.runningCount()}</strong>
+                  </button>
+                </Show>
+                <Show when={board.unreadCount() > 0}>
+                  <button
+                    class="ysb-activitychip is-unread"
+                    classList={{ "is-on": board.view.filters.unreadOnly }}
+                    type="button"
+                    data-ysb-activity="unread"
+                    aria-pressed={board.view.filters.unreadOnly}
+                    onClick={() => board.setFilters({ unreadOnly: !board.view.filters.unreadOnly })}
+                  >
+                    <span class="ysb-badgedot" />
+                    {t("card.unread")}
+                    <strong>{board.unreadCount()}</strong>
+                  </button>
+                </Show>
+                <span class="ysb-header-metasep" aria-hidden="true">
+                  ·
+                </span>
+                <span class="ysb-build">v{BUILD}</span>
+              </div>
+            </div>
+            <div class="ysb-searchwrap" ref={searchWrap}>
+              <label class="ysb-searchbox">
+                <IconSearch />
+                <input
+                  ref={searchInput}
+                  type="search"
+                  value={board.view.filters.search}
+                  placeholder={t("search.placeholder")}
+                  aria-label={t("search.placeholder")}
+                  autocomplete="off"
+                  onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
+                  onFocus={() => setHistoryOpen(history().length > 0)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape" && historyOpen()) {
+                      event.stopPropagation();
+                      setHistoryOpen(false);
+                      return;
+                    }
+                    if (event.key === "Enter") {
+                      rememberSearch(board.view.filters.search);
+                      setHistoryOpen(false);
+                    }
+                  }}
+                />
+              </label>
+              <Show when={historyOpen() && !board.view.filters.search && history().length > 0}>
+                <div class="ysb-searchhistory" role="listbox" aria-label={t("search.history")}>
+                  <div class="ysb-searchhistoryhead">
+                    <span>{t("search.history")}</span>
+                    <button
+                      class="ysb-searchhistoryclear"
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={clearHistory}
+                    >
+                      {t("search.clearHistory")}
+                    </button>
+                  </div>
+                  <For each={history()}>
+                    {(term) => (
+                      <button
+                        class="ysb-searchhistoryitem"
+                        type="button"
+                        role="option"
+                        aria-selected="false"
+                        title={term}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => applyHistory(term)}
+                      >
+                        <IconSearch />
+                        <span>{term}</span>
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </Show>
+            </div>
+            <div class="ysb-actions ysb-pageactions">
+              <button class="ysb-btn primary" type="button" onClick={() => board.requestCreate()}>
+                <IconPlus />
+                {t("action.create")}
+              </button>
+              <button
+                class="ysb-iconbtn"
+                type="button"
+                title={t("action.refresh")}
+                aria-label={t("action.refresh")}
+                onClick={() => void board.reload()}
+              >
+                <IconRefresh />
               </button>
             </div>
           </div>
-        )}
-      >
-        <div class="ysb-root" data-ysb-page>
-          <header class="ysb-header">
-            <div class="ysb-headrow">
-              <div class="ysb-titleblock">
-                <div class="ysb-titlewrap">
-                  <h1 class="ysb-title">{t("page.title")}</h1>
-                </div>
-                <div class="ysb-header-meta">
-                  <span>{summary(t, board.total(), board.visible().length)}</span>
-                  <Show when={board.runningCount() > 0}>
-                    <button
-                      class="ysb-activitychip is-running"
-                      classList={{ "is-on": board.view.filters.runningOnly }}
-                      type="button"
-                      data-ysb-activity="running"
-                      aria-pressed={board.view.filters.runningOnly}
-                      onClick={() =>
-                        board.setFilters({ runningOnly: !board.view.filters.runningOnly })
-                      }
-                    >
-                      <span class="ysb-badgedot" />
-                      {t("card.running")}
-                      <strong>{board.runningCount()}</strong>
-                    </button>
-                  </Show>
-                  <Show when={board.unreadCount() > 0}>
-                    <button
-                      class="ysb-activitychip is-unread"
-                      classList={{ "is-on": board.view.filters.unreadOnly }}
-                      type="button"
-                      data-ysb-activity="unread"
-                      aria-pressed={board.view.filters.unreadOnly}
-                      onClick={() =>
-                        board.setFilters({ unreadOnly: !board.view.filters.unreadOnly })
-                      }
-                    >
-                      <span class="ysb-badgedot" />
-                      {t("card.unread")}
-                      <strong>{board.unreadCount()}</strong>
-                    </button>
-                  </Show>
-                  <span class="ysb-header-metasep" aria-hidden="true">
-                    ·
-                  </span>
-                  <span class="ysb-build">v{BUILD}</span>
-                </div>
-              </div>
-              <div class="ysb-searchwrap" ref={searchWrap}>
-                <label class="ysb-searchbox">
-                  <IconSearch />
-                  <input
-                    ref={searchInput}
-                    type="search"
-                    value={board.view.filters.search}
-                    placeholder={t("search.placeholder")}
-                    aria-label={t("search.placeholder")}
-                    autocomplete="off"
-                    onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
-                    onFocus={() => setHistoryOpen(history().length > 0)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape" && historyOpen()) {
-                        event.stopPropagation();
-                        setHistoryOpen(false);
-                        return;
-                      }
-                      if (event.key === "Enter") {
-                        rememberSearch(board.view.filters.search);
-                        setHistoryOpen(false);
-                      }
-                    }}
-                  />
-                </label>
-                <Show when={historyOpen() && !board.view.filters.search && history().length > 0}>
-                  <div class="ysb-searchhistory" role="listbox" aria-label={t("search.history")}>
-                    <div class="ysb-searchhistoryhead">
-                      <span>{t("search.history")}</span>
-                      <button
-                        class="ysb-searchhistoryclear"
-                        type="button"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={clearHistory}
-                      >
-                        {t("search.clearHistory")}
-                      </button>
-                    </div>
-                    <For each={history()}>
-                      {(term) => (
-                        <button
-                          class="ysb-searchhistoryitem"
-                          type="button"
-                          role="option"
-                          aria-selected="false"
-                          title={term}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => applyHistory(term)}
-                        >
-                          <IconSearch />
-                          <span>{term}</span>
-                        </button>
-                      )}
-                    </For>
-                  </div>
-                </Show>
-              </div>
-              <div class="ysb-actions ysb-pageactions">
-                <button class="ysb-btn primary" type="button" onClick={() => board.requestCreate()}>
-                  <IconPlus />
-                  {t("action.create")}
-                </button>
-                <button
-                  class="ysb-iconbtn"
-                  type="button"
-                  title={t("action.refresh")}
-                  aria-label={t("action.refresh")}
-                  onClick={() => void board.reload()}
-                >
-                  <IconRefresh />
-                </button>
-              </div>
-            </div>
 
-            <div class="ysb-toolbar">
-              <div class="ysb-viewswitch" role="group" aria-label={t("view.label")}>
-                <For each={viewModes}>
-                  {(mode) => (
-                    <button
-                      class="ysb-viewbtn"
-                      classList={{
-                        "is-on": board.view.mode === mode.id,
-                        "yuri-segmented-selected-pill": board.view.mode === mode.id,
-                      }}
-                      type="button"
-                      data-ysb-view={mode.id}
-                      aria-pressed={board.view.mode === mode.id}
-                      onClick={() => board.setMode(mode.id)}
-                    >
-                      {t(mode.labelKey)}
-                    </button>
-                  )}
-                </For>
-              </div>
-              <span class="ysb-toolbar-separator" aria-hidden="true" />
-              <div class="ysb-displayoptions">
-                <Show when={board.view.mode === "board"}>
-                  <label class="ysb-tool ysb-toolbar-select">
-                    <select
-                      value={board.view.grouping}
-                      aria-label={t("filter.group")}
-                      title={t("filter.group")}
-                      onChange={(event) => board.setGrouping(event.currentTarget.value as Grouping)}
-                    >
-                      <option value="status">{t("group.status")}</option>
-                      <option value="agent">{t("group.agent")}</option>
-                      <option value="directory">{t("group.directory")}</option>
-                      <option value="label">{t("group.label")}</option>
-                    </select>
-                  </label>
-                </Show>
+          <div class="ysb-toolbar">
+            <div class="ysb-viewswitch" role="group" aria-label={t("view.label")}>
+              <For each={viewModes.filter((entry) => entry.id !== "table" || !narrow())}>
+                {(entry) => (
+                  <button
+                    class="ysb-viewbtn"
+                    classList={{
+                      "is-on": mode() === entry.id,
+                      "yuri-segmented-selected-pill": mode() === entry.id,
+                    }}
+                    type="button"
+                    data-ysb-view={entry.id}
+                    aria-pressed={mode() === entry.id}
+                    onClick={() => board.setMode(entry.id)}
+                  >
+                    {t(entry.labelKey)}
+                  </button>
+                )}
+              </For>
+            </div>
+            <span class="ysb-toolbar-separator" aria-hidden="true" />
+            <div class="ysb-displayoptions">
+              <Show when={mode() === "board"}>
                 <label class="ysb-tool ysb-toolbar-select">
                   <select
-                    value={board.view.sort}
-                    aria-label={t("filter.sort")}
-                    title={t("filter.sort")}
-                    onChange={(event) => board.setSort(event.currentTarget.value as Sort)}
+                    value={board.view.grouping}
+                    aria-label={t("filter.group")}
+                    title={t("filter.group")}
+                    onChange={(event) => board.setGrouping(event.currentTarget.value as Grouping)}
                   >
-                    <option value="manual">{t("sort.manual")}</option>
-                    <option value="updated">{t("sort.updated")}</option>
-                    <option value="created">{t("sort.created")}</option>
-                    <option value="title">{t("sort.title")}</option>
+                    <option value="status">{t("group.status")}</option>
+                    <option value="agent">{t("group.agent")}</option>
+                    <option value="directory">{t("group.directory")}</option>
+                    <option value="label">{t("group.label")}</option>
                   </select>
                 </label>
-              </div>
-              <span class="ysb-toolbar-separator" aria-hidden="true" />
-              <div class="ysb-toolbar-actions">
-                <button class="ysb-toolbarbtn" type="button" onClick={() => setStatusOpen(true)}>
-                  {t("status.manage")}
-                </button>
-                <button class="ysb-toolbarbtn" type="button" onClick={() => setLabelsOpen(true)}>
-                  {t("label.manage")}
-                </button>
-                <button
-                  class="ysb-toolbarbtn"
-                  classList={{ "is-active": filtersOpen() }}
-                  type="button"
-                  aria-expanded={filtersOpen()}
-                  aria-controls="ysb-filter-panel"
-                  onClick={() => setFiltersOpen((open) => !open)}
+              </Show>
+              <label class="ysb-tool ysb-toolbar-select">
+                <select
+                  value={board.view.sort}
+                  aria-label={t("filter.sort")}
+                  title={t("filter.sort")}
+                  onChange={(event) => board.setSort(event.currentTarget.value as Sort)}
                 >
-                  <IconFilter />
-                  {t("filter.panel")}
-                  <Show when={activeFilters() > 0}>
-                    <span class="ysb-badge">{activeFilters()}</span>
-                  </Show>
-                </button>
-              </div>
+                  <option value="manual">{t("sort.manual")}</option>
+                  <option value="updated">{t("sort.updated")}</option>
+                  <option value="created">{t("sort.created")}</option>
+                  <option value="title">{t("sort.title")}</option>
+                </select>
+              </label>
             </div>
+            <span class="ysb-toolbar-separator" aria-hidden="true" />
+            <div class="ysb-toolbar-actions">
+              <button class="ysb-toolbarbtn" type="button" onClick={() => setStatusOpen(true)}>
+                {t("status.manage")}
+              </button>
+              <button class="ysb-toolbarbtn" type="button" onClick={() => setLabelsOpen(true)}>
+                {t("label.manage")}
+              </button>
+              <button
+                class="ysb-toolbarbtn"
+                classList={{ "is-active": filtersOpen() }}
+                type="button"
+                aria-expanded={filtersOpen()}
+                aria-controls="ysb-filter-panel"
+                onClick={() => setFiltersOpen((open) => !open)}
+              >
+                <IconFilter />
+                {t("filter.panel")}
+                <Show when={activeFilters() > 0}>
+                  <span class="ysb-badge">{activeFilters()}</span>
+                </Show>
+              </button>
+            </div>
+          </div>
 
-            <Show when={filtersOpen()}>
-              <div class="ysb-filterpanel" id="ysb-filter-panel">
+          <Show when={filtersOpen()}>
+            <div class="ysb-filterpanel" id="ysb-filter-panel">
+              <div class="ysb-filtergroup">
+                <span class="ysb-filterlabel">{t("filter.statuses")}</span>
+                <div class="ysb-chips">
+                  <button
+                    class="ysb-chip"
+                    classList={{ "is-on": board.view.filters.statuses.length === 0 }}
+                    type="button"
+                    aria-pressed={board.view.filters.statuses.length === 0}
+                    onClick={() => board.setFilters({ statuses: [] })}
+                  >
+                    {t("filter.all")}
+                  </button>
+                  <For each={board.statuses()}>
+                    {(status) => (
+                      <button
+                        class="ysb-chip"
+                        classList={{ "is-on": board.view.filters.statuses.includes(status) }}
+                        type="button"
+                        aria-pressed={board.view.filters.statuses.includes(status)}
+                        onClick={() => board.toggleStatus(status)}
+                      >
+                        <StatusIcon status={status} color={board.colorOfStatus(status)} />
+                        {status}
+                        <span class="ysb-chipcount">{board.statusCounts().get(status) ?? 0}</span>
+                      </button>
+                    )}
+                  </For>
+                </div>
+              </div>
+
+              <Show when={labelChips().length > 0}>
                 <div class="ysb-filtergroup">
-                  <span class="ysb-filterlabel">{t("filter.statuses")}</span>
+                  <span class="ysb-filterlabel">{t("filter.labels")}</span>
                   <div class="ysb-chips">
-                    <button
-                      class="ysb-chip"
-                      classList={{ "is-on": board.view.filters.statuses.length === 0 }}
-                      type="button"
-                      aria-pressed={board.view.filters.statuses.length === 0}
-                      onClick={() => board.setFilters({ statuses: [] })}
-                    >
-                      {t("filter.all")}
-                    </button>
-                    <For each={board.statuses()}>
-                      {(status) => (
+                    <For each={labelChips()}>
+                      {(label) => (
                         <button
                           class="ysb-chip"
-                          classList={{ "is-on": board.view.filters.statuses.includes(status) }}
+                          classList={{ "is-on": board.view.filters.labels.includes(label.name) }}
                           type="button"
-                          aria-pressed={board.view.filters.statuses.includes(status)}
-                          onClick={() => board.toggleStatus(status)}
+                          aria-pressed={board.view.filters.labels.includes(label.name)}
+                          onClick={() => board.toggleLabel(label.name)}
                         >
-                          <StatusIcon status={status} color={board.colorOfStatus(status)} />
-                          {status}
-                          <span class="ysb-chipcount">{board.statusCounts().get(status) ?? 0}</span>
+                          <span
+                            class="ysb-chipdot"
+                            style={`background:${board.colorOfLabel(label.name)}`}
+                          />
+                          {label.name}
+                          <span class="ysb-chipcount">{label.count}</span>
                         </button>
                       )}
                     </For>
                   </div>
                 </div>
+              </Show>
 
-                <Show when={labelChips().length > 0}>
-                  <div class="ysb-filtergroup">
-                    <span class="ysb-filterlabel">{t("filter.labels")}</span>
-                    <div class="ysb-chips">
-                      <For each={labelChips()}>
-                        {(label) => (
-                          <button
-                            class="ysb-chip"
-                            classList={{ "is-on": board.view.filters.labels.includes(label.name) }}
-                            type="button"
-                            aria-pressed={board.view.filters.labels.includes(label.name)}
-                            onClick={() => board.toggleLabel(label.name)}
-                          >
-                            <span
-                              class="ysb-chipdot"
-                              style={`background:${board.colorOfLabel(label.name)}`}
-                            />
-                            {label.name}
-                            <span class="ysb-chipcount">{label.count}</span>
-                          </button>
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                </Show>
-
-                <div class="ysb-filterrow">
-                  <label class="ysb-tool">
-                    {t("filter.agent")}
-                    <select
-                      value={board.view.filters.agents[0] ?? ""}
-                      onChange={(event) => board.setAgentFilter(event.currentTarget.value)}
-                    >
-                      <option value="">{t("filter.allAgents")}</option>
-                      <For each={board.agentOptions()}>
-                        {(agent) => <option value={agent}>{agent}</option>}
-                      </For>
-                    </select>
-                  </label>
-                  <label class="ysb-tool">
-                    {t("filter.directory")}
-                    <select
-                      value={board.view.filters.directories[0] ?? ""}
-                      onChange={(event) => board.setDirectoryFilter(event.currentTarget.value)}
-                    >
-                      <option value="">{t("filter.allDirectories")}</option>
-                      <For each={board.directoryOptions()}>
-                        {(directory) => <option value={directory.path}>{directory.label}</option>}
-                      </For>
-                    </select>
-                  </label>
-                  <label class="ysb-check">
-                    <input
-                      type="checkbox"
-                      checked={board.view.filters.runningOnly}
-                      onChange={(event) =>
-                        board.setFilters({ runningOnly: event.currentTarget.checked })
-                      }
-                    />
-                    {t("filter.running")}
-                  </label>
-                  <label class="ysb-check">
-                    <input
-                      type="checkbox"
-                      checked={board.view.filters.unreadOnly}
-                      onChange={(event) =>
-                        board.setFilters({ unreadOnly: event.currentTarget.checked })
-                      }
-                    />
-                    {t("filter.unread")}
-                  </label>
-                  <label class="ysb-check">
-                    <input
-                      type="checkbox"
-                      checked={board.view.filters.plannedOnly}
-                      onChange={(event) =>
-                        board.setFilters({ plannedOnly: event.currentTarget.checked })
-                      }
-                    />
-                    {t("filter.planned")}
-                  </label>
-                  <label class="ysb-check">
-                    <input
-                      type="checkbox"
-                      checked={board.view.filters.showChildren}
-                      onChange={(event) =>
-                        board.setFilters({ showChildren: event.currentTarget.checked })
-                      }
-                    />
-                    {t("filter.children")}
-                  </label>
-                  <button
-                    class="ysb-btn ghost small"
-                    type="button"
-                    onClick={() => board.resetFilters()}
+              <div class="ysb-filterrow">
+                <label class="ysb-tool">
+                  {t("filter.agent")}
+                  <select
+                    value={board.view.filters.agents[0] ?? ""}
+                    onChange={(event) => board.setAgentFilter(event.currentTarget.value)}
                   >
-                    {t("filter.reset")}
-                  </button>
-                </div>
-              </div>
-            </Show>
-          </header>
-
-          <main
-            classList={{
-              "ysb-board": board.view.mode === "board",
-              "ysb-view": board.view.mode !== "board",
-            }}
-          >
-            <Show when={board.loading() && board.total() === 0}>
-              <div class="ysb-loading" role="status">
-                {t("board.loading")}
-              </div>
-            </Show>
-            <Show when={board.error()}>
-              <div class="ysb-errorbox" role="alert">
-                <strong>{t("board.error")}</strong>
-                <span>{board.error()}</span>
-                <button class="ysb-btn small" type="button" onClick={() => void board.reload()}>
-                  {t("board.retry")}
+                    <option value="">{t("filter.allAgents")}</option>
+                    <For each={board.agentOptions()}>
+                      {(agent) => <option value={agent}>{agent}</option>}
+                    </For>
+                  </select>
+                </label>
+                <label class="ysb-tool">
+                  {t("filter.directory")}
+                  <select
+                    value={board.view.filters.directories[0] ?? ""}
+                    onChange={(event) => board.setDirectoryFilter(event.currentTarget.value)}
+                  >
+                    <option value="">{t("filter.allDirectories")}</option>
+                    <For each={board.directoryOptions()}>
+                      {(directory) => <option value={directory.path}>{directory.label}</option>}
+                    </For>
+                  </select>
+                </label>
+                <label class="ysb-check">
+                  <input
+                    type="checkbox"
+                    checked={board.view.filters.runningOnly}
+                    onChange={(event) =>
+                      board.setFilters({ runningOnly: event.currentTarget.checked })
+                    }
+                  />
+                  {t("filter.running")}
+                </label>
+                <label class="ysb-check">
+                  <input
+                    type="checkbox"
+                    checked={board.view.filters.unreadOnly}
+                    onChange={(event) =>
+                      board.setFilters({ unreadOnly: event.currentTarget.checked })
+                    }
+                  />
+                  {t("filter.unread")}
+                </label>
+                <label class="ysb-check">
+                  <input
+                    type="checkbox"
+                    checked={board.view.filters.plannedOnly}
+                    onChange={(event) =>
+                      board.setFilters({ plannedOnly: event.currentTarget.checked })
+                    }
+                  />
+                  {t("filter.planned")}
+                </label>
+                <label class="ysb-check">
+                  <input
+                    type="checkbox"
+                    checked={board.view.filters.showChildren}
+                    onChange={(event) =>
+                      board.setFilters({ showChildren: event.currentTarget.checked })
+                    }
+                  />
+                  {t("filter.children")}
+                </label>
+                <button
+                  class="ysb-btn ghost small"
+                  type="button"
+                  onClick={() => board.resetFilters()}
+                >
+                  {t("filter.reset")}
                 </button>
               </div>
-            </Show>
-            <Show when={!board.loading() && board.visible().length === 0 && !board.error()}>
-              <div class="ysb-empty">
-                <div>{t("board.empty")}</div>
-                <p>{t("board.emptyHint")}</p>
-              </div>
-            </Show>
-            <Show when={board.view.mode === "board"}>
-              <Index each={board.columns()}>
-                {(column) => (
-                  <section
-                    class="ysb-col"
-                    classList={{
-                      "is-over": drop()?.column === column().key,
-                      "is-column-dragging": columnDrag() === column().key,
-                      "is-column-drop": columnDrop() === column().key,
-                    }}
-                    data-ysb-column={column().key}
-                    onDragOver={(event) => onDragOver(column().key, event)}
-                    onDragLeave={(event) => {
-                      if (
-                        !(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)
-                      ) {
-                        const current = drop();
-                        if (current?.column === column().key) setDrop(undefined);
-                      }
-                    }}
-                    onDrop={(event) => {
-                      event.preventDefault();
-                      void onDropCard(column().key);
-                    }}
+            </div>
+          </Show>
+        </header>
+
+        <main
+          classList={{
+            "ysb-board": mode() === "board",
+            "ysb-view": mode() !== "board",
+          }}
+        >
+          <Show when={board.loading() && board.total() === 0}>
+            <div class="ysb-loading" role="status">
+              {t("board.loading")}
+            </div>
+          </Show>
+          <Show when={board.error()}>
+            <div class="ysb-errorbox" role="alert">
+              <strong>{t("board.error")}</strong>
+              <span>{board.error()}</span>
+              <button class="ysb-btn small" type="button" onClick={() => void board.reload()}>
+                {t("board.retry")}
+              </button>
+            </div>
+          </Show>
+          <Show when={!board.loading() && board.visible().length === 0 && !board.error()}>
+            <div class="ysb-empty">
+              <div>{t("board.empty")}</div>
+              <p>{t("board.emptyHint")}</p>
+            </div>
+          </Show>
+          <Show when={mode() === "board"}>
+            <Index each={board.columns()}>
+              {(column) => (
+                <section
+                  class="ysb-col"
+                  classList={{
+                    "is-over": drop()?.column === column().key,
+                    "is-column-dragging": columnDrag() === column().key,
+                    "is-column-drop": columnDrop() === column().key,
+                  }}
+                  data-ysb-column={column().key}
+                  onDragOver={(event) => onDragOver(column().key, event)}
+                  onDragLeave={(event) => {
+                    if (
+                      !(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node)
+                    ) {
+                      const current = drop();
+                      if (current?.column === column().key) setDrop(undefined);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    void onDropCard(column().key);
+                  }}
+                >
+                  <div
+                    class="ysb-colhead"
+                    classList={{ "is-draggable": board.view.grouping === "status" }}
+                    draggable={board.view.grouping === "status" && !isCoarsePointer()}
+                    data-ysb-colhead={column().key}
+                    onDragStart={(event) => startColumnDrag(column().key, event)}
+                    onDragOver={(event) => onColumnDragOver(column().key, event)}
+                    onDragEnd={endColumnDrag}
+                    onDrop={(event) => onColumnDrop(column().key, event)}
                   >
-                    <div
-                      class="ysb-colhead"
-                      classList={{ "is-draggable": board.view.grouping === "status" }}
-                      draggable={board.view.grouping === "status" && !isCoarsePointer()}
-                      data-ysb-colhead={column().key}
-                      onDragStart={(event) => startColumnDrag(column().key, event)}
-                      onDragOver={(event) => onColumnDragOver(column().key, event)}
-                      onDragEnd={endColumnDrag}
-                      onDrop={(event) => onColumnDrop(column().key, event)}
-                    >
-                      <Show
-                        when={board.view.grouping === "status"}
-                        fallback={
-                          <span
-                            class="ysb-chipdot"
-                            style={`background:${column().color}`}
-                            aria-hidden="true"
-                          />
-                        }
-                      >
-                        <StatusIcon
-                          status={column().key}
-                          size={13}
-                          color={board.colorOfStatus(column().key)}
+                    <Show
+                      when={board.view.grouping === "status"}
+                      fallback={
+                        <span
+                          class="ysb-chipdot"
+                          style={`background:${column().color}`}
+                          aria-hidden="true"
                         />
-                      </Show>
-                      <span class="ysb-coltitle">
-                        {board.view.grouping === "directory"
-                          ? basename(column().key)
-                          : column().key}
-                      </span>
-                      <span class="ysb-colcount">{column().tasks.length}</span>
-                      <Show when={board.view.grouping === "status"}>
-                        <button
-                          class="ysb-coladd"
-                          type="button"
-                          title={
-                            column().key === board.defaultStatusName()
-                              ? t("status.defaultLocked")
-                              : t("status.hide")
-                          }
-                          aria-label={t("status.hide")}
-                          data-ysb-hide-status={column().key}
-                          disabled={column().key === board.defaultStatusName()}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void board.setStatusVisible(column().key, false);
-                          }}
-                        >
-                          <IconEye />
-                        </button>
-                      </Show>
+                      }
+                    >
+                      <StatusIcon
+                        status={column().key}
+                        size={13}
+                        color={board.colorOfStatus(column().key)}
+                      />
+                    </Show>
+                    <span class="ysb-coltitle">
+                      {board.view.grouping === "directory" ? basename(column().key) : column().key}
+                    </span>
+                    <span class="ysb-colcount">{column().tasks.length}</span>
+                    <Show when={board.view.grouping === "status"}>
                       <button
                         class="ysb-coladd"
                         type="button"
-                        title={t("action.create")}
-                        aria-label={t("action.create")}
-                        onClick={() =>
-                          board.requestCreate(board.view.grouping === "status" ? column().key : "")
+                        title={
+                          column().key === board.defaultStatusName()
+                            ? t("status.defaultLocked")
+                            : t("status.hide")
                         }
+                        aria-label={t("status.hide")}
+                        data-ysb-hide-status={column().key}
+                        disabled={column().key === board.defaultStatusName()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void board.setStatusVisible(column().key, false);
+                        }}
                       >
-                        <IconPlus />
+                        <IconEye />
                       </button>
-                    </div>
-                    <div class="ysb-colbody">
-                      <Index each={shownTasks(column())}>
-                        {(task, index) => (
-                          <>
-                            <Show
-                              when={
-                                insertionIndex(
-                                  shownTasks(column()),
-                                  column().key,
-                                  dragging(),
-                                  drop(),
-                                ) === index
-                              }
-                            >
-                              <div class="ysb-insert" />
-                            </Show>
-                            <Card
-                              task={task()}
-                              t={t}
-                              colorOf={board.colorOfLabel}
-                              canDrag={canDrag()}
-                              dragging={dragging() === task().id}
-                              onEdit={edit}
-                              onChat={chat}
-                              onContextMenu={(id, x, y) => setMenu({ id, x, y })}
-                              onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
-                              onDragStart={startDrag}
-                              onDragEnd={endDrag}
-                            />
-                          </>
-                        )}
-                      </Index>
-                      <Show
-                        when={
-                          insertionIndex(shownTasks(column()), column().key, dragging(), drop()) ===
-                          shownTasks(column()).length
-                        }
-                      >
-                        <div class="ysb-insert" />
-                      </Show>
-                      <Show when={shownTasks(column()).length === 0}>
-                        <div class="ysb-colempty">
-                          {dragging() ? t("column.drop") : t("column.empty")}
-                        </div>
-                      </Show>
-                      <Show when={column().tasks.length > shownTasks(column()).length}>
-                        <button
-                          class="ysb-loadmore"
-                          type="button"
-                          onClick={() => showMore(column().key)}
-                        >
-                          {t("column.more", {
-                            count: Math.min(
-                              PAGE_SIZE,
-                              column().tasks.length - shownTasks(column()).length,
-                            ),
-                          })}
-                        </button>
-                      </Show>
-                    </div>
-                  </section>
-                )}
-              </Index>
-            </Show>
-            <Show when={board.view.mode === "list"}>
-              <TaskList
-                board={board}
-                t={t}
-                tasks={board.visible()}
-                onEdit={edit}
-                onChat={chat}
-                onContextMenu={(id, x, y) => setMenu({ id, x, y })}
-                onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
-              />
-            </Show>
-            <Show when={board.view.mode === "table"}>
-              <TaskTable
-                board={board}
-                t={t}
-                tasks={board.visible()}
-                onEdit={edit}
-                onChat={chat}
-                onContextMenu={(id, x, y) => setMenu({ id, x, y })}
-                onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
-              />
-            </Show>
-          </main>
-
-          <Show when={board.createOpen()}>
-            <CreateDialog board={board} t={t} onClose={() => board.closeCreate()} />
-          </Show>
-          <Show when={board.editingId()}>
-            {(id) => <EditDialog board={board} t={t} id={id()} onClose={() => board.closeEdit()} />}
-          </Show>
-          <Show when={labelsOpen()}>
-            <LabelDialog board={board} t={t} onClose={() => setLabelsOpen(false)} />
-          </Show>
-          <Show when={statusOpen()}>
-            <StatusDialog board={board} t={t} onClose={() => setStatusOpen(false)} />
-          </Show>
-          <Show when={board.deleteId()}>
-            {(id) => (
-              <DeleteTaskDialog board={board} t={t} id={id()} onClose={() => board.closeDelete()} />
-            )}
-          </Show>
-
-          <Show when={menu()}>
-            {(menu) => {
-              const task = () => board.task(menu().id);
-              return (
-                <>
-                  <div
-                    class="ysb-menu-backdrop"
-                    onMouseDown={() => setMenu(undefined)}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      setMenu(undefined);
-                    }}
-                  />
-                  <div
-                    class="ysb-menu yuri-mobile-overlay-surface yuri-popup-surface"
-                    role="menu"
-                    ref={(element) =>
-                      queueMicrotask(() => {
-                        if (element.isConnected)
-                          element
-                            .querySelector<HTMLButtonElement>(".ysb-menuitem:not(:disabled)")
-                            ?.focus();
-                      })
-                    }
-                    onKeyDown={onMenuKeyDown}
-                    style={{
-                      left: `${Math.min(menu().x, window.innerWidth - 188)}px`,
-                      top: `${Math.min(menu().y, window.innerHeight - 196)}px`,
-                      "max-height": `${Math.max(
-                        180,
-                        window.innerHeight - Math.min(menu().y, window.innerHeight - 196) - 12,
-                      )}px`,
-                    }}
-                  >
-                    <Show when={task()}>
-                      {(task) => (
+                    </Show>
+                    <button
+                      class="ysb-coladd"
+                      type="button"
+                      title={t("action.create")}
+                      aria-label={t("action.create")}
+                      onClick={() =>
+                        board.requestCreate(board.view.grouping === "status" ? column().key : "")
+                      }
+                    >
+                      <IconPlus />
+                    </button>
+                  </div>
+                  <div class="ysb-colbody">
+                    <Index each={shownTasks(column())}>
+                      {(task, index) => (
                         <>
-                          <div class="ysb-menulabel">{t("menu.moveTo")}</div>
-                          <For each={board.visibleStatusList()}>
-                            {(status) => (
-                              <button
-                                class="ysb-menuitem ysb-menustatus"
-                                classList={{ "is-current": status.name === task().status }}
-                                role="menuitem"
-                                tabIndex={-1}
-                                type="button"
-                                disabled={status.name === task().status}
-                                onClick={() => {
-                                  void board.move(task().id, status.name);
-                                  closeMenu(true);
-                                }}
-                              >
-                                <StatusIcon status={status.name} size={12} color={status.color} />
-                                <span class="ysb-menustatusname">{status.name}</span>
-                                <Show when={status.name === task().status}>
-                                  <span class="ysb-menustatuscheck" aria-hidden="true">
-                                    ✓
-                                  </span>
-                                </Show>
-                              </button>
-                            )}
-                          </For>
-                          <div class="ysb-menusep yuri-popup-separator" role="separator" />
                           <Show
-                            when={!board.isDiscarded(task().status)}
-                            fallback={
-                              <button
-                                class="ysb-menuitem danger"
-                                role="menuitem"
-                                tabIndex={-1}
-                                type="button"
-                                onClick={() => {
-                                  board.requestDelete(task().id);
-                                  closeMenu(true);
-                                }}
-                              >
-                                {t("menu.deleteForever")}
-                              </button>
+                            when={
+                              insertionIndex(
+                                shownTasks(column()),
+                                column().key,
+                                dragging(),
+                                drop(),
+                              ) === index
                             }
                           >
+                            <div class="ysb-insert" />
+                          </Show>
+                          <Card
+                            task={task()}
+                            t={t}
+                            colorOf={board.colorOfLabel}
+                            canDrag={canDrag()}
+                            dragging={dragging() === task().id}
+                            onEdit={edit}
+                            onChat={chat}
+                            onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+                            onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
+                            onDragStart={startDrag}
+                            onDragEnd={endDrag}
+                          />
+                        </>
+                      )}
+                    </Index>
+                    <Show
+                      when={
+                        insertionIndex(shownTasks(column()), column().key, dragging(), drop()) ===
+                        shownTasks(column()).length
+                      }
+                    >
+                      <div class="ysb-insert" />
+                    </Show>
+                    <Show when={shownTasks(column()).length === 0}>
+                      <div class="ysb-colempty">
+                        {dragging() ? t("column.drop") : t("column.empty")}
+                      </div>
+                    </Show>
+                    <Show when={column().tasks.length > shownTasks(column()).length}>
+                      <button
+                        class="ysb-loadmore"
+                        type="button"
+                        onClick={() => showMore(column().key)}
+                      >
+                        {t("column.more", {
+                          count: Math.min(
+                            PAGE_SIZE,
+                            column().tasks.length - shownTasks(column()).length,
+                          ),
+                        })}
+                      </button>
+                    </Show>
+                  </div>
+                </section>
+              )}
+            </Index>
+          </Show>
+          <Show when={mode() === "list"}>
+            <TaskList
+              board={board}
+              t={t}
+              tasks={board.visible()}
+              onEdit={edit}
+              onChat={chat}
+              onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+              onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
+            />
+          </Show>
+          <Show when={mode() === "table"}>
+            <TaskTable
+              board={board}
+              t={t}
+              tasks={board.visible()}
+              onEdit={edit}
+              onChat={chat}
+              onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+              onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
+            />
+          </Show>
+        </main>
+
+        <Show when={board.createOpen()}>
+          <CreateDialog board={board} t={t} onClose={() => board.closeCreate()} />
+        </Show>
+        <Show when={board.editingId()}>
+          {(id) => <EditDialog board={board} t={t} id={id()} onClose={() => board.closeEdit()} />}
+        </Show>
+        <Show when={labelsOpen()}>
+          <LabelDialog board={board} t={t} onClose={() => setLabelsOpen(false)} />
+        </Show>
+        <Show when={statusOpen()}>
+          <StatusDialog board={board} t={t} onClose={() => setStatusOpen(false)} />
+        </Show>
+        <Show when={board.deleteId()}>
+          {(id) => (
+            <DeleteTaskDialog board={board} t={t} id={id()} onClose={() => board.closeDelete()} />
+          )}
+        </Show>
+
+        <Show when={menu()}>
+          {(menu) => {
+            const task = () => board.task(menu().id);
+            return (
+              <>
+                <div
+                  class="ysb-menu-backdrop"
+                  onMouseDown={() => setMenu(undefined)}
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    setMenu(undefined);
+                  }}
+                />
+                <div
+                  class="ysb-menu yuri-mobile-overlay-surface yuri-popup-surface"
+                  role="menu"
+                  ref={(element) =>
+                    queueMicrotask(() => {
+                      if (element.isConnected)
+                        element
+                          .querySelector<HTMLButtonElement>(".ysb-menuitem:not(:disabled)")
+                          ?.focus();
+                    })
+                  }
+                  onKeyDown={onMenuKeyDown}
+                  style={{
+                    left: `${Math.min(menu().x, window.innerWidth - 188)}px`,
+                    top: `${Math.min(menu().y, window.innerHeight - 196)}px`,
+                    "max-height": `${Math.max(
+                      180,
+                      window.innerHeight - Math.min(menu().y, window.innerHeight - 196) - 12,
+                    )}px`,
+                  }}
+                >
+                  <Show when={task()}>
+                    {(task) => (
+                      <>
+                        <div class="ysb-menulabel">{t("menu.moveTo")}</div>
+                        <For each={board.visibleStatusList()}>
+                          {(status) => (
+                            <button
+                              class="ysb-menuitem ysb-menustatus"
+                              classList={{ "is-current": status.name === task().status }}
+                              role="menuitem"
+                              tabIndex={-1}
+                              type="button"
+                              disabled={status.name === task().status}
+                              onClick={() => {
+                                void board.move(task().id, status.name);
+                                closeMenu(true);
+                              }}
+                            >
+                              <StatusIcon status={status.name} size={12} color={status.color} />
+                              <span class="ysb-menustatusname">{status.name}</span>
+                              <Show when={status.name === task().status}>
+                                <span class="ysb-menustatuscheck" aria-hidden="true">
+                                  ✓
+                                </span>
+                              </Show>
+                            </button>
+                          )}
+                        </For>
+                        <div class="ysb-menusep yuri-popup-separator" role="separator" />
+                        <Show
+                          when={!board.isDiscarded(task().status)}
+                          fallback={
                             <button
                               class="ysb-menuitem danger"
                               role="menuitem"
                               tabIndex={-1}
                               type="button"
                               onClick={() => {
-                                void board.move(task().id, board.discardStatusName());
+                                board.requestDelete(task().id);
                                 closeMenu(true);
                               }}
                             >
-                              {t("menu.discard")}
+                              {t("menu.deleteForever")}
                             </button>
-                          </Show>
-                        </>
-                      )}
-                    </Show>
-                  </div>
-                </>
-              );
-            }}
-          </Show>
-        </div>
-      </ErrorBoundary>
-    </Show>
+                          }
+                        >
+                          <button
+                            class="ysb-menuitem danger"
+                            role="menuitem"
+                            tabIndex={-1}
+                            type="button"
+                            onClick={() => {
+                              void board.move(task().id, board.discardStatusName());
+                              closeMenu(true);
+                            }}
+                          >
+                            {t("menu.discard")}
+                          </button>
+                        </Show>
+                      </>
+                    )}
+                  </Show>
+                </div>
+              </>
+            );
+          }}
+        </Show>
+      </div>
+    </ErrorBoundary>
   );
 }
 

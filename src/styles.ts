@@ -1234,14 +1234,6 @@ export const CSS = `
 }
 .ysb-loadmore:hover { color: var(--ysb-fg); background: var(--ysb-hover); }
 .ysb-loadmore:active { background: var(--ysb-active); }
-.ysb-mobile {
-  padding: 28px 20px;
-  color: var(--ysb-muted);
-  font-size: 13px;
-  line-height: 20px;
-  text-align: center;
-}
-
 /* Right work-status widget: flat native rows within Yuri's work-status panel. */
 .ysb-widget {
   display: flex;
@@ -2082,13 +2074,72 @@ export const CSS = `
   .ysb-pageactions { grid-column: 2; grid-row: 1; }
 }
 @media (max-width: 760px) {
-  .ysb-header { padding: 12px 14px 8px; }
-  .ysb-board { padding: 10px 14px 14px; gap: 10px; }
-  .ysb-col { flex-basis: 84vw; width: 84vw; }
+  .ysb-header { padding: 10px 14px 8px; gap: 10px; }
+  .ysb-headrow { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .ysb-title { font-size: 17px; }
+  .ysb-header-meta { font-size: 10.5px; line-height: 15px; }
+  .ysb-build, .ysb-header-metasep { display: none; }
   .ysb-searchwrap { width: 100%; max-width: none; }
+  .ysb-searchbox { height: 36px; }
+
+  .ysb-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .ysb-toolbar::-webkit-scrollbar { display: none; }
+  .ysb-toolbar > * { flex: none; }
+  .ysb-viewbtn { height: 30px; padding: 0 12px; font-size: 12px; }
+  .ysb-toolbarbtn { height: 34px; }
+  .ysb-filterpanel { max-height: 44vh; overflow: auto; }
+
+  .ysb-board {
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 14px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .ysb-col {
+    flex-basis: 84vw;
+    width: 84vw;
+    scroll-snap-align: start;
+  }
+  .ysb-colhead { padding: 10px 10px 6px; }
+  .ysb-pinbtn, .ysb-coladd { width: 28px; height: 28px; }
+
+  .ysb-view { padding: 10px 14px 20px; }
+  .ysb-listrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    padding: 10px 12px;
+  }
+  .ysb-listcode { order: 1; }
+  .ysb-listmain { order: 2; flex: 1 1 100%; }
+  .ysb-listlabels { order: 3; flex: 1 1 100%; }
+  .ysb-listagent, .ysb-listdir, .ysb-listtime { order: 4; }
+  .ysb-listdetails { order: 5; margin-left: auto; }
+
   .ysb-formrow { grid-template-columns: 1fr; }
   .ysb-filterrow { padding-left: 0; }
-  .ysb-overlay, .ysb-detail-backdrop { padding: 12px; }
-  .ysb-modal { padding: 20px; }
+  .ysb-overlay { padding: 10px; }
+  .ysb-modal { padding: 18px; width: 100%; }
+  .ysb-detail-backdrop { padding: 0; align-items: stretch; }
+  .ysb-detail {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+  .ysb-detail-body { padding-bottom: env(safe-area-inset-bottom); }
+  .ysb-labelrow { flex-wrap: wrap; }
+  .ysb-labelactions { width: 100%; justify-content: flex-end; }
+  .ysb-menuitem { min-height: 36px; font-size: 14px; }
+  .ysb-widget-head { flex-wrap: wrap; row-gap: 4px; }
 }
 `;

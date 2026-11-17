@@ -26,6 +26,10 @@ Yuri chat.
   status, tag, agent, directory, running-only, tasks-only and sub-sessions.
 - **Grouping & sorting** — group by status, agent or directory; sort manually,
   by update time, creation time or title.
+- **Phones** — the board uses one status column at a time with horizontal snap
+  scrolling, the list view stacks each task into a card-like row, the table view
+  is hidden, and task details open full screen. Touch targets and the toolbar
+  are sized for narrow widths.
 - **Create task** — title, description, directory, initial status, tags and an
   agent. The description can be sent as the first message immediately.
 - **Agent** — chosen when the task is created; later changes happen in the
@@ -62,7 +66,8 @@ Yuri chat.
   directory, cost). Double-click the card, or use **打开对话**, to enter the
   native Yuri chat.
 - Drag a card between columns to change its status. Within a column, drag to
-  reorder while sorting is **手动**.
+  reorder while sorting is **手动**. On touch screens dragging is disabled; use
+  the task details dialog to change status.
 - The **+** in a column header creates a task directly in that status.
 - **仅任务** hides sessions that have no board data yet; untick it to see every
   root session. **含子会话** includes sub-agent sessions.
@@ -224,10 +229,10 @@ status reassigns its tasks to the discard status in one transaction.
 - Yuri can refresh session titles from the first message. If that renames a
   task, the board follows the session. Disable **Settings → Chat → session title
   refresh** if you want hand-written task titles to stay untouched.
-- The board is desktop/web only. Yuri 0.2.28 does not mount plugin pages on
-  narrow surfaces, does not expose `ctx.dialogs`/`ctx.ui`, and its mobile
-  renderer does not load the GUI plugin host at all, so there is no supported
-  plugin surface to host a mobile board.
+- Narrow screens use a responsive board: status columns are 84% of the viewport
+  and snap horizontally, the toolbar scrolls sideways, the table view is hidden,
+  and task details take the full screen. The right-side work-status panel wraps
+  its header on narrow widths.
 - Each column renders 40 cards at a time with **再显示** / **Show more**, and a
   page-level error boundary catches render failures, so a large history does not
   create thousands of DOM nodes at once.

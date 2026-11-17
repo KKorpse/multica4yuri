@@ -702,15 +702,27 @@ const mobileRoot = dom.window.document.createElement("div");
 dom.window.document.body.append(mobileRoot);
 const mobilePage = solidWeb.render(() => page.render(), mobileRoot);
 await new Promise((resolve) => setTimeout(resolve, 50));
-assert.match(
-  mobileRoot.textContent,
-  /board\.desktopOnly/,
-  "touch devices get the desktop-only message",
+assert.ok(
+  mobileRoot.querySelector("[data-ysb-page].is-mobile"),
+  "narrow surfaces get the mobile layout",
 );
 assert.equal(
   mobileRoot.querySelectorAll("[data-ysb-card]").length,
-  0,
-  "touch devices do not render cards",
+  3,
+  "narrow surfaces render the task cards",
+);
+assert.equal(
+  mobileRoot.querySelector('[data-ysb-view="table"]'),
+  null,
+  "table view is hidden on narrow surfaces",
+);
+const mobileList = mobileRoot.querySelector('[data-ysb-view="list"]');
+mobileList.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  mobileRoot.querySelectorAll("[data-ysb-listrow]").length,
+  3,
+  "narrow surfaces can switch to the list view",
 );
 mobilePage();
 

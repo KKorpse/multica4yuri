@@ -1,15 +1,6 @@
 import { Command, Plugin, Style, TitlebarItem } from "@opencode/plugin/gui";
 import { createBoard } from "./board";
-import {
-  BUILD,
-  consumeReturnSession,
-  isMobileSurface,
-  isTouchDevice,
-  openPluginPage,
-  PAGE_ID,
-  WorkStatus,
-  YuriPage,
-} from "./host";
+import { BUILD, consumeReturnSession, openPluginPage, PAGE_ID, WorkStatus, YuriPage } from "./host";
 import { messages } from "./i18n";
 import { CSS } from "./styles";
 import { BoardPage } from "./ui";
@@ -22,22 +13,14 @@ export default Plugin.define({
     console.info(`[zmultica] build ${BUILD}`);
 
     ctx.add(Style, CSS);
-    if (!isTouchDevice()) {
-      ctx.add(YuriPage, {
-        id: PAGE_ID,
-        title: ctx.t("page.title"),
-        icon: "task",
-        render: () => <BoardPage board={board} t={ctx.t} />,
-      });
-    }
+    ctx.add(YuriPage, {
+      id: PAGE_ID,
+      title: ctx.t("page.title"),
+      icon: "task",
+      render: () => <BoardPage board={board} t={ctx.t} />,
+    });
 
-    const openBoard = () => {
-      if (isMobileSurface()) {
-        ctx.toast.show({ title: ctx.t("board.desktopOnly") });
-        return;
-      }
-      openPluginPage(ctx);
-    };
+    const openBoard = () => openPluginPage(ctx);
 
     const boardVisible = () => {
       const page = document.querySelector<HTMLElement>("[data-ysb-page]");
@@ -75,10 +58,6 @@ export default Plugin.define({
       title: ctx.t("command.new"),
       keywords: "new task create 新建 任务",
       run: () => {
-        if (isMobileSurface()) {
-          ctx.toast.show({ title: ctx.t("board.desktopOnly") });
-          return;
-        }
         openPluginPage(ctx);
         board.requestCreate();
       },
