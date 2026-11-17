@@ -154,10 +154,12 @@ export default Plugin.define({
           : `- [${output.title}](${output.value})`,
       );
       const now = Date.now();
+      const code = legacy.code ?? "";
+      const cleanTitle = stripCodePrefix(legacy.title, code);
       const task: Task = {
         id: taskId,
-        code: legacy.code ?? "",
-        title: legacy.title,
+        code,
+        title: cleanTitle || legacy.title,
         description: legacy.goal ?? legacy.description ?? "",
         status: store.ensureStatus(legacy.status ?? "执行中"),
         labels: legacy.labels ?? [],
@@ -382,6 +384,8 @@ export default Plugin.define({
         input.status?.trim() ? requireStatus(input.status) : defaultStatus(),
       );
       task.code = store.nextCode();
+      const cleanTitle = stripCodePrefix(task.title, task.code);
+      if (cleanTitle) task.title = cleanTitle;
       task.sessions[0].title = sessionTitle(task);
       store.write(task);
       tasks.set(task.id, task);
@@ -438,7 +442,13 @@ export default Plugin.define({
         update: async (input: any) =>
           mutate(input.taskId, (task) => {
             const previous = task.status;
-            Object.assign(task, input.patch);
+            const patch = { ...input.patch };
+            if (typeof patch.title === "string") {
+              const cleanTitle = stripCodePrefix(patch.title, task.code);
+              if (cleanTitle) patch.title = cleanTitle;
+              else delete patch.title;
+            }
+            Object.assign(task, patch);
             if (typeof input.patch?.status === "string") {
               task.status = requireStatus(input.patch.status);
             }
@@ -607,6 +617,24 @@ export default Plugin.define({
       }),
     );
 
+    /** Keep task titles bare so the board adds the code prefix exactly once. */
+    async function normalizeTaskTitles(): Promise<void> {
+      for (const task of store.list()) {
+        const title = stripCodePrefix(task.title, task.code);
+        if (!title || title === task.title) continue;
+        task.title = title;
+        task.revision += 1;
+        const main = task.sessions.find((link) => link.role === "main");
+        if (main) main.title = sessionTitle(task);
+        store.write(task);
+        if (main) {
+          await ctx.session
+            .update({ sessionID: main.sessionId, title: main.title })
+            .catch(() => undefined);
+        }
+      }
+    }
+
     /** Clean model-authored title prefixes from existing sub-session goals once per load. */
     async function normalizeChildGoals(): Promise<void> {
       for (const task of store.list()) {
@@ -645,6 +673,7 @@ export default Plugin.define({
         }
       }
     }
+    await normalizeTaskTitles().catch(() => undefined);
     await normalizeChildGoals().catch(() => undefined);
     await syncBriefs().catch(() => undefined);
 

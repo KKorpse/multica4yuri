@@ -111,7 +111,7 @@ export function sessionTitle(task: Pick<Task, "code" | "title">): string {
 }
 
 export function stripCodePrefix(title: string, code?: string): string {
-  const clean = title.trim();
+  let clean = title.trim();
   const raw = code?.trim() ?? "";
   const ws = workspaceCode(raw);
   const patterns = [
@@ -119,8 +119,10 @@ export function stripCodePrefix(title: string, code?: string): string {
     ws ? new RegExp(`^\\[${ws}\\](?:\\[S-\\d+\\])?`) : null,
     raw ? new RegExp(`^【${raw}】`) : null,
   ].filter((pattern): pattern is RegExp => Boolean(pattern));
-  for (const pattern of patterns) {
-    if (pattern.test(clean)) return clean.replace(pattern, "").trim();
+  for (let guard = 0; guard < 3; guard += 1) {
+    const before = clean;
+    for (const pattern of patterns) clean = clean.replace(pattern, "").trim();
+    if (clean === before) break;
   }
   return clean;
 }
