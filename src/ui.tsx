@@ -332,37 +332,32 @@ export function BoardPage(props: { board: Board; t: T }) {
         <div class="ysb-root" data-ysb-page>
           <header class="ysb-header">
             <div class="ysb-headrow">
-              <div class="ysb-titlewrap">
-                <h1 class="ysb-title">{t("page.title")}</h1>
-                <span class="ysb-total">{board.visible().length}</span>
-                <span class="ysb-build">v{BUILD}</span>
+              <div class="ysb-titleblock">
+                <div class="ysb-titlewrap">
+                  <h1 class="ysb-title">{t("page.title")}</h1>
+                </div>
+                <div class="ysb-header-meta">
+                  <span>
+                    {summary(t, board.total(), board.visible().length, board.runningCount())}
+                  </span>
+                  <span class="ysb-header-metasep" aria-hidden="true">
+                    ·
+                  </span>
+                  <span class="ysb-build">v{BUILD}</span>
+                </div>
               </div>
-              <div class="ysb-actions">
-                <label class="ysb-searchbox">
-                  <IconSearch />
-                  <input
-                    ref={searchInput}
-                    type="search"
-                    value={board.view.filters.search}
-                    placeholder={t("search.placeholder")}
-                    aria-label={t("search.placeholder")}
-                    onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
-                  />
-                </label>
-                <button
-                  class="ysb-btn"
-                  classList={{ "is-active": filtersOpen() }}
-                  type="button"
-                  aria-expanded={filtersOpen()}
-                  aria-controls="ysb-filter-panel"
-                  onClick={() => setFiltersOpen((open) => !open)}
-                >
-                  <IconFilter />
-                  {t("filter.panel")}
-                  <Show when={activeFilters() > 0}>
-                    <span class="ysb-badge">{activeFilters()}</span>
-                  </Show>
-                </button>
+              <label class="ysb-searchbox">
+                <IconSearch />
+                <input
+                  ref={searchInput}
+                  type="search"
+                  value={board.view.filters.search}
+                  placeholder={t("search.placeholder")}
+                  aria-label={t("search.placeholder")}
+                  onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
+                />
+              </label>
+              <div class="ysb-actions ysb-pageactions">
                 <button class="ysb-btn primary" type="button" onClick={() => board.requestCreate()}>
                   <IconPlus />
                   {t("action.create")}
@@ -385,7 +380,10 @@ export function BoardPage(props: { board: Board; t: T }) {
                   {(mode) => (
                     <button
                       class="ysb-viewbtn"
-                      classList={{ "is-on": board.view.mode === mode.id }}
+                      classList={{
+                        "is-on": board.view.mode === mode.id,
+                        "yuri-segmented-selected-pill": board.view.mode === mode.id,
+                      }}
                       type="button"
                       data-ysb-view={mode.id}
                       aria-pressed={board.view.mode === mode.id}
@@ -396,49 +394,71 @@ export function BoardPage(props: { board: Board; t: T }) {
                   )}
                 </For>
               </div>
-              <Show when={board.view.mode === "board"}>
-                <label class="ysb-tool">
-                  {t("filter.group")}
+              <span class="ysb-toolbar-separator" aria-hidden="true" />
+              <div class="ysb-displayoptions">
+                <Show when={board.view.mode === "board"}>
+                  <label class="ysb-tool ysb-toolbar-select">
+                    <select
+                      value={board.view.grouping}
+                      aria-label={t("filter.group")}
+                      title={t("filter.group")}
+                      onChange={(event) => board.setGrouping(event.currentTarget.value as Grouping)}
+                    >
+                      <option value="status">{t("group.status")}</option>
+                      <option value="agent">{t("group.agent")}</option>
+                      <option value="directory">{t("group.directory")}</option>
+                      <option value="label">{t("group.label")}</option>
+                    </select>
+                  </label>
+                </Show>
+                <label class="ysb-tool ysb-toolbar-select">
                   <select
-                    value={board.view.grouping}
-                    onChange={(event) => board.setGrouping(event.currentTarget.value as Grouping)}
+                    value={board.view.sort}
+                    aria-label={t("filter.sort")}
+                    title={t("filter.sort")}
+                    onChange={(event) => board.setSort(event.currentTarget.value as Sort)}
                   >
-                    <option value="status">{t("group.status")}</option>
-                    <option value="agent">{t("group.agent")}</option>
-                    <option value="directory">{t("group.directory")}</option>
-                    <option value="label">{t("group.label")}</option>
+                    <option value="manual">{t("sort.manual")}</option>
+                    <option value="updated">{t("sort.updated")}</option>
+                    <option value="created">{t("sort.created")}</option>
+                    <option value="title">{t("sort.title")}</option>
                   </select>
                 </label>
-              </Show>
-              <button class="ysb-btn small" type="button" onClick={() => setLabelsOpen(true)}>
-                {t("label.manage")}
-              </button>
-              <label class="ysb-tool">
-                {t("filter.sort")}
-                <select
-                  value={board.view.sort}
-                  onChange={(event) => board.setSort(event.currentTarget.value as Sort)}
+                <label class="ysb-tool ysb-toolbar-select">
+                  <select
+                    value={board.view.filters.archive}
+                    aria-label={t("filter.archive")}
+                    title={t("filter.archive")}
+                    onChange={(event) =>
+                      board.setArchive(event.currentTarget.value as ArchiveFilter)
+                    }
+                  >
+                    <option value="active">{t("archive.active")}</option>
+                    <option value="all">{t("archive.all")}</option>
+                    <option value="archived">{t("archive.archived")}</option>
+                  </select>
+                </label>
+              </div>
+              <span class="ysb-toolbar-separator" aria-hidden="true" />
+              <div class="ysb-toolbar-actions">
+                <button class="ysb-toolbarbtn" type="button" onClick={() => setLabelsOpen(true)}>
+                  {t("label.manage")}
+                </button>
+                <button
+                  class="ysb-toolbarbtn"
+                  classList={{ "is-active": filtersOpen() }}
+                  type="button"
+                  aria-expanded={filtersOpen()}
+                  aria-controls="ysb-filter-panel"
+                  onClick={() => setFiltersOpen((open) => !open)}
                 >
-                  <option value="manual">{t("sort.manual")}</option>
-                  <option value="updated">{t("sort.updated")}</option>
-                  <option value="created">{t("sort.created")}</option>
-                  <option value="title">{t("sort.title")}</option>
-                </select>
-              </label>
-              <label class="ysb-tool">
-                {t("filter.archive")}
-                <select
-                  value={board.view.filters.archive}
-                  onChange={(event) => board.setArchive(event.currentTarget.value as ArchiveFilter)}
-                >
-                  <option value="active">{t("archive.active")}</option>
-                  <option value="all">{t("archive.all")}</option>
-                  <option value="archived">{t("archive.archived")}</option>
-                </select>
-              </label>
-              <span class="ysb-toolbar-meta">
-                {summary(t, board.total(), board.visible().length, board.runningCount())}
-              </span>
+                  <IconFilter />
+                  {t("filter.panel")}
+                  <Show when={activeFilters() > 0}>
+                    <span class="ysb-badge">{activeFilters()}</span>
+                  </Show>
+                </button>
+              </div>
             </div>
 
             <Show when={filtersOpen()}>
