@@ -2,7 +2,7 @@ import { For, Show, createEffect, createSignal, onCleanup, onMount } from "solid
 import type { Board } from "./board";
 import type { T } from "./i18n";
 import { TaskDetails } from "./details";
-import { Chevron } from "./icons";
+import { BookmarkIcon, Chevron } from "./icons";
 import { Blocks } from "./markdown";
 import { basename, relativeTime } from "./model";
 import { StatusIcon } from "./status";
@@ -66,6 +66,17 @@ export function TaskStatus(props: { board: Board; t: T; sessionID?: string; onOp
                   {props.t("card.running")}
                 </span>
               </Show>
+              <button
+                class="ysb-pinbtn"
+                classList={{ "is-on": task().urgent }}
+                type="button"
+                title={task().urgent ? props.t("card.unpin") : props.t("card.pin")}
+                aria-label={task().urgent ? props.t("card.unpin") : props.t("card.pin")}
+                aria-pressed={task().urgent}
+                onClick={() => void props.board.setPinned(task().id, !task().urgent)}
+              >
+                <BookmarkIcon filled={task().urgent} />
+              </button>
               <span class="ysb-widget-time">{relativeTime(task().updated)}</span>
             </div>
 
