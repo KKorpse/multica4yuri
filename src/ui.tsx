@@ -1000,6 +1000,7 @@ function TaskList(props: {
                 {(task) => (
                   <div
                     class="ysb-listrow"
+                    classList={{ "is-urgent": task.urgent }}
                     role="button"
                     tabindex="0"
                     data-ysb-listrow
@@ -1125,6 +1126,7 @@ function TaskTable(props: {
           <For each={sorted()}>
             {(task) => (
               <tr
+                classList={{ "is-urgent": task.urgent }}
                 onClick={() => props.onChat(task.id)}
                 onContextMenu={(event) => {
                   event.preventDefault();

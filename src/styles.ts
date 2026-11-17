@@ -346,6 +346,14 @@ export const CSS = `
 }
 .ysb-listrow:first-child { border-top: 0; }
 .ysb-listrow:hover { background: var(--ysb-hover); }
+.ysb-listrow.is-urgent {
+  background: color-mix(in srgb, var(--ysb-error) 6%, var(--ysb-card));
+  box-shadow: inset 2px 0 0 var(--ysb-error);
+}
+.ysb-listrow.is-urgent:hover {
+  background: color-mix(in srgb, var(--ysb-error) 10%, var(--ysb-card));
+}
+.ysb-listrow.is-urgent .ysb-listcode { color: var(--ysb-error); }
 .ysb-listrow:focus-visible {
   outline: 2px solid var(--ysb-focus);
   outline-offset: -2px;
@@ -442,6 +450,16 @@ export const CSS = `
 }
 .ysb-table tbody tr { cursor: pointer; transition: background-color 150ms ease-out; }
 .ysb-table tbody tr:hover { background: var(--ysb-hover); }
+.ysb-table tbody tr.is-urgent {
+  background: color-mix(in srgb, var(--ysb-error) 6%, var(--ysb-card));
+}
+.ysb-table tbody tr.is-urgent:hover {
+  background: color-mix(in srgb, var(--ysb-error) 10%, var(--ysb-card));
+}
+.ysb-table tbody tr.is-urgent .ysb-tablecode { color: var(--ysb-error); }
+.ysb-table tbody tr.is-urgent td:first-child {
+  box-shadow: inset 2px 0 0 var(--ysb-error);
+}
 .ysb-table tbody tr:last-child td { border-bottom: 0; }
 .ysb-tablecode {
   color: var(--ysb-muted);
@@ -623,11 +641,11 @@ export const CSS = `
 .ysb-card:active { background: color-mix(in srgb, var(--ysb-fg) 3%, var(--ysb-card)); }
 .ysb-card.is-dragging { opacity: 0.4; }
 .ysb-card.is-urgent {
-  border-color: var(--status-warning-border, color-mix(in srgb, var(--ysb-warning) 38%, var(--ysb-border)));
-  background: var(--status-warning-background, color-mix(in srgb, var(--ysb-warning) 6%, var(--ysb-card)));
+  border-color: color-mix(in srgb, var(--ysb-error) 36%, var(--ysb-border));
+  background: color-mix(in srgb, var(--ysb-error) 7%, var(--ysb-card));
 }
 .ysb-card.is-urgent:hover {
-  background: color-mix(in srgb, var(--ysb-warning) 4%, var(--status-warning-background, var(--ysb-card)));
+  background: color-mix(in srgb, var(--ysb-error) 11%, var(--ysb-card));
 }
 .ysb-cardtop { display: flex; align-items: center; justify-content: space-between; min-height: 14px; gap: 6px; }
 .ysb-cardtopmeta { display: inline-flex; align-items: center; gap: 6px; flex: none; }
