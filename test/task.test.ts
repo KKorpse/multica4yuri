@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { childTitle, newTask, sessionTitle, stripCodePrefix } from "../src/task.ts";
+import { childTitle, cleanChildGoal, newTask, sessionTitle, stripCodePrefix } from "../src/task.ts";
 
 function task() {
   const value = newTask("Multica 插件支持", "", [], {
@@ -28,4 +28,15 @@ test("manual renames strip workspace and legacy prefixes", () => {
 
 test("child session titles use the child sequence without repeating the task title", () => {
   assert.equal(childTitle(task(), "补齐文档", "/work/project", 1), "【WS-10-1】补齐文档");
+});
+
+test("model-authored title prefixes are stripped from child goals", () => {
+  assert.equal(cleanChildGoal("【WS-19-review-2】只读复核", "ZM-19"), "只读复核");
+  assert.equal(cleanChildGoal("【WS-19-2】只读复核", "ZM-19"), "只读复核");
+  assert.equal(cleanChildGoal("【P0】只读复核", "ZM-19"), "【P0】只读复核");
+  assert.equal(cleanChildGoal("【WS-190】只读复核", "ZM-19"), "【WS-190】只读复核");
+  assert.equal(
+    childTitle(task(), "【WS-10-review】补齐文档", "/work/project", 1),
+    "【WS-10-1】补齐文档",
+  );
 });

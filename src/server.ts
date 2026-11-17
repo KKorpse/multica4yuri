@@ -6,6 +6,7 @@ import { resolvePaths } from "./paths";
 import { BoardRpc } from "./rpc";
 import {
   childTitle,
+  cleanChildGoal,
   newTask,
   renderBrief,
   sessionTitle,
@@ -202,7 +203,7 @@ export default Plugin.define({
     async function linkChild(
       callerID: string,
       childID: string,
-      goal: string,
+      rawGoal: string,
     ): Promise<SessionLink> {
       const task = await requireMain(callerID);
       const existing = selfLink(task, childID);
@@ -210,6 +211,8 @@ export default Plugin.define({
 
       const child = await getSession(childID);
       const directory = child.location.directory;
+      const goal = cleanChildGoal(rawGoal, task.code);
+      if (!goal) throw new Error("goal 不能为空");
       if (task.sessions.filter((link) => link.role === "sub").length >= MAX_CHILDREN) {
         throw new Error("子会话数量已达上限");
       }
@@ -251,7 +254,7 @@ export default Plugin.define({
       const task = await requireMain(callerID);
       const main = await getSession(callerID);
       const directory = input.directory || main.location.directory;
-      const goal = input.goal.trim();
+      const goal = cleanChildGoal(input.goal, task.code);
       if (!goal) throw new Error("goal 不能为空");
       if (task.sessions.filter((link) => link.role === "sub").length >= MAX_CHILDREN) {
         throw new Error("子会话数量已达上限");
@@ -603,6 +606,31 @@ export default Plugin.define({
         });
       }),
     );
+
+    /** Clean model-authored title prefixes from existing sub-session goals once per load. */
+    async function normalizeChildGoals(): Promise<void> {
+      for (const task of store.list()) {
+        let changed = false;
+        for (const link of task.sessions) {
+          if (link.role !== "sub") continue;
+          const goal = cleanChildGoal(link.goal, task.code);
+          if (!goal || goal === link.goal) continue;
+          link.goal = goal;
+          link.title = childTitle(task, goal, link.directory, 0, link.sessionId);
+          changed = true;
+        }
+        if (!changed) continue;
+        task.revision += 1;
+        store.write(task);
+        for (const link of task.sessions) {
+          if (link.role !== "sub") continue;
+          await ctx.session
+            .update({ sessionID: link.sessionId, title: link.title })
+            .catch(() => undefined);
+        }
+      }
+    }
+    await normalizeChildGoals().catch(() => undefined);
 
     void (async () => {
       try {
