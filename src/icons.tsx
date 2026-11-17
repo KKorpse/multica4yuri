@@ -16,6 +16,25 @@ export function SpriteIcon(props: { name: string; size?: number }) {
   );
 }
 
+export function BookmarkIcon(props: { filled?: boolean; size?: number }) {
+  return (
+    <svg
+      width={props.size ?? 13}
+      height={props.size ?? 13}
+      viewBox="0 0 16 16"
+      fill={props.filled ? "currentColor" : "none"}
+      aria-hidden="true"
+    >
+      <path
+        d="M4.2 2.6h7.6v11l-3.8-2.6-3.8 2.6v-11Z"
+        stroke="currentColor"
+        stroke-width="1.3"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function Chevron(props: { up?: boolean }) {
   return (
     <svg

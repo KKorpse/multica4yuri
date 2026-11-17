@@ -3,6 +3,12 @@
  * compact 14/12/11 type, shared interaction states, and 150ms overlay motion.
  */
 export const CSS = `
+@property --ysb-beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
 .ysb-root,
 .ysb-detail {
   --ysb-fg: var(--surface-foreground, var(--foreground, #e7e7ea));
@@ -98,8 +104,8 @@ export const CSS = `
   background: color-mix(in srgb, var(--ysb-success) 11%, transparent);
 }
 .ysb-activitychip.is-unread {
-  color: var(--ysb-accent);
-  background: color-mix(in srgb, var(--ysb-accent) 12%, transparent);
+  color: var(--ysb-warning);
+  background: color-mix(in srgb, var(--ysb-warning) 12%, transparent);
 }
 .ysb-activitychip:hover {
   background: color-mix(in srgb, currentColor 16%, transparent);
@@ -441,14 +447,6 @@ export const CSS = `
 }
 .ysb-listrow:first-child { border-top: 0; }
 .ysb-listrow:hover { background: var(--ysb-hover); }
-.ysb-listrow.is-urgent {
-  background: color-mix(in srgb, var(--ysb-error) 6%, var(--ysb-card));
-  box-shadow: inset 2px 0 0 var(--ysb-error);
-}
-.ysb-listrow.is-urgent:hover {
-  background: color-mix(in srgb, var(--ysb-error) 10%, var(--ysb-card));
-}
-.ysb-listrow.is-urgent .ysb-listcode { color: var(--ysb-error); }
 .ysb-listrow:focus-visible {
   outline: 2px solid var(--ysb-focus);
   outline-offset: -2px;
@@ -481,6 +479,11 @@ export const CSS = `
   white-space: nowrap;
 }
 .ysb-listdetails,
+.ysb-tablerowactions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
 .ysb-tabledetails {
   height: 22px;
   padding: 0 7px;
@@ -547,16 +550,6 @@ export const CSS = `
 }
 .ysb-table tbody tr { cursor: pointer; transition: background-color 150ms ease-out; }
 .ysb-table tbody tr:hover { background: var(--ysb-hover); }
-.ysb-table tbody tr.is-urgent {
-  background: color-mix(in srgb, var(--ysb-error) 6%, var(--ysb-card));
-}
-.ysb-table tbody tr.is-urgent:hover {
-  background: color-mix(in srgb, var(--ysb-error) 10%, var(--ysb-card));
-}
-.ysb-table tbody tr.is-urgent .ysb-tablecode { color: var(--ysb-error); }
-.ysb-table tbody tr.is-urgent td:first-child {
-  box-shadow: inset 2px 0 0 var(--ysb-error);
-}
 .ysb-table tbody tr:last-child td { border-bottom: 0; }
 .ysb-tablecode {
   color: var(--ysb-muted);
@@ -733,6 +726,7 @@ export const CSS = `
 .ysb-insert { height: 2px; margin: 1px 2px; border-radius: 2px; background: var(--ysb-accent); flex: none; }
 
 .ysb-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -755,15 +749,32 @@ export const CSS = `
 .ysb-card.is-running {
   border-color: color-mix(in srgb, var(--ysb-success) 42%, var(--ysb-border));
 }
+.ysb-card.is-running::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--ysb-beam-angle, 0deg),
+    transparent 0deg 300deg,
+    color-mix(in srgb, var(--ysb-success) 85%, transparent) 330deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: ysb-beam 1.6s linear infinite;
+}
 .ysb-card.is-unread {
-  border-color: color-mix(in srgb, var(--ysb-accent) 40%, var(--ysb-border));
+  border-color: color-mix(in srgb, var(--ysb-warning) 34%, var(--ysb-border));
+  background: color-mix(in srgb, var(--ysb-warning) 8%, var(--ysb-card));
 }
-.ysb-card.is-urgent {
-  border-color: color-mix(in srgb, var(--ysb-error) 36%, var(--ysb-border));
-  background: color-mix(in srgb, var(--ysb-error) 7%, var(--ysb-card));
-}
-.ysb-card.is-urgent:hover {
-  background: color-mix(in srgb, var(--ysb-error) 11%, var(--ysb-card));
+.ysb-card.is-unread:hover {
+  background: color-mix(in srgb, var(--ysb-warning) 12%, var(--ysb-card));
 }
 .ysb-cardtop { display: flex; align-items: center; justify-content: space-between; min-height: 14px; gap: 6px; }
 .ysb-cardtopmeta { display: inline-flex; align-items: center; gap: 6px; flex: none; }
@@ -785,6 +796,31 @@ export const CSS = `
   color: var(--ysb-fg);
 }
 .ysb-carddetails:active { background: var(--ysb-active); }
+.ysb-pinbtn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--ysb-muted);
+  opacity: 0.55;
+  cursor: pointer;
+  flex: none;
+  transition: background-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out;
+}
+.ysb-pinbtn:hover {
+  background: var(--ysb-hover);
+  color: var(--ysb-fg);
+  opacity: 1;
+}
+.ysb-pinbtn.is-on {
+  color: var(--ysb-accent);
+  opacity: 1;
+}
 .ysb-cardid {
   color: var(--ysb-muted);
   font-size: 11px;
@@ -810,8 +846,8 @@ export const CSS = `
   background: color-mix(in srgb, var(--ysb-success) 12%, transparent);
 }
 .ysb-activitybadge.is-unread {
-  color: var(--ysb-accent);
-  background: color-mix(in srgb, var(--ysb-accent) 13%, transparent);
+  color: var(--ysb-warning);
+  background: color-mix(in srgb, var(--ysb-warning) 14%, transparent);
 }
 .ysb-badgedot {
   width: 5px;
@@ -2001,6 +2037,10 @@ export const CSS = `
   height: var(--yuri-popup-divider-width, 0.5px);
   margin: 2px -4px;
   background: var(--yuri-popup-divider, var(--ysb-border));
+}
+
+@keyframes ysb-beam {
+  to { --ysb-beam-angle: 360deg; }
 }
 
 @keyframes ysb-fade-in {

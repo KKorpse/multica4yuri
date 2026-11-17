@@ -306,7 +306,11 @@ const ctx = {
       create: async () => {
         throw new Error("not implemented in smoke");
       },
-      update: async () => ({}),
+      update: async ({ taskId, patch }) => {
+        const record = taskRecords.find((item) => item.id === taskId);
+        if (record) Object.assign(record, patch);
+        return record ?? {};
+      },
       setDocument: async () => ({}),
     }),
     event: {
@@ -407,6 +411,11 @@ assert.equal(
   1,
   "finished-but-unread tasks are marked",
 );
+assert.equal(
+  dom.window.document.querySelectorAll(".ysb-card.is-unread").length,
+  1,
+  "the unread task frame is tinted",
+);
 const unreadChip = dom.window.document.querySelector('[data-ysb-activity="unread"]');
 assert.ok(unreadChip, "unread summary chip rendered");
 assert.equal(unreadChip.querySelector("strong").textContent, "1", "unread chip counts tasks");
@@ -472,7 +481,7 @@ firstCard.dispatchEvent(
 );
 await new Promise((resolve) => setTimeout(resolve, 50));
 const menuText = dom.window.document.querySelector(".ysb-menu")?.textContent ?? "";
-assert.match(menuText, /menu\.urgent/, "context menu rendered");
+assert.equal(menuText.includes("menu.urgent"), false, "context menu has no urgent entry");
 assert.match(menuText, /menu\.moveTo/, "context menu exposes status targets");
 assert.match(menuText, /废弃/, "context menu lists the discard status");
 assert.equal(menuText.includes("widget.details"), false, "context menu has no details entry");
@@ -507,6 +516,29 @@ dom.window.document
   .querySelector(".ysb-menu-backdrop")
   ?.dispatchEvent(new dom.window.MouseEvent("mousedown", { bubbles: true }));
 await new Promise((resolve) => setTimeout(resolve, 50));
+
+// Pinning uses the bookmark marker and moves the task to the front.
+const plainPin = [...dom.window.document.querySelectorAll("[data-ysb-card]")]
+  .find((card) => card.textContent.includes("Plain session"))
+  .querySelector(".ysb-pinbtn");
+plainPin.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  dom.window.document.querySelectorAll(".ysb-pinbtn.is-on").length,
+  1,
+  "the bookmark marker turns on",
+);
+assert.ok(
+  dom.window.document.querySelector("[data-ysb-card]").textContent.includes("Plain session"),
+  "pinned tasks sort first",
+);
+dom.window.document.querySelector("[data-ysb-card] .ysb-pinbtn").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  dom.window.document.querySelectorAll(".ysb-pinbtn.is-on").length,
+  0,
+  "the bookmark marker unpins",
+);
 
 // The status manager lists the catalog and marks the built-in roles.
 const statusButton = [...dom.window.document.querySelectorAll(".ysb-toolbarbtn")].find((button) =>

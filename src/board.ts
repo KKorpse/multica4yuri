@@ -549,19 +549,20 @@ export function createBoard(ctx: Context, t: T) {
     }
   }
 
-  async function setUrgent(id: string, urgent: boolean): Promise<void> {
+  /** Stored as `urgent` for compatibility; the UI calls this pinning. */
+  async function setPinned(id: string, pinned: boolean): Promise<void> {
     const task = taskById(id);
     if (!task) return;
     const record = task.record;
     if (record) {
-      await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: { urgent } });
+      await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: { urgent: pinned } });
       void reload(true);
       return;
     }
     const session = sessionById(id);
     if (!session) return;
     const previous = taskMeta(session);
-    const next: TaskMeta = { ...previous, urgent };
+    const next: TaskMeta = { ...previous, urgent: pinned };
     patchMeta(id, next);
     try {
       await api.writeBoardMeta(ctx, session, next, ctx.signal);
@@ -899,7 +900,7 @@ export function createBoard(ctx: Context, t: T) {
     reorderStatuses,
     setStatusVisible,
     moveStatusColumn,
-    setUrgent,
+    setPinned,
     move,
     deleteId,
     requestDelete,

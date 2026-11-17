@@ -43,6 +43,7 @@ export interface Task extends TaskMeta {
   projectID: string;
   agent: string;
   planned: boolean;
+  /** Pinned tasks sort first. Persisted as `urgent` for compatibility. */
   urgent: boolean;
   parentID?: string;
   running: boolean;

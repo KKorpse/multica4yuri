@@ -16,6 +16,7 @@ import type { Board, Column } from "./board";
 import { BUILD, consumeReturnSession, isCoarsePointer, isMobileSurface, openSession } from "./host";
 import { TaskDetails } from "./details";
 import { TagEditor } from "./tag";
+import { BookmarkIcon } from "./icons";
 import { StatusIcon } from "./status";
 import type { T } from "./i18n";
 import {
@@ -946,6 +947,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                               onEdit={edit}
                               onChat={chat}
                               onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+                              onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
                               onDragStart={startDrag}
                               onDragEnd={endDrag}
                             />
@@ -992,6 +994,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                 onEdit={edit}
                 onChat={chat}
                 onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+                onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
               />
             </Show>
             <Show when={board.view.mode === "table"}>
@@ -1002,6 +1005,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                 onEdit={edit}
                 onChat={chat}
                 onContextMenu={(id, x, y) => setMenu({ id, x, y })}
+                onTogglePin={(id, pinned) => void board.setPinned(id, pinned)}
               />
             </Show>
           </main>
@@ -1043,7 +1047,9 @@ export function BoardPage(props: { board: Board; t: T }) {
                     ref={(element) =>
                       queueMicrotask(() => {
                         if (element.isConnected)
-                          element.querySelector<HTMLButtonElement>(".ysb-menuitem")?.focus();
+                          element
+                            .querySelector<HTMLButtonElement>(".ysb-menuitem:not(:disabled)")
+                            ?.focus();
                       })
                     }
                     onKeyDown={onMenuKeyDown}
@@ -1059,19 +1065,6 @@ export function BoardPage(props: { board: Board; t: T }) {
                     <Show when={task()}>
                       {(task) => (
                         <>
-                          <button
-                            class="ysb-menuitem"
-                            role="menuitem"
-                            tabIndex={-1}
-                            type="button"
-                            onClick={() => {
-                              void board.setUrgent(task().id, !task().urgent);
-                              closeMenu(true);
-                            }}
-                          >
-                            {task().urgent ? t("menu.notUrgent") : t("menu.urgent")}
-                          </button>
-                          <div class="ysb-menusep yuri-popup-separator" role="separator" />
                           <div class="ysb-menulabel">{t("menu.moveTo")}</div>
                           <For each={board.visibleStatusList()}>
                             {(status) => (
@@ -1162,6 +1155,7 @@ function Card(props: {
   onEdit(id: string): void;
   onChat(id: string): void;
   onContextMenu(id: string, x: number, y: number): void;
+  onTogglePin(id: string, pinned: boolean): void;
   onDragStart(id: string): void;
   onDragEnd(): void;
 }) {
@@ -1171,7 +1165,6 @@ function Card(props: {
       class="ysb-card"
       classList={{
         "is-dragging": props.dragging,
-        "is-urgent": props.task.urgent,
         "is-running": props.task.running,
         "is-unread": props.task.unread && !props.task.running,
       }}
@@ -1202,6 +1195,22 @@ function Card(props: {
       <div class="ysb-cardtop">
         <span class="ysb-cardid">#{props.task.code ?? shortId(props.task.id)}</span>
         <span class="ysb-cardtopmeta">
+          <button
+            class="ysb-pinbtn"
+            classList={{ "is-on": props.task.urgent }}
+            type="button"
+            title={props.task.urgent ? props.t("card.unpin") : props.t("card.pin")}
+            aria-label={props.task.urgent ? props.t("card.unpin") : props.t("card.pin")}
+            aria-pressed={props.task.urgent}
+            draggable={false}
+            onDragStart={(event) => event.preventDefault()}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onTogglePin(props.task.id, !props.task.urgent);
+            }}
+          >
+            <BookmarkIcon filled={props.task.urgent} />
+          </button>
           <Show when={props.task.running}>
             <span class="ysb-activitybadge is-running" title={props.t("card.running")}>
               <span class="ysb-badgedot" />
@@ -1270,6 +1279,7 @@ function TaskList(props: {
   onEdit(id: string): void;
   onChat(id: string): void;
   onContextMenu(id: string, x: number, y: number): void;
+  onTogglePin(id: string, pinned: boolean): void;
 }) {
   const groups = createMemo(() => {
     const byStatus = new Map<string, Task[]>();
@@ -1297,7 +1307,6 @@ function TaskList(props: {
                 {(task) => (
                   <div
                     class="ysb-listrow"
-                    classList={{ "is-urgent": task.urgent }}
                     role="button"
                     tabindex="0"
                     data-ysb-listrow
@@ -1325,6 +1334,20 @@ function TaskList(props: {
                           {props.t("card.unread")}
                         </span>
                       </Show>
+                      <button
+                        class="ysb-pinbtn"
+                        classList={{ "is-on": task.urgent }}
+                        type="button"
+                        title={task.urgent ? props.t("card.unpin") : props.t("card.pin")}
+                        aria-label={task.urgent ? props.t("card.unpin") : props.t("card.pin")}
+                        aria-pressed={task.urgent}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          props.onTogglePin(task.id, !task.urgent);
+                        }}
+                      >
+                        <BookmarkIcon filled={task.urgent} />
+                      </button>
                     </span>
                     <span class="ysb-listlabels">
                       <For each={task.labels.slice(0, 3)}>
@@ -1377,6 +1400,7 @@ function TaskTable(props: {
   onEdit(id: string): void;
   onChat(id: string): void;
   onContextMenu(id: string, x: number, y: number): void;
+  onTogglePin(id: string, pinned: boolean): void;
 }) {
   const [sort, setSort] = createSignal<{ key: TableSortKey; desc: boolean }>({
     key: "updated",
@@ -1437,7 +1461,6 @@ function TaskTable(props: {
           <For each={sorted()}>
             {(task) => (
               <tr
-                classList={{ "is-urgent": task.urgent }}
                 onClick={() => props.onChat(task.id)}
                 onContextMenu={(event) => {
                   event.preventDefault();
@@ -1496,16 +1519,32 @@ function TaskTable(props: {
                 </td>
                 <td class="ysb-tablemuted">{relativeTime(task.updated)}</td>
                 <td>
-                  <button
-                    class="ysb-tabledetails"
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      props.onEdit(task.id);
-                    }}
-                  >
-                    {props.t("widget.details")}
-                  </button>
+                  <span class="ysb-tablerowactions">
+                    <button
+                      class="ysb-pinbtn"
+                      classList={{ "is-on": task.urgent }}
+                      type="button"
+                      title={task.urgent ? props.t("card.unpin") : props.t("card.pin")}
+                      aria-label={task.urgent ? props.t("card.unpin") : props.t("card.pin")}
+                      aria-pressed={task.urgent}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        props.onTogglePin(task.id, !task.urgent);
+                      }}
+                    >
+                      <BookmarkIcon filled={task.urgent} />
+                    </button>
+                    <button
+                      class="ysb-tabledetails"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        props.onEdit(task.id);
+                      }}
+                    >
+                      {props.t("widget.details")}
+                    </button>
+                  </span>
                 </td>
               </tr>
             )}
