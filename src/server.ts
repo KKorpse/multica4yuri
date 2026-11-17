@@ -630,7 +630,23 @@ export default Plugin.define({
         }
       }
     }
+    /** Keep durable briefs in sync after plugin updates, including prefix cleanup. */
+    async function syncBriefs(): Promise<void> {
+      for (const task of store.list()) {
+        tasks.set(task.id, task);
+        for (const link of task.sessions) {
+          await ctx.session.instructions.entry
+            .put({
+              sessionID: link.sessionId,
+              key: ENTRY_KEY,
+              value: renderBrief(task, link, documentPath(task.id)),
+            })
+            .catch(() => undefined);
+        }
+      }
+    }
     await normalizeChildGoals().catch(() => undefined);
+    await syncBriefs().catch(() => undefined);
 
     void (async () => {
       try {
