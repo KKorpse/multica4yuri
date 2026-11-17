@@ -178,6 +178,7 @@ export default Plugin.define({
         statusChangedAt: legacy.statusChangedAt ?? now,
         lastFinishedAt: 0,
         lastOpenedAt: now,
+        manualUnread: false,
       };
       store.write(task);
       tasks.set(task.id, task);
@@ -471,8 +472,17 @@ export default Plugin.define({
           const at = Date.now();
           store.markOpened(task.id, at);
           task.lastOpenedAt = at;
+          task.manualUnread = false;
           tasks.set(task.id, task);
           return { ok: true, taskId: task.id, lastOpenedAt: at };
+        },
+        taskUnread: async (input: any) => {
+          const task = await requireTask(input.taskId);
+          const unread = input.unread !== false;
+          store.markUnread(task.id, unread);
+          task.manualUnread = unread;
+          tasks.set(task.id, task);
+          return { ok: true, taskId: task.id, unread };
         },
         taskDelete: async (input: any) => {
           const task = await requireTask(input.taskId);

@@ -148,6 +148,14 @@ export const BoardRpc = {
       },
       output: { type: "object" },
     },
+    taskUnread: {
+      input: {
+        type: "object",
+        properties: { taskId: { type: "string" }, unread: { type: "boolean" } },
+        required: ["taskId"],
+      },
+      output: { type: "object" },
+    },
     taskDelete: {
       input: {
         type: "object",

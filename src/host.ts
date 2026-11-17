@@ -2,7 +2,7 @@ import { Contract, Registry, type Context } from "@opencode/plugin/gui";
 import type { JSX } from "solid-js";
 
 export const PAGE_ID = "board";
-export const BUILD = "0.21.1";
+export const BUILD = "0.22.0";
 
 /** Touch devices never mount the board page at all. */
 /** HTML5 drag is unreliable on touch devices and can trigger WebKit drag bugs. */ export function isCoarsePointer(): boolean {

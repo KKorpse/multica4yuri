@@ -702,14 +702,30 @@ export function createBoard(ctx: Context, t: T) {
   function markOpened(id: string): void {
     const task = taskById(id);
     const record = task?.record;
-    if (!record || record.lastFinishedAt <= record.lastOpenedAt) return;
+    if (!record) return;
+    if (record.lastFinishedAt <= record.lastOpenedAt && !record.manualUnread) return;
     const at = Date.now();
     setRecords((list) =>
-      list.map((item) => (item.id === record.id ? { ...item, lastOpenedAt: at } : item)),
+      list.map((item) =>
+        item.id === record.id ? { ...item, lastOpenedAt: at, manualUnread: false } : item,
+      ),
     );
     void ctx.client
       .rpc(BoardRpc)
       .taskOpen({ taskId: record.id })
+      .catch(() => undefined);
+  }
+
+  function markUnread(id: string): void {
+    const task = taskById(id);
+    const record = task?.record;
+    if (!record) return;
+    setRecords((list) =>
+      list.map((item) => (item.id === record.id ? { ...item, manualUnread: true } : item)),
+    );
+    void ctx.client
+      .rpc(BoardRpc)
+      .taskUnread({ taskId: record.id, unread: true })
       .catch(() => undefined);
   }
 
@@ -884,6 +900,7 @@ export function createBoard(ctx: Context, t: T) {
     runningCount,
     unreadCount,
     markOpened,
+    markUnread,
     task: taskById,
     total: () => tasksInView().length,
     setMode: (mode: ViewMode) => setView("mode", mode),

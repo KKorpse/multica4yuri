@@ -200,7 +200,7 @@ export function toTaskFromRecord(
     urgent: taskRecord.urgent,
     parentID: session?.parentID,
     running,
-    unread: taskRecord.lastFinishedAt > taskRecord.lastOpenedAt,
+    unread: taskRecord.manualUnread || taskRecord.lastFinishedAt > taskRecord.lastOpenedAt,
     outcome: session?.outcome,
     created: taskRecord.createdAt,
     updated: taskRecord.updatedAt,

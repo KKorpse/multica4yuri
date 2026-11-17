@@ -158,6 +158,7 @@ const taskRecords = [
     statusChangedAt: now - 30_000,
     lastFinishedAt: 0,
     lastOpenedAt: now - 60_000,
+    manualUnread: false,
   },
   {
     id: "ses_board_b",
@@ -187,6 +188,7 @@ const taskRecords = [
     statusChangedAt: now - 90_000,
     lastFinishedAt: 0,
     lastOpenedAt: now - 120_000,
+    manualUnread: false,
   },
   {
     id: "ses_board_done",
@@ -216,6 +218,7 @@ const taskRecords = [
     statusChangedAt: now - 200_000,
     lastFinishedAt: now - 200_000,
     lastOpenedAt: now - 300_000,
+    manualUnread: false,
   },
 ];
 
@@ -302,7 +305,19 @@ const ctx = {
           .sort((a, b) => a.position - b.position)
           .map((status) => ({ ...status }));
       },
-      taskOpen: async () => ({ ok: true }),
+      taskOpen: async ({ taskId }) => {
+        const record = taskRecords.find((item) => item.id === taskId);
+        if (record) {
+          record.lastOpenedAt = Date.now();
+          record.manualUnread = false;
+        }
+        return { ok: true };
+      },
+      taskUnread: async ({ taskId, unread }) => {
+        const record = taskRecords.find((item) => item.id === taskId);
+        if (record) record.manualUnread = unread !== false;
+        return { ok: true };
+      },
       create: async () => {
         throw new Error("not implemented in smoke");
       },
@@ -451,6 +466,38 @@ assert.equal(
   dom.window.document.activeElement,
   plainDetailsButton,
   "closing details restores focus to its trigger",
+);
+
+// Mark unread restores the yellow frame until the task is opened again.
+const plainNow = () =>
+  [...dom.window.document.querySelectorAll("[data-ysb-card]")].find((card) =>
+    card.textContent.includes("Plain session"),
+  );
+plainNow().dispatchEvent(
+  new dom.window.MouseEvent("contextmenu", { bubbles: true, clientX: 12, clientY: 12 }),
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+const markUnread = dom.window.document.querySelector("[data-ysb-menu-unread]");
+assert.ok(markUnread, "context menu exposes mark unread");
+markUnread.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.ok(plainNow().classList.contains("is-unread"), "marked tasks show the unread frame");
+assert.equal(
+  dom.window.document.querySelector('[data-ysb-activity="unread"] strong').textContent,
+  "2",
+  "manual unread is counted",
+);
+plainNow().click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  plainNow().classList.contains("is-unread"),
+  false,
+  "opening a task clears manual unread",
+);
+assert.equal(
+  dom.window.document.querySelector('[data-ysb-activity="unread"] strong').textContent,
+  "1",
+  "opening lowers the unread count",
 );
 
 const firstCard = dom.window.document.querySelector("[data-ysb-card]");

@@ -34,6 +34,7 @@ const TASK_COLUMNS = [
   "status_changed_at",
   "last_finished_at",
   "last_opened_at",
+  "manual_unread",
 ].join(", ");
 
 export class BoardStore {
@@ -75,7 +76,8 @@ export class BoardStore {
         updated_at INTEGER NOT NULL,
         status_changed_at INTEGER NOT NULL,
         last_finished_at INTEGER NOT NULL DEFAULT 0,
-        last_opened_at INTEGER NOT NULL DEFAULT 0
+        last_opened_at INTEGER NOT NULL DEFAULT 0,
+        manual_unread INTEGER NOT NULL DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS task_session (
@@ -131,6 +133,11 @@ export class BoardStore {
     }
     try {
       this.db.exec("ALTER TABLE task ADD COLUMN last_opened_at INTEGER NOT NULL DEFAULT 0");
+    } catch {
+      /* the column already exists on newer databases */
+    }
+    try {
+      this.db.exec("ALTER TABLE task ADD COLUMN manual_unread INTEGER NOT NULL DEFAULT 0");
     } catch {
       /* the column already exists on newer databases */
     }
@@ -294,7 +301,8 @@ export class BoardStore {
           updated_at INTEGER NOT NULL,
           status_changed_at INTEGER NOT NULL,
           last_finished_at INTEGER NOT NULL DEFAULT 0,
-          last_opened_at INTEGER NOT NULL DEFAULT 0
+          last_opened_at INTEGER NOT NULL DEFAULT 0,
+          manual_unread INTEGER NOT NULL DEFAULT 0
         )
       `);
       this.db.exec(
@@ -603,6 +611,7 @@ export class BoardStore {
       statusChangedAt: Number(row.status_changed_at),
       lastFinishedAt: Number(row.last_finished_at),
       lastOpenedAt: Number(row.last_opened_at),
+      manualUnread: Boolean(row.manual_unread),
     };
   }
 
@@ -626,8 +635,8 @@ export class BoardStore {
         id, code, title, description, status, labels, urgent, rank, main_session_id,
         document_content, document_updated_at, document_updated_by,
         revision, created_at, updated_at, status_changed_at,
-        last_finished_at, last_opened_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        last_finished_at, last_opened_at, manual_unread
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       )
       .run(
@@ -649,6 +658,7 @@ export class BoardStore {
         task.statusChangedAt,
         task.lastFinishedAt,
         task.lastOpenedAt,
+        task.manualUnread ? 1 : 0,
       );
 
     const insert = this.db.prepare(`
@@ -679,7 +689,13 @@ export class BoardStore {
   }
 
   markOpened(taskId: string, at: number): void {
-    this.db.prepare("UPDATE task SET last_opened_at = ? WHERE id = ?").run(at, taskId);
+    this.db
+      .prepare("UPDATE task SET last_opened_at = ?, manual_unread = 0 WHERE id = ?")
+      .run(at, taskId);
+  }
+
+  markUnread(taskId: string, unread: boolean): void {
+    this.db.prepare("UPDATE task SET manual_unread = ? WHERE id = ?").run(unread ? 1 : 0, taskId);
   }
 
   deleteTask(taskId: string): void {

@@ -1078,6 +1078,22 @@ export function BoardPage(props: { board: Board; t: T }) {
                           )}
                         </For>
                         <div class="ysb-menusep yuri-popup-separator" role="separator" />
+                        <Show when={!task().unread}>
+                          <button
+                            class="ysb-menuitem"
+                            role="menuitem"
+                            tabIndex={-1}
+                            type="button"
+                            data-ysb-menu-unread
+                            onClick={() => {
+                              board.markUnread(task().id);
+                              closeMenu(true);
+                            }}
+                          >
+                            {t("menu.markUnread")}
+                          </button>
+                          <div class="ysb-menusep yuri-popup-separator" role="separator" />
+                        </Show>
                         <Show
                           when={!board.isDiscarded(task().status)}
                           fallback={

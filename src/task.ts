@@ -41,6 +41,8 @@ export type Task = {
   /** Last time the main session finished a run, and the last time the user opened the task. */
   lastFinishedAt: number;
   lastOpenedAt: number;
+  /** Set by "mark unread"; cleared when the task is opened. */
+  manualUnread: boolean;
 };
 
 export type TaskLink = {
@@ -102,6 +104,7 @@ export function newTask(
     statusChangedAt: now,
     lastFinishedAt: 0,
     lastOpenedAt: now,
+    manualUnread: false,
   };
 }
 
