@@ -13,6 +13,7 @@ import {
   sortTasks,
   taskMeta,
   toTask,
+  toTaskFromRecord,
   type Filters,
 } from "../src/model.ts";
 
@@ -165,6 +166,34 @@ test("filters compose: any status, any label, and every search word", () => {
   assert.deepEqual(
     filterTasks(tasks, filters({ search: "后端" })).map((item) => item.id),
     [],
+  );
+});
+
+test("task records expose lowercased document text for search", () => {
+  const value = toTaskFromRecord(
+    {
+      id: "ses_doc",
+      code: "WS-1",
+      title: "退款接口",
+      description: "",
+      status: "执行中",
+      labels: [],
+      urgent: false,
+      rank: 0,
+      mainSessionId: "ses_doc",
+      sessions: [],
+      document: { content: "接口签名校验 与 退款", updatedAt: 1, updatedBy: "ses_doc" },
+      revision: 1,
+      createdAt: 1,
+      updatedAt: 2,
+      statusChangedAt: 2,
+    } as never,
+    session(),
+  );
+  assert.equal(value.documentSearch, "接口签名校验 与 退款");
+  assert.deepEqual(
+    filterTasks([value], filters({ search: "签名校验" })).map((item) => item.id),
+    ["ses_doc"],
   );
 });
 

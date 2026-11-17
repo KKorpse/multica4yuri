@@ -37,6 +37,8 @@ export interface Task extends TaskMeta {
   created: number;
   updated: number;
   cost: number;
+  /** Lowercased task document text, used for client-side search. */
+  documentSearch?: string;
   record?: TaskRecord;
 }
 
@@ -192,6 +194,7 @@ export function toTaskFromRecord(
     created: taskRecord.createdAt,
     updated: taskRecord.updatedAt,
     cost: session?.cost ?? 0,
+    documentSearch: (taskRecord.document?.content ?? "").toLocaleLowerCase(),
     record: taskRecord,
   };
 }
@@ -218,6 +221,7 @@ export function toTask(session: SessionInfo, running = false): Task {
     created: session.time.created,
     updated: session.time.updated,
     cost: session.cost,
+    documentSearch: "",
   };
 }
 
@@ -238,7 +242,8 @@ export function filterTasks(tasks: readonly Task[], filters: Filters): Task[] {
     const text = [task.title, task.description, task.id, ...task.labels]
       .join("\n")
       .toLocaleLowerCase();
-    return words.every((word) => text.includes(word));
+    const searchable = task.documentSearch ? `${text}\n${task.documentSearch}` : text;
+    return words.every((word) => searchable.includes(word));
   });
 }
 
