@@ -555,8 +555,18 @@ export function createBoard(ctx: Context, t: T) {
     if (!task) return;
     const record = task.record;
     if (record) {
-      await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: { urgent: pinned } });
-      void reload(true);
+      const patchRecords = (value: boolean) =>
+        setRecords((list) =>
+          list.map((item) => (item.id === record.id ? { ...item, urgent: value } : item)),
+        );
+      patchRecords(pinned);
+      try {
+        await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: { urgent: pinned } });
+        void reload(true);
+      } catch (caught) {
+        patchRecords(!pinned);
+        throw caught;
+      }
       return;
     }
     const session = sessionById(id);

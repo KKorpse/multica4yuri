@@ -23,7 +23,7 @@ export const CSS = `
   --ysb-accent: var(--primary-base, var(--primary, #6f8cff));
   --ysb-error: var(--status-error, var(--destructive, #e06c75));
   --ysb-success: var(--status-success, #5fbf8f);
-  --ysb-warning: var(--status-warning, var(--status-error, #e06c75));
+  --ysb-warning: var(--status-warning, #d5a653);
   --ysb-canvas: var(--surface-background, var(--background, #17181b));
   --ysb-card: var(--surface-elevated, var(--card, var(--background, #17181b)));
   --ysb-card-fg: var(--surface-elevated-foreground, var(--ysb-fg));
