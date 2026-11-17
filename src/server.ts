@@ -460,9 +460,25 @@ export default Plugin.define({
           const ordered = [...task.sessions].sort((a, b) =>
             a.role === "main" ? 1 : b.role === "main" ? -1 : 0,
           );
+          const failed: string[] = [];
           for (const link of ordered) {
-            await ctx.session.remove({ sessionID: link.sessionId }).catch(() => undefined);
-            links.delete(link.sessionId);
+            const alive = await ctx.session
+              .get({ sessionID: link.sessionId })
+              .then(() => true)
+              .catch(() => false);
+            if (!alive) {
+              links.delete(link.sessionId);
+              continue;
+            }
+            try {
+              await ctx.session.remove({ sessionID: link.sessionId });
+              links.delete(link.sessionId);
+            } catch {
+              failed.push(link.sessionId);
+            }
+          }
+          if (failed.length) {
+            throw new Error(`有 ${failed.length} 个会话删除失败，任务已保留，请重试`);
           }
           store.deleteTask(task.id);
           tasks.delete(task.id);
