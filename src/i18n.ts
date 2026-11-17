@@ -74,8 +74,7 @@ export const messages = {
     "board.emptyHint": "Change the filters or create a task.",
     "board.desktopOnly": "The board needs a wider window. Open it on desktop.",
     "board.crashed": "The board hit an error. Try again.",
-    "board.summary":
-      "{{total}} tasks · {{shown}} shown · {{running}} running · {{unread}} to review",
+    "board.summary": "{{total}} tasks · {{shown}} shown",
     "column.drop": "Drop here",
     "column.empty": "No tasks",
     "column.more": "Show {{count}} more",
@@ -240,8 +239,7 @@ export const messages = {
     "board.emptyHint": "调整筛选条件，或者新建一个任务。",
     "board.desktopOnly": "看板需要更宽的窗口，请在桌面端打开。",
     "board.crashed": "看板遇到错误，请重试。",
-    "board.summary":
-      "{{total}} 个任务 · 显示 {{shown}} 个 · {{running}} 个运行中 · {{unread}} 个待查看",
+    "board.summary": "{{total}} 个任务 · 显示 {{shown}} 个",
     "column.drop": "拖到这里",
     "column.empty": "暂无任务",
     "column.more": "再显示 {{count}} 个",
