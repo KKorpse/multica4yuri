@@ -79,6 +79,28 @@ function IconSearch() {
   );
 }
 
+function IconEye(props: { off?: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M1.7 8s2.4-3.9 6.3-3.9S14.3 8 14.3 8s-2.4 3.9-6.3 3.9S1.7 8 1.7 8Z"
+        stroke="currentColor"
+        stroke-width="1.3"
+        stroke-linejoin="round"
+      />
+      <circle cx="8" cy="8" r="1.8" stroke="currentColor" stroke-width="1.3" />
+      <Show when={props.off}>
+        <path
+          d="m2.6 13.4 10.8-10.8"
+          stroke="currentColor"
+          stroke-width="1.3"
+          stroke-linecap="round"
+        />
+      </Show>
+    </svg>
+  );
+}
+
 function IconPlus() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -124,6 +146,8 @@ export function BoardPage(props: { board: Board; t: T }) {
   const t = props.t;
   const [dragging, setDragging] = createSignal<string>();
   const [drop, setDrop] = createSignal<DropTarget>();
+  const [columnDrag, setColumnDrag] = createSignal<string>();
+  const [columnDrop, setColumnDrop] = createSignal<string>();
   const [filtersOpen, setFiltersOpen] = createSignal(false);
   const [labelsOpen, setLabelsOpen] = createSignal(false);
   const [statusOpen, setStatusOpen] = createSignal(false);
@@ -301,6 +325,36 @@ export function BoardPage(props: { board: Board; t: T }) {
     return [...column.querySelectorAll<HTMLElement>("[data-ysb-card]")].filter(
       (element) => element.dataset.ysbCard !== dragging(),
     );
+  }
+
+  function startColumnDrag(key: string, event: DragEvent) {
+    if (board.view.grouping !== "status") return;
+    event.dataTransfer?.setData("application/x-ysb-status", key);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    setColumnDrag(key);
+    setColumnDrop(undefined);
+  }
+
+  function onColumnDragOver(key: string, event: DragEvent) {
+    if (!columnDrag() || columnDrag() === key) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    if (columnDrop() !== key) setColumnDrop(key);
+  }
+
+  function onColumnDrop(key: string, event: DragEvent) {
+    const source = columnDrag();
+    if (!source) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setColumnDrag(undefined);
+    setColumnDrop(undefined);
+    if (source !== key) void board.moveStatusColumn(source, key);
+  }
+
+  function endColumnDrag() {
+    setColumnDrag(undefined);
+    setColumnDrop(undefined);
   }
 
   function onDragOver(key: string, event: DragEvent) {
@@ -740,7 +794,11 @@ export function BoardPage(props: { board: Board; t: T }) {
                 {(column) => (
                   <section
                     class="ysb-col"
-                    classList={{ "is-over": drop()?.column === column().key }}
+                    classList={{
+                      "is-over": drop()?.column === column().key,
+                      "is-column-dragging": columnDrag() === column().key,
+                      "is-column-drop": columnDrop() === column().key,
+                    }}
                     data-ysb-column={column().key}
                     onDragOver={(event) => onDragOver(column().key, event)}
                     onDragLeave={(event) => {
@@ -756,7 +814,16 @@ export function BoardPage(props: { board: Board; t: T }) {
                       void onDropCard(column().key);
                     }}
                   >
-                    <div class="ysb-colhead">
+                    <div
+                      class="ysb-colhead"
+                      classList={{ "is-draggable": board.view.grouping === "status" }}
+                      draggable={board.view.grouping === "status" && !isCoarsePointer()}
+                      data-ysb-colhead={column().key}
+                      onDragStart={(event) => startColumnDrag(column().key, event)}
+                      onDragOver={(event) => onColumnDragOver(column().key, event)}
+                      onDragEnd={endColumnDrag}
+                      onDrop={(event) => onColumnDrop(column().key, event)}
+                    >
                       <Show
                         when={board.view.grouping === "status"}
                         fallback={
@@ -779,6 +846,26 @@ export function BoardPage(props: { board: Board; t: T }) {
                           : column().key}
                       </span>
                       <span class="ysb-colcount">{column().tasks.length}</span>
+                      <Show when={board.view.grouping === "status"}>
+                        <button
+                          class="ysb-coladd"
+                          type="button"
+                          title={
+                            column().key === board.defaultStatusName()
+                              ? t("status.defaultLocked")
+                              : t("status.hide")
+                          }
+                          aria-label={t("status.hide")}
+                          data-ysb-hide-status={column().key}
+                          disabled={column().key === board.defaultStatusName()}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void board.setStatusVisible(column().key, false);
+                          }}
+                        >
+                          <IconEye />
+                        </button>
+                      </Show>
                       <button
                         class="ysb-coladd"
                         type="button"
@@ -943,7 +1030,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                           </button>
                           <div class="ysb-menusep yuri-popup-separator" role="separator" />
                           <div class="ysb-menulabel">{t("menu.moveTo")}</div>
-                          <For each={board.statusList()}>
+                          <For each={board.visibleStatusList()}>
                             {(status) => (
                               <button
                                 class="ysb-menuitem ysb-menustatus"
@@ -1522,7 +1609,7 @@ function CreateDialog(props: { board: Board; t: T; onClose(): void }) {
                 value={form.status}
                 onChange={(event) => setForm("status", event.currentTarget.value)}
               >
-                <For each={board.statusList()}>
+                <For each={board.visibleStatusList()}>
                   {(status) => <option value={status.name}>{status.name}</option>}
                 </For>
               </select>
@@ -2008,6 +2095,7 @@ function StatusDialog(props: { board: Board; t: T; onClose(): void }) {
                   classList={{
                     "is-editing": editingId() === status.id,
                     "is-confirming": deletingId() === status.id,
+                    "is-hidden": !status.visible,
                   }}
                 >
                   <input
@@ -2034,6 +2122,10 @@ function StatusDialog(props: { board: Board; t: T; onClose(): void }) {
                           <Show when={status.kind !== "normal"}>
                             {" · "}
                             {status.kind === "default" ? t("status.default") : t("status.discard")}
+                          </Show>
+                          <Show when={!status.visible}>
+                            {" · "}
+                            {t("status.hidden")}
                           </Show>
                         </span>
                       </div>
@@ -2071,6 +2163,24 @@ function StatusDialog(props: { board: Board; t: T; onClose(): void }) {
                           when={deletingId() === status.id}
                           fallback={
                             <>
+                              <button
+                                class="ysb-btn small ghost ysb-statuseye"
+                                type="button"
+                                title={status.visible ? t("status.hide") : t("status.show")}
+                                aria-label={status.visible ? t("status.hide") : t("status.show")}
+                                data-ysb-toggle-status={status.name}
+                                disabled={busy() || (status.kind === "default" && status.visible)}
+                                onClick={() =>
+                                  void run(async () => {
+                                    await props.board.setStatusVisible(
+                                      status.name,
+                                      !status.visible,
+                                    );
+                                  })
+                                }
+                              >
+                                <IconEye off={!status.visible} />
+                              </button>
                               <button
                                 class="ysb-btn small ghost"
                                 type="button"

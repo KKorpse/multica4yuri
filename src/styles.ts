@@ -640,6 +640,10 @@ export const CSS = `
   background: var(--ysb-selection);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ysb-selection-fg) 14%, transparent);
 }
+.ysb-col.is-column-dragging { opacity: 0.45; }
+.ysb-col.is-column-drop {
+  box-shadow: inset 2px 0 0 var(--ysb-accent);
+}
 .ysb-colhead {
   flex: none;
   display: flex;
@@ -647,6 +651,8 @@ export const CSS = `
   gap: 6px;
   padding: 9px 10px 5px;
 }
+.ysb-colhead.is-draggable { cursor: grab; }
+.ysb-colhead.is-draggable:active { cursor: grabbing; }
 .ysb-coltitle {
   flex: 1;
   min-width: 0;
@@ -670,8 +676,9 @@ export const CSS = `
   cursor: pointer;
   transition: background-color 150ms ease-out, color 150ms ease-out;
 }
-.ysb-coladd:hover { background: var(--ysb-hover); color: var(--ysb-fg); }
-.ysb-coladd:active { background: var(--ysb-active); }
+.ysb-coladd:hover:not(:disabled) { background: var(--ysb-hover); color: var(--ysb-fg); }
+.ysb-coladd:active:not(:disabled) { background: var(--ysb-active); }
+.ysb-coladd:disabled { opacity: 0.35; cursor: default; }
 .ysb-colbody {
   flex: 1;
   min-height: 0;
@@ -982,6 +989,9 @@ export const CSS = `
 }
 .ysb-labelrow:hover { background: var(--ysb-hover); }
 .ysb-labelrow.is-editing,
+.ysb-labelrow.is-hidden .ysb-labelname { color: var(--ysb-muted); }
+.ysb-labelrow.is-hidden .ysb-labeldot,
+.ysb-labelrow.is-hidden .ysb-statuscolor { opacity: 0.4; }
 .ysb-labelrow.is-confirming {
   background: var(--ysb-selection);
   color: var(--ysb-selection-fg);

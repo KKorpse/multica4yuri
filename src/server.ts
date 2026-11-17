@@ -495,6 +495,7 @@ export default Plugin.define({
           const status = store.updateStatus(input.id, {
             name: input.name,
             color: input.color,
+            visible: input.visible,
           });
           await refreshBriefs();
           return status;

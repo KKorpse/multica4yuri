@@ -213,6 +213,45 @@ const taskRecords = [
   },
 ];
 
+const statusRecords = [
+  {
+    id: "stt_default",
+    name: "待分配",
+    color: "#8b94a5",
+    position: 0,
+    kind: "default",
+    visible: true,
+    count: 1,
+  },
+  {
+    id: "stt_doing",
+    name: "执行中",
+    color: "#d5a653",
+    position: 1,
+    kind: "normal",
+    visible: true,
+    count: 2,
+  },
+  {
+    id: "stt_done",
+    name: "已完成",
+    color: "#5b9bd5",
+    position: 2,
+    kind: "normal",
+    visible: true,
+    count: 0,
+  },
+  {
+    id: "stt_discard",
+    name: "废弃",
+    color: "#b38086",
+    position: 3,
+    kind: "discard",
+    visible: true,
+    count: 0,
+  },
+];
+
 const ctx = {
   id: "yuri-session-board",
   signal: new AbortController().signal,
@@ -234,33 +273,29 @@ const ctx = {
     rpc: () => ({
       list: async () => taskRecords,
       labelList: async () => [{ id: "lbl_ui", name: "ui", color: "#8b8cdd", count: 3 }],
-      statusList: async () => [
-        {
-          id: "stt_default",
-          name: "待分配",
-          color: "#8b94a5",
-          position: 0,
-          kind: "default",
-          count: 1,
-        },
-        {
-          id: "stt_doing",
-          name: "执行中",
-          color: "#d5a653",
-          position: 1,
-          kind: "normal",
-          count: 2,
-        },
-        { id: "stt_done", name: "已完成", color: "#5b9bd5", position: 2, kind: "normal", count: 0 },
-        {
-          id: "stt_discard",
-          name: "废弃",
-          color: "#b38086",
-          position: 3,
-          kind: "discard",
-          count: 0,
-        },
-      ],
+      statusList: async () =>
+        statusRecords
+          .slice()
+          .sort((a, b) => a.position - b.position)
+          .map((status) => ({ ...status })),
+      statusUpdate: async ({ id, name, color, visible }) => {
+        const status = statusRecords.find((item) => item.id === id);
+        if (!status) throw new Error("status not found");
+        if (name !== undefined) status.name = name;
+        if (color !== undefined) status.color = color;
+        if (visible !== undefined) status.visible = visible;
+        return { ...status };
+      },
+      statusReorder: async ({ ids }) => {
+        ids.forEach((id, index) => {
+          const status = statusRecords.find((item) => item.id === id);
+          if (status) status.position = index;
+        });
+        return statusRecords
+          .slice()
+          .sort((a, b) => a.position - b.position)
+          .map((status) => ({ ...status }));
+      },
       create: async () => {
         throw new Error("not implemented in smoke");
       },
@@ -474,6 +509,22 @@ assert.equal(
 );
 assert.match(statusDialog.textContent, /status\.default/, "default status is marked");
 assert.match(statusDialog.textContent, /status\.discard/, "discard status is marked");
+const managerEye = statusDialog.querySelector('[data-ysb-toggle-status="执行中"]');
+managerEye.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+const hiddenRow = [...statusDialog.querySelectorAll(".ysb-labelrow")].find((row) =>
+  row.textContent.includes("执行中"),
+);
+assert.ok(hiddenRow?.classList.contains("is-hidden"), "manager marks hidden statuses");
+statusDialog.querySelector('[data-ysb-toggle-status="执行中"]').click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  [...statusDialog.querySelectorAll(".ysb-labelrow")].some((row) =>
+    row.classList.contains("is-hidden"),
+  ),
+  false,
+  "manager eye restores a hidden status",
+);
 statusDialog.querySelector(".ysb-modalhead .ysb-iconbtn").click();
 await new Promise((resolve) => setTimeout(resolve, 50));
 assert.equal(dom.window.document.querySelector(".ysb-statusmodal"), null, "status manager closes");

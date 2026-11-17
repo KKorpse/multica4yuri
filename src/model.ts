@@ -15,6 +15,7 @@ export type StatusInfo = {
   color: string;
   position: number;
   kind: StatusKind;
+  visible: boolean;
   count: number;
 };
 

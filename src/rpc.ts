@@ -167,6 +167,7 @@ export const BoardRpc = {
           id: { type: "string" },
           name: { type: "string" },
           color: { type: "string" },
+          visible: { type: "boolean" },
         },
         required: ["id"],
       },

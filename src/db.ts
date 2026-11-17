@@ -50,6 +50,7 @@ export class BoardStore {
         color TEXT NOT NULL,
         position INTEGER NOT NULL,
         kind TEXT NOT NULL DEFAULT 'normal' CHECK (kind IN ('default', 'discard', 'normal')),
+        visible INTEGER NOT NULL DEFAULT 1,
         created_at INTEGER NOT NULL
       );
       CREATE UNIQUE INDEX IF NOT EXISTS idx_status_kind ON status(kind) WHERE kind <> 'normal';
@@ -104,6 +105,11 @@ export class BoardStore {
       );
     `);
 
+    try {
+      this.db.exec("ALTER TABLE status ADD COLUMN visible INTEGER NOT NULL DEFAULT 1");
+    } catch {
+      /* the column already exists on newer databases */
+    }
     try {
       this.db.exec("ALTER TABLE task ADD COLUMN code TEXT NOT NULL DEFAULT ''");
     } catch {
@@ -174,7 +180,8 @@ export class BoardStore {
   private insertStatus(name: string, color: string, position: number, kind: StatusKind): void {
     this.db
       .prepare(
-        "INSERT INTO status (id, name, color, position, kind, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        `INSERT INTO status (id, name, color, position, kind, visible, created_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?)`,
       )
       .run(this.statusId(), name, color, position, kind, Date.now());
   }
@@ -291,7 +298,7 @@ export class BoardStore {
   listStatuses(): StatusInfo[] {
     return this.db
       .prepare(
-        `SELECT s.id, s.name, s.color, s.position, s.kind, COUNT(t.id) AS count
+        `SELECT s.id, s.name, s.color, s.position, s.kind, s.visible, COUNT(t.id) AS count
          FROM status s LEFT JOIN task t ON t.status = s.name
          GROUP BY s.id ORDER BY s.position ASC, s.name ASC`,
       )
@@ -302,6 +309,7 @@ export class BoardStore {
         color: String(row.color),
         position: Number(row.position),
         kind: row.kind === "default" || row.kind === "discard" ? row.kind : "normal",
+        visible: Boolean(row.visible),
         count: Number(row.count),
       }));
   }
@@ -360,7 +368,10 @@ export class BoardStore {
     return this.statusByName(clean)!;
   }
 
-  updateStatus(id: string, input: { name?: string; color?: string }): StatusInfo {
+  updateStatus(
+    id: string,
+    input: { name?: string; color?: string; visible?: boolean },
+  ): StatusInfo {
     const current = this.statusById(id);
     if (!current) throw new Error("状态不存在");
     const name = input.name === undefined ? current.name : input.name.trim();
@@ -369,8 +380,14 @@ export class BoardStore {
       .prepare("SELECT id FROM status WHERE name = ? COLLATE NOCASE AND id <> ?")
       .get(name, id) as Row | undefined;
     if (clash) throw new Error(`状态已存在：${name}`);
+    if (current.kind === "default" && input.visible === false) {
+      throw new Error("默认状态不能隐藏");
+    }
     const color = input.color?.trim() || current.color;
-    this.db.prepare("UPDATE status SET name = ?, color = ? WHERE id = ?").run(name, color, id);
+    const visible = input.visible === undefined ? current.visible : input.visible;
+    this.db
+      .prepare("UPDATE status SET name = ?, color = ?, visible = ? WHERE id = ?")
+      .run(name, color, visible ? 1 : 0, id);
     return this.statusById(id)!;
   }
 

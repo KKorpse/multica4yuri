@@ -17,6 +17,9 @@ Yuri chat.
   reorder, add or delete any of them. `待分配` is the default for new tasks and
   `废弃` is the discard target; both roles are protected from deletion. Drag
   cards between columns, or use the right-click menu to move a task anywhere.
+  In status grouping, drag a column header to reorder the statuses; the eye in
+  each header hides that status and all of its tasks until it is restored from
+  the status manager.
 - **Tags** — free-form, per task, with deterministic colors; filter by one or
   more tags.
 - **Search & filters** — title, description, tag, task ID or output document;
@@ -67,8 +70,11 @@ Yuri chat.
   the discard status expose **彻底删除**, which deletes the task record, its
   artifact directory and every linked session.
 - **状态** in the toolbar opens the status manager: add, rename, recolor,
-  reorder and delete statuses. Deleting a status moves its tasks to the discard
-  status; the default and discard statuses cannot be deleted.
+  reorder, hide/show and delete statuses. Hidden statuses stay in the manager
+  with their task count; their columns and tasks are removed from the board,
+  list and table views. Deleting a status moves its tasks to the discard
+  status; the default and discard statuses cannot be deleted, and the default
+  status cannot be hidden.
 
 ## CLI
 

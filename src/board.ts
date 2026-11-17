@@ -171,9 +171,13 @@ export function createBoard(ctx: Context, t: T) {
     );
   });
 
-  const visible = createMemo(() => sortTasks(filterTasks(tasks(), view.filters), view.sort));
+  const statuses = createMemo(() =>
+    statusList()
+      .filter((status) => status.visible)
+      .map((status) => status.name),
+  );
 
-  const statuses = createMemo(() => statusList().map((status) => status.name));
+  const visibleStatusList = createMemo(() => statusList().filter((status) => status.visible));
 
   const colorOfStatus = (name: string): string =>
     statusList().find((status) => status.name === name)?.color ?? statusColor(name);
@@ -187,8 +191,16 @@ export function createBoard(ctx: Context, t: T) {
   const isDiscarded = (name: string): boolean =>
     statusList().find((status) => status.name === name)?.kind === "discard";
 
+  const tasksInView = createMemo(() => {
+    if (!statusList().length) return tasks();
+    const shown = new Set(statuses());
+    return tasks().filter((task) => shown.has(task.status));
+  });
+
+  const visible = createMemo(() => sortTasks(filterTasks(tasksInView(), view.filters), view.sort));
+
   const filteredForFacets = createMemo(() =>
-    filterTasks(tasks(), { ...view.filters, statuses: [], labels: [] }),
+    filterTasks(tasksInView(), { ...view.filters, statuses: [], labels: [] }),
   );
 
   const statusCounts = createMemo(() => {
@@ -218,14 +230,14 @@ export function createBoard(ctx: Context, t: T) {
 
   const agentOptions = createMemo(() => {
     const seen = new Set<string>();
-    for (const task of tasks()) seen.add(task.agent);
+    for (const task of tasksInView()) seen.add(task.agent);
     return [...seen].sort((a, b) => a.localeCompare(b, "zh-CN"));
   });
 
   const directoryOptions = createMemo(() => {
     const map = new Map<string, string>();
     for (const project of projects()) map.set(project.path, project.label);
-    for (const task of tasks())
+    for (const task of tasksInView())
       if (!map.has(task.directory)) map.set(task.directory, basename(task.directory));
     const current = currentDirectory();
     if (current && !map.has(current)) map.set(current, current);
@@ -264,7 +276,7 @@ export function createBoard(ctx: Context, t: T) {
     });
   });
 
-  const runningCount = createMemo(() => tasks().filter((task) => task.running).length);
+  const runningCount = createMemo(() => tasksInView().filter((task) => task.running).length);
 
   function sessionById(id: string): SessionInfo | undefined {
     return sessions().find((session) => session.id === id);
@@ -573,7 +585,7 @@ export function createBoard(ctx: Context, t: T) {
 
   async function updateStatus(
     id: string,
-    patch: { name?: string; color?: string },
+    patch: { name?: string; color?: string; visible?: boolean },
   ): Promise<StatusInfo> {
     const previous = statusList().find((status) => status.id === id);
     const status = (await ctx.client.rpc(BoardRpc).statusUpdate({
@@ -609,6 +621,46 @@ export function createBoard(ctx: Context, t: T) {
     setStatusList(list);
   }
 
+  async function setStatusVisible(name: string, visible: boolean): Promise<void> {
+    const status = statusList().find((item) => item.name === name);
+    if (!status || status.visible === visible) return;
+    if (!visible && status.kind === "default") {
+      fail(new Error(t("status.defaultLocked")), "error.status");
+      return;
+    }
+    try {
+      await ctx.client.rpc(BoardRpc).statusUpdate({ id: status.id, visible });
+      if (!visible) {
+        setFilters({ statuses: view.filters.statuses.filter((item) => item !== name) });
+      }
+      await reload(true);
+    } catch (caught) {
+      fail(caught, "error.status");
+    }
+  }
+
+  async function moveStatusColumn(source: string, target: string): Promise<void> {
+    const ordered = [...statuses()];
+    const from = ordered.indexOf(source);
+    const to = ordered.indexOf(target);
+    if (from < 0 || to < 0 || from === to) return;
+    ordered.splice(from, 1);
+    ordered.splice(to, 0, source);
+    const catalog = [...statusList()].sort((a, b) => a.position - b.position);
+    const byName = new Map(statusList().map((status) => [status.name, status.id]));
+    const shown = new Set(statuses());
+    let cursor = 0;
+    const ids = catalog.map((status) =>
+      shown.has(status.name) ? (byName.get(ordered[cursor++]) ?? status.id) : status.id,
+    );
+    try {
+      const list = (await ctx.client.rpc(BoardRpc).statusReorder({ ids })) as StatusInfo[];
+      setStatusList(list);
+    } catch (caught) {
+      fail(caught, "error.status");
+    }
+  }
+
   function requestDelete(id: string) {
     setDeleteId(id);
   }
@@ -626,7 +678,7 @@ export function createBoard(ctx: Context, t: T) {
   async function move(id: string, status: string, index?: number): Promise<void> {
     const task = taskById(id);
     if (!task) return;
-    if (statusList().length && !statuses().includes(status)) return;
+    if (statusList().length && !statusList().some((item) => item.name === status)) return;
     const nextStatus = status;
     let rank = task.rank;
     if (view.grouping === "status" && view.sort === "manual" && index !== undefined) {
@@ -773,6 +825,7 @@ export function createBoard(ctx: Context, t: T) {
     columns,
     statuses,
     statusList,
+    visibleStatusList,
     statusCounts,
     colorOfStatus,
     defaultStatusName,
@@ -786,7 +839,7 @@ export function createBoard(ctx: Context, t: T) {
     directoryOptions,
     runningCount,
     task: taskById,
-    total: () => tasks().length,
+    total: () => tasksInView().length,
     setMode: (mode: ViewMode) => setView("mode", mode),
     setGrouping: (grouping: Grouping) => setView("grouping", grouping),
     setSort: (sort: Sort) => setView("sort", sort),
@@ -809,6 +862,8 @@ export function createBoard(ctx: Context, t: T) {
     updateStatus,
     deleteStatus,
     reorderStatuses,
+    setStatusVisible,
+    moveStatusColumn,
     setUrgent,
     move,
     deleteId,
