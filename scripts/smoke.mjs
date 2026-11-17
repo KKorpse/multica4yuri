@@ -451,6 +451,49 @@ assert.ok(
   "board view returns after switching views",
 );
 
+// Searching then opening a task clears the box and keeps the query in history.
+const searchInput = dom.window.document.querySelector(".ysb-searchbox input");
+assert.ok(searchInput, "search input rendered");
+searchInput.focus();
+searchInput.value = "Finished";
+searchInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-card]").length,
+  1,
+  "search narrows the board",
+);
+dom.window.document.querySelector("[data-ysb-card]").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(searchInput.value, "", "opening a task clears the search box");
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-card]").length,
+  3,
+  "clearing the search restores every task",
+);
+searchInput.blur();
+searchInput.focus();
+await new Promise((resolve) => setTimeout(resolve, 50));
+const historyPanel = dom.window.document.querySelector(".ysb-searchhistory");
+assert.ok(historyPanel, "focusing the empty search box opens history");
+assert.match(historyPanel.textContent, /Finished/, "cleared query is kept in history");
+historyPanel.querySelector(".ysb-searchhistoryitem").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(searchInput.value, "Finished", "history item restores the query");
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-card]").length,
+  1,
+  "history item applies the search",
+);
+searchInput.value = "";
+searchInput.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  JSON.parse(dom.window.localStorage.getItem("zmultica:search-history:v1")).length,
+  1,
+  "search history persists once per query",
+);
+
 // Grouping by tag and the tag manager must render from the label catalog.
 const groupSelect = dom.window.document.querySelector(".ysb-toolbar select");
 groupSelect.value = "label";

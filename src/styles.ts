@@ -117,6 +117,70 @@ export const CSS = `
 .ysb-searchbox input::placeholder { color: var(--ysb-muted); }
 .ysb-searchbox input::-webkit-search-cancel-button { filter: grayscale(1); opacity: 0.6; }
 
+.ysb-searchwrap { position: relative; width: 100%; max-width: 320px; min-width: 0; }
+.ysb-searchhistory {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 292px;
+  overflow: auto;
+  padding: 4px;
+  border-radius: var(--radius-xl, 12px);
+  background: var(--yuri-popup-fill, var(--ysb-card));
+  color: var(--ysb-card-fg);
+  box-shadow: var(--yuri-popup-shadow, 0 8px 20px -6px rgb(0 0 0 / 0.18));
+  transform-origin: top center;
+  animation: ysb-menu-in 150ms ease-out;
+}
+.ysb-searchhistoryhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px 2px;
+  color: var(--ysb-muted);
+  font-size: 11px;
+}
+.ysb-searchhistoryclear {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ysb-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 150ms ease-out;
+}
+.ysb-searchhistoryclear:hover { color: var(--ysb-fg); }
+.ysb-searchhistoryitem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ysb-card-fg);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+.ysb-searchhistoryitem:hover,
+.ysb-searchhistoryitem:focus-visible { background: var(--ysb-hover); }
+.ysb-searchhistoryitem svg { flex: none; opacity: 0.5; }
+.ysb-searchhistoryitem span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ysb-btn {
   display: inline-flex;
   align-items: center;
@@ -1843,7 +1907,8 @@ export const CSS = `
   .ysb-root, .ysb-root *,
   .ysb-widget, .ysb-widget *,
   .ysb-detail-backdrop, .ysb-detail-backdrop *,
-  .ysb-menu, .ysb-menu * {
+  .ysb-menu, .ysb-menu *,
+  .ysb-searchhistory, .ysb-searchhistory * {
     animation: none !important;
     transition: none !important;
   }
@@ -1857,14 +1922,14 @@ export const CSS = `
 }
 @media (max-width: 1000px) {
   .ysb-headrow { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
-  .ysb-searchbox { grid-column: 1 / -1; grid-row: 2; max-width: none; }
+  .ysb-searchwrap { grid-column: 1 / -1; grid-row: 2; max-width: none; }
   .ysb-pageactions { grid-column: 2; grid-row: 1; }
 }
 @media (max-width: 760px) {
   .ysb-header { padding: 12px 14px 8px; }
   .ysb-board { padding: 10px 14px 14px; gap: 10px; }
   .ysb-col { flex-basis: 84vw; width: 84vw; }
-  .ysb-searchbox { width: 100%; }
+  .ysb-searchwrap { width: 100%; max-width: none; }
   .ysb-formrow { grid-template-columns: 1fr; }
   .ysb-filterrow { padding-left: 0; }
   .ysb-overlay, .ysb-detail-backdrop { padding: 12px; }

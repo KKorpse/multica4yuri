@@ -39,6 +39,38 @@ function summary(t: T, total: number, shown: number, running: number): string {
   return t("board.summary", { total, shown, running });
 }
 
+const SEARCH_HISTORY_KEY = "zmultica:search-history:v1";
+const SEARCH_HISTORY_LIMIT = 20;
+
+function readSearchHistory(): string[] {
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const terms = parsed.filter(
+      (item): item is string => typeof item === "string" && item.trim() !== "",
+    );
+    return terms.slice(0, SEARCH_HISTORY_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+function writeSearchHistory(terms: readonly string[]): void {
+  try {
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(terms));
+  } catch {
+    // Ignore unavailable storage (private mode or quota errors).
+  }
+}
+
+function appendSearchTerm(terms: readonly string[], raw: string): string[] {
+  const term = raw.trim();
+  if (!term) return [...terms];
+  return [term, ...terms.filter((item) => item !== term)].slice(0, SEARCH_HISTORY_LIMIT);
+}
+
 function IconSearch() {
   return (
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -99,8 +131,39 @@ export function BoardPage(props: { board: Board; t: T }) {
   const [narrow, setNarrow] = createSignal(isMobileSurface());
   const [limits, setLimits] = createSignal<Record<string, number>>({});
   const PAGE_SIZE = 40;
+  const [history, setHistory] = createSignal<string[]>(readSearchHistory());
+  const [historyOpen, setHistoryOpen] = createSignal(false);
   let draggedAt = 0;
   let searchInput: HTMLInputElement | undefined;
+  let searchWrap: HTMLDivElement | undefined;
+
+  function rememberSearch(raw: string) {
+    const next = appendSearchTerm(history(), raw);
+    if (next.length === history().length && next.every((item, index) => item === history()[index]))
+      return;
+    setHistory(next);
+    writeSearchHistory(next);
+  }
+
+  function resetSearch() {
+    rememberSearch(board.view.filters.search);
+    board.setFilters({ search: "" });
+    setHistoryOpen(false);
+  }
+
+  function applyHistory(term: string) {
+    board.setFilters({ search: term });
+    rememberSearch(term);
+    setHistoryOpen(false);
+    searchInput?.focus();
+  }
+
+  function clearHistory() {
+    setHistory([]);
+    writeSearchHistory([]);
+    setHistoryOpen(false);
+    searchInput?.focus();
+  }
 
   createEffect(() => {
     if (narrow()) board.deactivate();
@@ -119,7 +182,21 @@ export function BoardPage(props: { board: Board; t: T }) {
       coarse.removeEventListener?.("change", update);
     });
   });
-  onCleanup(() => board.deactivate());
+  onCleanup(() => {
+    resetSearch();
+    board.deactivate();
+  });
+
+  onMount(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (!historyOpen()) return;
+      const target = event.target;
+      if (target instanceof Node && searchWrap?.contains(target)) return;
+      setHistoryOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    onCleanup(() => document.removeEventListener("pointerdown", onPointerDown));
+  });
 
   onMount(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -127,6 +204,7 @@ export function BoardPage(props: { board: Board; t: T }) {
         event.preventDefault();
         searchInput?.focus();
         searchInput?.select();
+        setHistoryOpen(history().length > 0);
         return;
       }
       if (event.key !== "Escape") return;
@@ -304,6 +382,7 @@ export function BoardPage(props: { board: Board; t: T }) {
 
   function chat(id: string) {
     if (Date.now() - draggedAt < 250) return;
+    resetSearch();
     board.open(id);
   }
 
@@ -346,17 +425,63 @@ export function BoardPage(props: { board: Board; t: T }) {
                   <span class="ysb-build">v{BUILD}</span>
                 </div>
               </div>
-              <label class="ysb-searchbox">
-                <IconSearch />
-                <input
-                  ref={searchInput}
-                  type="search"
-                  value={board.view.filters.search}
-                  placeholder={t("search.placeholder")}
-                  aria-label={t("search.placeholder")}
-                  onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
-                />
-              </label>
+              <div class="ysb-searchwrap" ref={searchWrap}>
+                <label class="ysb-searchbox">
+                  <IconSearch />
+                  <input
+                    ref={searchInput}
+                    type="search"
+                    value={board.view.filters.search}
+                    placeholder={t("search.placeholder")}
+                    aria-label={t("search.placeholder")}
+                    autocomplete="off"
+                    onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
+                    onFocus={() => setHistoryOpen(history().length > 0)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape" && historyOpen()) {
+                        event.stopPropagation();
+                        setHistoryOpen(false);
+                        return;
+                      }
+                      if (event.key === "Enter") {
+                        rememberSearch(board.view.filters.search);
+                        setHistoryOpen(false);
+                      }
+                    }}
+                  />
+                </label>
+                <Show when={historyOpen() && !board.view.filters.search && history().length > 0}>
+                  <div class="ysb-searchhistory" role="listbox" aria-label={t("search.history")}>
+                    <div class="ysb-searchhistoryhead">
+                      <span>{t("search.history")}</span>
+                      <button
+                        class="ysb-searchhistoryclear"
+                        type="button"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={clearHistory}
+                      >
+                        {t("search.clearHistory")}
+                      </button>
+                    </div>
+                    <For each={history()}>
+                      {(term) => (
+                        <button
+                          class="ysb-searchhistoryitem"
+                          type="button"
+                          role="option"
+                          aria-selected="false"
+                          title={term}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => applyHistory(term)}
+                        >
+                          <IconSearch />
+                          <span>{term}</span>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </div>
               <div class="ysb-actions ysb-pageactions">
                 <button class="ysb-btn primary" type="button" onClick={() => board.requestCreate()}>
                   <IconPlus />
