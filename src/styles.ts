@@ -2081,6 +2081,10 @@ export const CSS = `
   .ysb-build, .ysb-header-metasep { display: none; }
   .ysb-searchwrap { width: 100%; max-width: none; }
   .ysb-searchbox { height: 36px; }
+  .ysb-pageactions .ysb-btn,
+  .ysb-pageactions .ysb-iconbtn { height: 36px; }
+  .ysb-carddetails { height: 28px; padding: 0 9px; font-size: 12px; }
+  .ysb-listdetails { height: 30px; }
 
   .ysb-toolbar {
     flex-wrap: nowrap;
