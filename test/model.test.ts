@@ -5,6 +5,7 @@ import {
   EMPTY_FILTERS,
   METADATA_KEY,
   columnKeys,
+  decodeLocalHref,
   deriveStatus,
   filterTasks,
   isSystemSession,
@@ -30,6 +31,15 @@ function session(overrides: Partial<SessionInfo> = {}): SessionInfo {
     ...overrides,
   } as SessionInfo;
 }
+
+test("local markdown hrefs decode non-ASCII paths", () => {
+  assert.equal(
+    decodeLocalHref("/data/doc/01_%E4%B8%8B%E5%8D%95%E8%AE%BE%E8%AE%A1.md"),
+    "/data/doc/01_下单设计.md",
+  );
+  assert.equal(decodeLocalHref("/data/doc/plain.md"), "/data/doc/plain.md");
+  assert.equal(decodeLocalHref("/data/doc/100%"), "/data/doc/100%");
+});
 
 test("custom status names pass through normalization", () => {
   assert.equal(normalizeStatus("待规划"), "待分配");

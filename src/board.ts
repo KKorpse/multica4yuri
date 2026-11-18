@@ -11,6 +11,7 @@ import {
   METADATA_KEY,
   basename,
   columnKeys,
+  decodeLocalHref,
   filterTasks,
   groupKey,
   labelColor,
@@ -785,9 +786,10 @@ export function createBoard(ctx: Context, t: T) {
 
   function openLink(href: string, directory?: string) {
     const external = /^https?:\/\//i.test(href);
+    const target = external ? href : decodeLocalHref(href);
     try {
       const opened = ctx.links.open({
-        href,
+        href: target,
         ...(external ? {} : { exact: true, base: directory }),
         session: ctx.sessions.current(),
       });
@@ -796,10 +798,10 @@ export function createBoard(ctx: Context, t: T) {
       /* fall through */
     }
     if (external) {
-      ctx.system.openExternal(href);
+      ctx.system.openExternal(target);
       return;
     }
-    void ctx.system.copy(href);
+    void ctx.system.copy(target);
     ctx.toast.show({ title: t("output.copied") });
   }
 

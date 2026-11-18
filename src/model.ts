@@ -93,6 +93,15 @@ export const EMPTY_FILTERS: Filters = {
   showChildren: false,
 };
 
+/** markdown-it percent-encodes non-ASCII local hrefs; decode them before resolving. */
+export function decodeLocalHref(href: string): string {
+  try {
+    return decodeURIComponent(href);
+  } catch {
+    return href;
+  }
+}
+
 export function record(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
