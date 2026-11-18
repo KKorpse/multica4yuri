@@ -47,9 +47,10 @@ Yuri chat.
   task to move it to any status; **废弃** moves it to the discard status, and
   **彻底删除** (only inside the discard status) permanently deletes the task and
   all of its sessions.
-- **Outputs** — `sessionBoard.outputs` holds deliverables of type `text`,
-  `file` or `url`. The details dialog edits the task document. Artifacts live
-  under `zmultica-artifacts/<sessionId>/`.
+- **Outputs** — each task has one Markdown output document in the SQLite
+  `task.document_content` column. Agents read and write it with
+  `zmultica_document_get` / `zmultica_document_set`; the CLI uses
+  `zmultica document get/set`. No local `output.md` is created or read.
 - **Esc navigation** — opening the board remembers the session you came from;
   `Esc` closes an open dialog first, otherwise returns to that session.
 - **Right-side task widget** — the open conversation's right work-status column
@@ -72,8 +73,8 @@ Yuri chat.
 - **仅任务** hides sessions that have no board data yet; untick it to see every
   root session. **含子会话** includes sub-agent sessions.
 - Right-click a task to move it to any status or to mark it **废弃**. Tasks in
-  the discard status expose **彻底删除**, which deletes the task record, its
-  artifact directory and every linked session.
+  the discard status expose **彻底删除**, which deletes the task record and
+  every linked session.
 - **状态** in the toolbar opens the status manager: add, rename, recolor,
   reorder, hide/show and delete statuses. Hidden statuses stay in the manager
   with their task count; their columns and tasks are removed from the board,
@@ -95,7 +96,7 @@ zmultica task start ZM-0
 zmultica session create ZM-0 --goal "补齐文档"
 zmultica session start ses_xxx
 zmultica session tail ses_xxx
-zmultica document set ZM-0 --file ./output.md
+zmultica document set ZM-0 --stdin
 zmultica status list
 zmultica status add 待评审 --color "#8b8cdd"
 zmultica status rename 待评审 评审中
@@ -139,11 +140,10 @@ to the global OpenCode config so Yuri loads it in every window:
   "plugins": [
     {
       "package": "/absolute/path/to/yuri-session-board",
-      // optional; all three default to a per-user directory
+      // optional; both default to a per-user directory
       "options": {
         "dataDir": "~/.local/share/zmultica",
         "dbPath": "~/.local/share/zmultica/board.db",
-        "artifactRoot": "~/.local/share/zmultica/artifacts",
       },
     },
   ],
@@ -179,10 +179,10 @@ $XDG_DATA_HOME/zmultica/board.db             # otherwise
 ~/.local/share/zmultica/board.db             # fallback
 ```
 
-Task output documents are mirrored next to it under
-`<dataDir>/artifacts/<taskId>/output.md`.
+Task output documents are stored only in the SQLite database; there is no
+per-task `output.md` file.
 
-All three locations can be overridden in the plugin entry:
+Both locations can be overridden in the plugin entry:
 
 ```jsonc
 {
@@ -190,7 +190,6 @@ All three locations can be overridden in the plugin entry:
   "options": {
     "dataDir": "/custom/zmultica",
     "dbPath": "/custom/zmultica/board.db",
-    "artifactRoot": "/custom/zmultica-artifacts",
   },
 }
 ```

@@ -476,7 +476,6 @@ Agent
 
 产出
   document get <ZM-0>
-  document set <ZM-0> --file ./output.md
   document set <ZM-0> --stdin
   document set <ZM-0> --text "..."
 

@@ -4,7 +4,6 @@ import { join } from "node:path";
 export type ZMulticaPaths = {
   dataDir: string;
   dbPath: string;
-  artifactRoot: string;
 };
 
 export function resolvePaths(
@@ -23,6 +22,5 @@ export function resolvePaths(
   return {
     dataDir,
     dbPath: optionPath("dbPath") ?? join(dataDir, "board.db"),
-    artifactRoot: optionPath("artifactRoot") ?? join(dataDir, "artifacts"),
   };
 }

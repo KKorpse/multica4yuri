@@ -1,6 +1,4 @@
 import { Plugin } from "@opencode/plugin";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import { BoardStore } from "./db";
 import { resolvePaths } from "./paths";
 import { BoardRpc } from "./rpc";
@@ -25,9 +23,8 @@ type Link = { taskId: string; role: Role; parentId?: string; goal: string };
 export default Plugin.define({
   id: "zmultica",
   async setup(ctx) {
-    const { dbPath, artifactRoot } = resolvePaths(ctx.options as Record<string, unknown>);
+    const { dbPath } = resolvePaths(ctx.options as Record<string, unknown>);
     const store = new BoardStore(dbPath);
-    const documentPath = (taskId: string) => join(artifactRoot, taskId, "output.md");
     const tasks = new Map<string, Task>();
     const links = new Map<string, Link>();
     const controller = new AbortController();
@@ -40,16 +37,8 @@ export default Plugin.define({
       return task.sessions.find((link) => link.sessionId === sessionID);
     }
 
-    function mirrorDocument(task: Task): void {
-      if (!task.document.content) return;
-      const file = documentPath(task.id);
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, task.document.content, "utf8");
-      task.document.path = file;
-    }
-
     function documentOf(task: Task) {
-      return { ...task.document, path: documentPath(task.id) };
+      return { ...task.document };
     }
 
     async function writeBrief(sessionID: string) {
@@ -63,7 +52,7 @@ export default Plugin.define({
       await ctx.session.instructions.entry.put({
         sessionID,
         key: ENTRY_KEY,
-        value: renderBrief(task, self, documentPath(task.id)),
+        value: renderBrief(task, self),
       });
     }
 
@@ -88,7 +77,6 @@ export default Plugin.define({
     async function putTask(task: Task): Promise<Task> {
       task.revision += 1;
       task.updatedAt = Date.now();
-      mirrorDocument(task);
       store.write(task);
       tasks.set(task.id, task);
       await backlink(task);
@@ -515,11 +503,6 @@ export default Plugin.define({
           }
           store.deleteTask(task.id);
           tasks.delete(task.id);
-          try {
-            rmSync(join(artifactRoot, task.id), { recursive: true, force: true });
-          } catch {
-            /* the artifact directory is best-effort */
-          }
           return { ok: true, taskId: task.id };
         },
         statusList: async () => store.listStatuses(),
@@ -606,7 +589,7 @@ export default Plugin.define({
         editor.add({
           name: "zmultica_document_set",
           description:
-            "设置当前任务的产出文档内容。主会话和子会话都可以修改；内容应简洁，包含文字和链接。",
+            "设置当前任务的产出文档内容（写入插件数据库）。主会话和子会话都可以修改；内容应简洁，包含文字和链接。",
           input: {
             type: "object",
             properties: {
@@ -629,7 +612,7 @@ export default Plugin.define({
 
         editor.add({
           name: "zmultica_document_get",
-          description: "读取当前任务的产出文档。",
+          description: "读取当前任务的完整产出文档正文。",
           input: { type: "object", properties: {} },
           execute: async (_input: unknown, context) =>
             text(documentOf(await linkedTask(context.sessionID))),
@@ -687,7 +670,7 @@ export default Plugin.define({
             .put({
               sessionID: link.sessionId,
               key: ENTRY_KEY,
-              value: renderBrief(task, link, documentPath(task.id)),
+              value: renderBrief(task, link),
             })
             .catch(() => undefined);
         }

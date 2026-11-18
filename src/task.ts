@@ -19,7 +19,6 @@ export type Document = {
   content: string;
   updatedAt: number;
   updatedBy: string;
-  path?: string;
 };
 
 export type Task = {
@@ -191,17 +190,17 @@ function roster(task: Task): string {
     .join("\n");
 }
 
-export function renderBrief(task: Task, self: SessionLink, documentPath?: string): string {
-  const docPath = documentPath ?? task.document.path ?? "（任务文档）";
+export function renderBrief(task: Task, self: SessionLink): string {
   const outputStyle = `[输出风格]
 产出按需：只有任务描述明确要求 MR、文档、报告、评审结论等交付物时，才写入任务文档。
-- 没有产出要求：直接简洁回答，不要调用 zmultica_document_set，不要生成文档链接，也不要输出「产出」段。
-- 有产出要求：先调用 zmultica_document_set 写文档；聊天只输出：
+- 没有产出要求：直接简洁回答，不要调用 zmultica_document_set，不要输出「产出」段。
+- 有产出要求：先调用 zmultica_document_set 把完整内容写入任务文档；聊天只输出：
   结论：一句话。
   产出：
-  - [文档标题](${docPath})
+  - 文档标题（任务文档）
   - [MR 标题](MR 链接)
   描述、方案、证据放文档；代码、diff、验证细节放 MR。
+- 任务文档只存在插件数据库里：完整读取用 zmultica_document_get，写入用 zmultica_document_set；不要通过本地文件修改任务文档。
 任何情况下都不要过程叙述、不要重复任务描述、不要在聊天里贴完整正文。`;
 
   if (self.role === "main") {
@@ -222,7 +221,7 @@ ${roster(task)}
 - 子会话的最新回复由你按需读取并汇总给用户，不要让用户去子会话里看。
 - 需要子会话细节时用工具查询，不要凭记忆。
 - 任务状态由系统和用户维护，你不要修改任务状态。
-- 任务文档由你和子会话共同修改，只有你可以删除。
+- 任务文档由你和子会话共同修改，只有你可以删除；读写统一使用 zmultica_document_get / zmultica_document_set。
 
 [子会话创建准则]
 同时满足才创建：独立交付物、独立上下文、可回传结果。
@@ -232,7 +231,7 @@ ${roster(task)}
 
 [回复格式再确认]
 没有明确要求产出的任务，直接简要回答，不写文档、不给产出链接。
-需要产出时，聊天只输出「结论」和「产出」两段，完整内容写入 ${docPath}；不要粘贴正文。`;
+需要产出时，聊天只输出「结论」和「产出」两段，完整内容写入任务文档；不要粘贴正文。`;
   }
 
   return `${outputStyle}
@@ -251,11 +250,11 @@ ${roster(task)}
 工作目录: ${self.directory}
 - 你不能创建子会话。
 - 完成、失败或阻塞时，在最后一条回复里说明结论和证据位置，不要直接找用户。
-- 需要长期交付的内容写入任务文档；你可以修改，不能删除。
+- 需要长期交付的内容写入任务文档（zmultica_document_set）；你可以修改，不能删除；不要通过本地文件修改文档。
 - 需要其他会话的最新回复时用工具查询。
 - 任务状态由系统和用户维护，不要修改。
 
 [回复格式再确认]
 没有明确要求产出的任务，直接简要回答，不写文档、不给产出链接。
-需要产出时，聊天只输出「结论」和「产出」两段，完整内容写入 ${docPath}；不要粘贴正文。`;
+需要产出时，聊天只输出「结论」和「产出」两段，完整内容写入任务文档；不要粘贴正文。`;
 }
