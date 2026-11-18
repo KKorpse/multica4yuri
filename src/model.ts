@@ -256,9 +256,15 @@ export function filterTasks(tasks: readonly Task[], filters: Filters): Task[] {
   });
 }
 
+/** Display priority: unread first, then pinned, then the chosen sort. */
+export function taskPriority(task: Task): number {
+  return (task.unread && !task.running ? 2 : 0) + (task.urgent ? 1 : 0);
+}
+
 export function sortTasks(tasks: readonly Task[], sort: Sort): Task[] {
   return [...tasks].sort((a, b) => {
-    if (a.urgent !== b.urgent) return a.urgent ? -1 : 1;
+    const priority = taskPriority(a) - taskPriority(b);
+    if (priority !== 0) return -priority;
     const delta =
       sort === "manual"
         ? a.rank - b.rank

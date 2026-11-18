@@ -29,6 +29,7 @@ import {
   basename,
   labelColor,
   relativeTime,
+  taskPriority,
   type Grouping,
   type Sort,
   type Task,
@@ -1419,6 +1420,8 @@ function TaskTable(props: {
     const statuses = props.board.statuses();
     const { key, desc } = sort();
     return [...props.tasks].sort((a, b) => {
+      const priority = taskPriority(a) - taskPriority(b);
+      if (priority !== 0) return -priority;
       let result = 0;
       if (key === "updated") result = a.updated - b.updated;
       else if (key === "code")

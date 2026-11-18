@@ -259,6 +259,24 @@ test("columns keep the default status order and append custom statuses", () => {
   ]);
 });
 
+test("sorting prioritizes unread, then pinned, then the selected sort", () => {
+  const tasks = [
+    task({ id: "normal", title: "N", updated: 5, rank: 0 }),
+    task({ id: "pinned", title: "P", urgent: true, updated: 4, rank: 1 }),
+    task({ id: "unread", title: "U", unread: true, updated: 1, rank: 2 }),
+    task({ id: "unreadPinned", title: "UP", unread: true, urgent: true, updated: 2, rank: 3 }),
+    task({ id: "runningUnread", title: "RU", unread: true, running: true, updated: 6, rank: 4 }),
+  ];
+  assert.deepEqual(
+    sortTasks(tasks, "updated").map((item) => item.id),
+    ["unreadPinned", "unread", "pinned", "runningUnread", "normal"],
+  );
+  assert.deepEqual(
+    sortTasks(tasks, "manual").map((item) => item.id),
+    ["unreadPinned", "unread", "pinned", "normal", "runningUnread"],
+  );
+});
+
 test("sorting is stable and tag colours are deterministic", () => {
   const tasks = [
     task({ id: "b", title: "B", updated: 1 }),
