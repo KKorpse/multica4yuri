@@ -197,10 +197,11 @@ export function renderBrief(task: Task, self: SessionLink): string {
 - 有产出要求：先调用 zmultica_document_set 把完整内容写入任务文档；聊天只输出：
   结论：一句话。
   产出：
-  - 文档标题（任务文档）
+  - 任务文档：文档标题
   - [MR 标题](MR 链接)
   描述、方案、证据放文档；代码、diff、验证细节放 MR。
-- 任务文档只存在插件数据库里：完整读取用 zmultica_document_get，写入用 zmultica_document_set；不要通过本地文件修改任务文档。
+- 任务文档只存在插件数据库里：zmultica_document_get 直接返回完整 Markdown 文本（不是 JSON 对象，也没有 content 字段），写入时把这段文本原样传给 zmultica_document_set 的 content。
+- 不要通过本地文件修改任务文档。聊天里的「产出」只列任务文档和 MR；本次生成的设计文档、代码文件只写进任务文档正文，不要当成产出链接。
 任何情况下都不要过程叙述、不要重复任务描述、不要在聊天里贴完整正文。`;
 
   if (self.role === "main") {

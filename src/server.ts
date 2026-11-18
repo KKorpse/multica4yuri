@@ -589,7 +589,7 @@ export default Plugin.define({
         editor.add({
           name: "zmultica_document_set",
           description:
-            "设置当前任务的产出文档内容（写入插件数据库）。主会话和子会话都可以修改；内容应简洁，包含文字和链接。",
+            "设置当前任务的产出文档内容（写入插件数据库）。主会话和子会话都可以修改；内容应简洁，包含文字和链接。写入成功返回 ok。",
           input: {
             type: "object",
             properties: {
@@ -599,23 +599,24 @@ export default Plugin.define({
           },
           execute: async (input: any, context) => {
             const task = await linkedTask(context.sessionID);
-            const updated = await mutate(task.id, (draft) => {
+            await mutate(task.id, (draft) => {
               draft.document = {
                 content: input.content,
                 updatedAt: Date.now(),
                 updatedBy: context.sessionID,
               };
             });
-            return text(documentOf(updated));
+            return text("ok");
           },
         });
 
         editor.add({
           name: "zmultica_document_get",
-          description: "读取当前任务的完整产出文档正文。",
+          description:
+            "读取当前任务的完整产出文档正文。直接返回 Markdown 文本（不是 JSON 对象，没有 content 字段）；写入时把这段文本原样传给 zmultica_document_set 的 content。",
           input: { type: "object", properties: {} },
           execute: async (_input: unknown, context) =>
-            text(documentOf(await linkedTask(context.sessionID))),
+            text((await linkedTask(context.sessionID)).document.content),
         });
       }),
     );
