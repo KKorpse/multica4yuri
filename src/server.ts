@@ -589,7 +589,7 @@ export default Plugin.define({
         editor.add({
           name: "zmultica_document_set",
           description:
-            "设置当前任务的产出文档内容（写入插件数据库）。主会话和子会话都可以修改；内容应简洁，包含文字和链接。写入成功返回 ok。",
+            "设置当前任务的产出文档（任务文档）。任务文档只写一句话结论 + 文档/MR 链接；完整设计、方案、报告写成独立本地 Markdown 文件并在任务文档中链接，代码放 MR。主会话和子会话都可以修改；写入成功返回 ok。",
           input: {
             type: "object",
             properties: {

@@ -47,10 +47,13 @@ Yuri chat.
   task to move it to any status; **废弃** moves it to the discard status, and
   **彻底删除** (only inside the discard status) permanently deletes the task and
   all of its sessions.
-- **Outputs** — each task has one Markdown output document in the SQLite
-  `task.document_content` column. Agents read and write it with
-  `zmultica_document_get` / `zmultica_document_set`; the CLI uses
-  `zmultica document get/set`. No local `output.md` is created or read.
+- **Outputs** — each task has one concise Markdown index in the SQLite
+  `task.document_content` column: a one-sentence conclusion plus links to
+  detailed documents and MRs. Detailed design/report files live separately in
+  the workspace and are linked from the index; code goes into MRs. Agents read
+  and write the index with `zmultica_document_get` / `zmultica_document_set`;
+  the CLI uses `zmultica document get/set`. No local `output.md` is created or
+  read.
 - **Esc navigation** — opening the board remembers the session you came from;
   `Esc` closes an open dialog first, otherwise returns to that session.
 - **Right-side task widget** — the open conversation's right work-status column
