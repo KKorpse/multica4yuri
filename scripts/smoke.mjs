@@ -500,6 +500,42 @@ assert.equal(
   "opening lowers the unread count",
 );
 
+// An unread task can be marked read from the context menu, then marked unread again.
+const finishedNow = () =>
+  [...dom.window.document.querySelectorAll("[data-ysb-card]")].find((card) =>
+    card.textContent.includes("Finished session"),
+  );
+finishedNow().dispatchEvent(
+  new dom.window.MouseEvent("contextmenu", { bubbles: true, clientX: 12, clientY: 12 }),
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+const markRead = dom.window.document.querySelector("[data-ysb-menu-read]");
+assert.ok(markRead, "context menu exposes mark read");
+markRead.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  finishedNow().classList.contains("is-unread"),
+  false,
+  "mark read clears the unread frame",
+);
+assert.equal(
+  dom.window.document.querySelector('[data-ysb-activity="unread"]'),
+  null,
+  "mark read clears the unread count",
+);
+finishedNow().dispatchEvent(
+  new dom.window.MouseEvent("contextmenu", { bubbles: true, clientX: 12, clientY: 12 }),
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+dom.window.document.querySelector("[data-ysb-menu-unread]").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.ok(finishedNow().classList.contains("is-unread"), "mark unread restores the frame");
+assert.equal(
+  dom.window.document.querySelector('[data-ysb-activity="unread"] strong').textContent,
+  "1",
+  "mark unread restores the count",
+);
+
 const firstCard = dom.window.document.querySelector("[data-ysb-card]");
 firstCard.click();
 await new Promise((resolve) => setTimeout(resolve, 50));
