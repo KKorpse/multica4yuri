@@ -2028,6 +2028,12 @@ export const CSS = `
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.ysb-menustatushidden {
+  margin-left: 5px;
+  color: var(--ysb-muted);
+  font-size: 10px;
+  flex: none;
+}
 .ysb-menustatuscheck { margin-left: auto; color: var(--ysb-muted); font-size: 11px; }
 .ysb-menuitem.danger { color: var(--ysb-error); }
 .ysb-menuitem.danger:hover, .ysb-menuitem.danger:focus-visible {

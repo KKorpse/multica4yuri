@@ -646,18 +646,44 @@ const hiddenRow = [...statusDialog.querySelectorAll(".ysb-labelrow")].find((row)
   row.textContent.includes("执行中"),
 );
 assert.ok(hiddenRow?.classList.contains("is-hidden"), "manager marks hidden statuses");
-statusDialog.querySelector('[data-ysb-toggle-status="执行中"]').click();
-await new Promise((resolve) => setTimeout(resolve, 50));
-assert.equal(
-  [...statusDialog.querySelectorAll(".ysb-labelrow")].some((row) =>
-    row.classList.contains("is-hidden"),
-  ),
-  false,
-  "manager eye restores a hidden status",
-);
 statusDialog.querySelector(".ysb-modalhead .ysb-iconbtn").click();
 await new Promise((resolve) => setTimeout(resolve, 50));
 assert.equal(dom.window.document.querySelector(".ysb-statusmodal"), null, "status manager closes");
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-column]").length,
+  3,
+  "hiding a status removes its column",
+);
+const hiddenCard = dom.window.document.querySelector("[data-ysb-card]");
+assert.ok(hiddenCard, "a visible task remains while a status is hidden");
+hiddenCard.dispatchEvent(
+  new dom.window.MouseEvent("contextmenu", { bubbles: true, clientX: 12, clientY: 12 }),
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+const hiddenMenuText = dom.window.document.querySelector(".ysb-menu")?.textContent ?? "";
+assert.match(hiddenMenuText, /执行中/, "hidden status remains in the move menu");
+assert.match(hiddenMenuText, /status\.hidden/, "hidden status is marked in the move menu");
+dom.window.document
+  .querySelector(".ysb-menu-backdrop")
+  .dispatchEvent(new dom.window.MouseEvent("mousedown", { bubbles: true }));
+await new Promise((resolve) => setTimeout(resolve, 50));
+statusButton.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+const restoreDialog = dom.window.document.querySelector(".ysb-statusmodal");
+restoreDialog.querySelector('[data-ysb-toggle-status="执行中"]').click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+restoreDialog.querySelector(".ysb-modalhead .ysb-iconbtn").click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-column]").length,
+  4,
+  "the manager restores a hidden status",
+);
+assert.equal(
+  dom.window.document.querySelectorAll("[data-ysb-card]").length,
+  3,
+  "restoring a status brings its tasks back",
+);
 
 // List and table views expose the same task set as the board.
 document.querySelector('[data-ysb-view="list"]').click();

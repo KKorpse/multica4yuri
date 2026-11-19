@@ -1063,7 +1063,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                     {(task) => (
                       <>
                         <div class="ysb-menulabel">{t("menu.moveTo")}</div>
-                        <For each={board.visibleStatusList()}>
+                        <For each={board.statusList()}>
                           {(status) => (
                             <button
                               class="ysb-menuitem ysb-menustatus"
@@ -1079,6 +1079,9 @@ export function BoardPage(props: { board: Board; t: T }) {
                             >
                               <StatusIcon status={status.name} size={12} color={status.color} />
                               <span class="ysb-menustatusname">{status.name}</span>
+                              <Show when={!status.visible}>
+                                <span class="ysb-menustatushidden">{t("status.hidden")}</span>
+                              </Show>
                               <Show when={status.name === task().status}>
                                 <span class="ysb-menustatuscheck" aria-hidden="true">
                                   ✓
