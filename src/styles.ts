@@ -53,13 +53,19 @@ export const CSS = `
     var(--layout-chrome-divider, var(--ysb-border));
 }
 .ysb-headrow {
-  display: grid;
-  grid-template-columns: minmax(200px, 1fr) minmax(200px, 320px) auto;
-  align-items: center;
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
 }
-.ysb-titleblock { min-width: 0; }
-.ysb-titlewrap { display: flex; align-items: center; min-width: 0; }
+.ysb-titleblock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  text-align: center;
+}
+.ysb-titlewrap { display: flex; align-items: center; justify-content: center; min-width: 0; }
 .ysb-title {
   margin: 0;
   font-family: var(--font-heading, var(--font-sans));
@@ -71,6 +77,7 @@ export const CSS = `
 .ysb-header-meta {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   min-width: 0;
   gap: 4px 6px;
@@ -113,8 +120,9 @@ export const CSS = `
 .ysb-activitychip.is-on {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 38%, transparent);
 }
+.ysb-headtools { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ysb-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.ysb-pageactions { flex-wrap: nowrap; justify-content: flex-end; }
+.ysb-pageactions { flex: none; flex-wrap: nowrap; justify-content: flex-end; margin-left: auto; }
 
 .ysb-searchbox {
   display: flex;
@@ -154,7 +162,7 @@ export const CSS = `
 .ysb-searchbox input::placeholder { color: var(--ysb-muted); }
 .ysb-searchbox input::-webkit-search-cancel-button { filter: grayscale(1); opacity: 0.6; }
 
-.ysb-searchwrap { position: relative; width: 100%; max-width: 320px; min-width: 0; }
+.ysb-searchwrap { position: relative; flex: 1 1 220px; max-width: 360px; min-width: 0; }
 .ysb-searchhistory {
   position: absolute;
   z-index: 60;
@@ -2069,13 +2077,11 @@ export const CSS = `
   }
 }
 @media (max-width: 1000px) {
-  .ysb-headrow { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
-  .ysb-searchwrap { grid-column: 1 / -1; grid-row: 2; max-width: none; }
-  .ysb-pageactions { grid-column: 2; grid-row: 1; }
+  .ysb-headtools { flex-wrap: wrap; }
+  .ysb-searchwrap { flex: 1 1 100%; max-width: none; }
 }
 @media (max-width: 760px) {
   .ysb-header { padding: 10px 14px 8px; gap: 10px; }
-  .ysb-headrow { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
   .ysb-title { font-size: 17px; }
   .ysb-header-meta { font-size: 10.5px; line-height: 15px; }
   .ysb-build, .ysb-header-metasep { display: none; }

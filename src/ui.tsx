@@ -519,77 +519,79 @@ export function BoardPage(props: { board: Board; t: T }) {
                 <span class="ysb-build">v{BUILD}</span>
               </div>
             </div>
-            <div class="ysb-searchwrap" ref={searchWrap}>
-              <label class="ysb-searchbox">
-                <IconSearch />
-                <input
-                  ref={searchInput}
-                  type="search"
-                  value={board.view.filters.search}
-                  placeholder={t("search.placeholder")}
-                  aria-label={t("search.placeholder")}
-                  autocomplete="off"
-                  onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
-                  onFocus={() => setHistoryOpen(history().length > 0)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape" && historyOpen()) {
-                      event.stopPropagation();
-                      setHistoryOpen(false);
-                      return;
-                    }
-                    if (event.key === "Enter") {
-                      rememberSearch(board.view.filters.search);
-                      setHistoryOpen(false);
-                    }
-                  }}
-                />
-              </label>
-              <Show when={historyOpen() && !board.view.filters.search && history().length > 0}>
-                <div class="ysb-searchhistory" role="listbox" aria-label={t("search.history")}>
-                  <div class="ysb-searchhistoryhead">
-                    <span>{t("search.history")}</span>
-                    <button
-                      class="ysb-searchhistoryclear"
-                      type="button"
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={clearHistory}
-                    >
-                      {t("search.clearHistory")}
-                    </button>
-                  </div>
-                  <For each={history()}>
-                    {(term) => (
+            <div class="ysb-headtools">
+              <div class="ysb-searchwrap" ref={searchWrap}>
+                <label class="ysb-searchbox">
+                  <IconSearch />
+                  <input
+                    ref={searchInput}
+                    type="search"
+                    value={board.view.filters.search}
+                    placeholder={t("search.placeholder")}
+                    aria-label={t("search.placeholder")}
+                    autocomplete="off"
+                    onInput={(event) => board.setFilters({ search: event.currentTarget.value })}
+                    onFocus={() => setHistoryOpen(history().length > 0)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape" && historyOpen()) {
+                        event.stopPropagation();
+                        setHistoryOpen(false);
+                        return;
+                      }
+                      if (event.key === "Enter") {
+                        rememberSearch(board.view.filters.search);
+                        setHistoryOpen(false);
+                      }
+                    }}
+                  />
+                </label>
+                <Show when={historyOpen() && !board.view.filters.search && history().length > 0}>
+                  <div class="ysb-searchhistory" role="listbox" aria-label={t("search.history")}>
+                    <div class="ysb-searchhistoryhead">
+                      <span>{t("search.history")}</span>
                       <button
-                        class="ysb-searchhistoryitem"
+                        class="ysb-searchhistoryclear"
                         type="button"
-                        role="option"
-                        aria-selected="false"
-                        title={term}
                         onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => applyHistory(term)}
+                        onClick={clearHistory}
                       >
-                        <IconSearch />
-                        <span>{term}</span>
+                        {t("search.clearHistory")}
                       </button>
-                    )}
-                  </For>
-                </div>
-              </Show>
-            </div>
-            <div class="ysb-actions ysb-pageactions">
-              <button class="ysb-btn primary" type="button" onClick={() => board.requestCreate()}>
-                <IconPlus />
-                {t("action.create")}
-              </button>
-              <button
-                class="ysb-iconbtn"
-                type="button"
-                title={t("action.refresh")}
-                aria-label={t("action.refresh")}
-                onClick={() => void board.reload()}
-              >
-                <IconRefresh />
-              </button>
+                    </div>
+                    <For each={history()}>
+                      {(term) => (
+                        <button
+                          class="ysb-searchhistoryitem"
+                          type="button"
+                          role="option"
+                          aria-selected="false"
+                          title={term}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => applyHistory(term)}
+                        >
+                          <IconSearch />
+                          <span>{term}</span>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </div>
+              <div class="ysb-actions ysb-pageactions">
+                <button class="ysb-btn primary" type="button" onClick={() => board.requestCreate()}>
+                  <IconPlus />
+                  {t("action.create")}
+                </button>
+                <button
+                  class="ysb-iconbtn"
+                  type="button"
+                  title={t("action.refresh")}
+                  aria-label={t("action.refresh")}
+                  onClick={() => void board.reload()}
+                >
+                  <IconRefresh />
+                </button>
+              </div>
             </div>
           </div>
 
