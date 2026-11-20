@@ -155,6 +155,43 @@ export function createBoard(ctx: Context, t: T) {
   let eventAbort: AbortController | undefined;
   let disposed = false;
   let watchers = 0;
+  const undoStack: Array<() => Promise<void>> = [];
+  const UNDO_LIMIT = 30;
+  let undoing = false;
+
+  function recordUndo(run: () => Promise<void>): void {
+    if (undoing) return;
+    undoStack.push(run);
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  }
+
+  function recordTaskUndo(taskId: string, patch: Record<string, unknown>): void {
+    recordUndo(async () => {
+      await ctx.client.rpc(BoardRpc).update({ taskId, patch });
+      await reload(true);
+    });
+  }
+
+  async function undo(): Promise<boolean> {
+    if (undoing) return false;
+    const run = undoStack.pop();
+    if (!run) {
+      notice("undo.empty");
+      return false;
+    }
+    undoing = true;
+    try {
+      await run();
+      notice("undo.done", "success");
+      return true;
+    } catch (caught) {
+      undoStack.push(run);
+      fail(caught, "error.undo");
+      return false;
+    } finally {
+      undoing = false;
+    }
+  }
 
   createEffect(() => {
     const snapshot = JSON.stringify(view);
@@ -514,16 +551,28 @@ export function createBoard(ctx: Context, t: T) {
     const title = input.title.trim() || record?.title || task.title || "";
 
     if (record) {
-      await ctx.client.rpc(BoardRpc).update({
-        taskId: record.id,
-        patch: {
-          title: title || record.title,
-          description: input.description.trim(),
-          status: input.status || record.status,
-          labels: uniqueLabels(input.labels),
-        },
-      });
+      const previous = {
+        title: record.title,
+        description: record.description,
+        status: record.status,
+        labels: [...record.labels],
+      };
+      const next = {
+        title: title || record.title,
+        description: input.description.trim(),
+        status: input.status || record.status,
+        labels: uniqueLabels(input.labels),
+      };
+      await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: next });
       if (title && title !== task.title) await api.updateTitle(ctx, id, title);
+      if (
+        next.title !== previous.title ||
+        next.description !== previous.description ||
+        next.status !== previous.status ||
+        next.labels.join("\n") !== previous.labels.join("\n")
+      ) {
+        recordTaskUndo(record.id, previous);
+      }
       void reload(true);
       return;
     }
@@ -554,6 +603,8 @@ export function createBoard(ctx: Context, t: T) {
   async function setPinned(id: string, pinned: boolean): Promise<void> {
     const task = taskById(id);
     if (!task) return;
+    if (task.urgent === pinned) return;
+    const previous = task.urgent;
     const record = task.record;
     if (record) {
       const patchRecords = (value: boolean) =>
@@ -563,28 +614,36 @@ export function createBoard(ctx: Context, t: T) {
       patchRecords(pinned);
       try {
         await ctx.client.rpc(BoardRpc).update({ taskId: record.id, patch: { urgent: pinned } });
+        recordTaskUndo(record.id, { urgent: previous });
         void reload(true);
       } catch (caught) {
-        patchRecords(!pinned);
+        patchRecords(previous);
         throw caught;
       }
       return;
     }
     const session = sessionById(id);
     if (!session) return;
-    const previous = taskMeta(session);
-    const next: TaskMeta = { ...previous, urgent: pinned };
+    const previousMeta = taskMeta(session);
+    const next: TaskMeta = { ...previousMeta, urgent: pinned };
     patchMeta(id, next);
     try {
       await api.writeBoardMeta(ctx, session, next, ctx.signal);
     } catch (caught) {
-      patchMeta(id, previous);
+      patchMeta(id, previousMeta);
       throw caught;
     }
   }
 
   async function saveDocument(id: string, content: string): Promise<void> {
+    const previous = taskById(id)?.record?.document?.content ?? "";
     await ctx.client.rpc(BoardRpc).setDocument({ taskId: id, content });
+    if (previous !== content) {
+      recordUndo(async () => {
+        await ctx.client.rpc(BoardRpc).setDocument({ taskId: id, content: previous });
+        await reload(true);
+      });
+    }
     void reload(true);
   }
 
@@ -700,11 +759,11 @@ export function createBoard(ctx: Context, t: T) {
     setDeleteId(undefined);
   }
 
-  function markOpened(id: string): void {
+  function applyRead(id: string): boolean {
     const task = taskById(id);
     const record = task?.record;
-    if (!record) return;
-    if (record.lastFinishedAt <= record.lastOpenedAt && !record.manualUnread) return;
+    if (!record) return false;
+    if (record.lastFinishedAt <= record.lastOpenedAt && !record.manualUnread) return false;
     const at = Date.now();
     setRecords((list) =>
       list.map((item) =>
@@ -715,12 +774,13 @@ export function createBoard(ctx: Context, t: T) {
       .rpc(BoardRpc)
       .taskOpen({ taskId: record.id })
       .catch(() => undefined);
+    return true;
   }
 
-  function markUnread(id: string): void {
+  function applyUnread(id: string): boolean {
     const task = taskById(id);
     const record = task?.record;
-    if (!record) return;
+    if (!record || record.manualUnread) return false;
     setRecords((list) =>
       list.map((item) => (item.id === record.id ? { ...item, manualUnread: true } : item)),
     );
@@ -728,6 +788,30 @@ export function createBoard(ctx: Context, t: T) {
       .rpc(BoardRpc)
       .taskUnread({ taskId: record.id, unread: true })
       .catch(() => undefined);
+    return true;
+  }
+
+  /** Opening a task marks it read; this is not an undoable panel operation. */
+  function markOpened(id: string): void {
+    applyRead(id);
+  }
+
+  function markRead(id: string): void {
+    const record = taskById(id)?.record;
+    if (record && applyRead(id)) {
+      recordUndo(async () => {
+        applyUnread(id);
+      });
+    }
+  }
+
+  function markUnread(id: string): void {
+    const record = taskById(id)?.record;
+    if (record && applyUnread(id)) {
+      recordUndo(async () => {
+        applyRead(id);
+      });
+    }
   }
 
   async function deleteTask(id: string): Promise<void> {
@@ -740,6 +824,8 @@ export function createBoard(ctx: Context, t: T) {
     const task = taskById(id);
     if (!task) return;
     if (statusList().length && !statusList().some((item) => item.name === status)) return;
+    const previousStatus = task.status;
+    const previousRank = task.rank;
     const nextStatus = status;
     let rank = task.rank;
     if (view.grouping === "status" && view.sort === "manual" && index !== undefined) {
@@ -760,6 +846,7 @@ export function createBoard(ctx: Context, t: T) {
         taskId: record.id,
         patch: { status: nextStatus, rank },
       });
+      recordTaskUndo(record.id, { status: previousStatus, rank: previousRank });
       void reload(true);
       return;
     }
@@ -905,7 +992,9 @@ export function createBoard(ctx: Context, t: T) {
     runningCount,
     unreadCount,
     markOpened,
+    markRead,
     markUnread,
+    undo,
     task: taskById,
     total: () => tasksInView().length,
     setMode: (mode: ViewMode) => setView("mode", mode),

@@ -468,7 +468,12 @@ assert.equal(
   "closing details restores focus to its trigger",
 );
 
-// Mark unread restores the yellow frame until the task is opened again.
+const undoKey = () =>
+  dom.window.document.dispatchEvent(
+    new dom.window.KeyboardEvent("keydown", { key: "z", metaKey: true, bubbles: true }),
+  );
+
+// Mark unread restores the yellow frame until undo or the task is opened.
 const plainNow = () =>
   [...dom.window.document.querySelectorAll("[data-ysb-card]")].find((card) =>
     card.textContent.includes("Plain session"),
@@ -487,20 +492,16 @@ assert.equal(
   "2",
   "manual unread is counted",
 );
-plainNow().click();
+undoKey();
 await new Promise((resolve) => setTimeout(resolve, 50));
-assert.equal(
-  plainNow().classList.contains("is-unread"),
-  false,
-  "opening a task clears manual unread",
-);
+assert.equal(plainNow().classList.contains("is-unread"), false, "undo restores the read state");
 assert.equal(
   dom.window.document.querySelector('[data-ysb-activity="unread"] strong').textContent,
   "1",
-  "opening lowers the unread count",
+  "undo restores the unread count",
 );
 
-// An unread task can be marked read from the context menu, then marked unread again.
+// An unread task can be marked read from the context menu and restored with undo.
 const finishedNow = () =>
   [...dom.window.document.querySelectorAll("[data-ysb-card]")].find((card) =>
     card.textContent.includes("Finished session"),
@@ -523,17 +524,13 @@ assert.equal(
   null,
   "mark read clears the unread count",
 );
-finishedNow().dispatchEvent(
-  new dom.window.MouseEvent("contextmenu", { bubbles: true, clientX: 12, clientY: 12 }),
-);
+undoKey();
 await new Promise((resolve) => setTimeout(resolve, 50));
-dom.window.document.querySelector("[data-ysb-menu-unread]").click();
-await new Promise((resolve) => setTimeout(resolve, 50));
-assert.ok(finishedNow().classList.contains("is-unread"), "mark unread restores the frame");
+assert.ok(finishedNow().classList.contains("is-unread"), "undo restores the unread frame");
 assert.equal(
   dom.window.document.querySelector('[data-ysb-activity="unread"] strong').textContent,
   "1",
-  "mark unread restores the count",
+  "undo restores the unread count",
 );
 
 const firstCard = dom.window.document.querySelector("[data-ysb-card]");
@@ -615,12 +612,40 @@ assert.ok(
   dom.window.document.querySelector("[data-ysb-card]").textContent.includes("Plain session"),
   "pinned tasks sort first",
 );
-dom.window.document.querySelector("[data-ysb-card] .ysb-pinbtn").click();
+undoKey();
 await new Promise((resolve) => setTimeout(resolve, 50));
 assert.equal(
   dom.window.document.querySelectorAll(".ysb-pinbtn.is-on").length,
   0,
-  "the bookmark marker unpins",
+  "undo unpins the task",
+);
+
+// Moving a task can be undone.
+const columnFor = (key) =>
+  [...dom.window.document.querySelectorAll("[data-ysb-column]")].find(
+    (element) => element.dataset.ysbColumn === key,
+  );
+plainNow().dispatchEvent(
+  new dom.window.MouseEvent("contextmenu", { bubbles: true, clientX: 12, clientY: 12 }),
+);
+await new Promise((resolve) => setTimeout(resolve, 50));
+const doneItem = [...dom.window.document.querySelectorAll(".ysb-menu .ysb-menuitem")].find(
+  (button) => button.textContent.includes("已完成"),
+);
+assert.ok(doneItem, "move menu exposes the target status");
+doneItem.click();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.ok(
+  columnFor("已完成")?.textContent.includes("Plain session"),
+  "the task moved to the target status",
+);
+undoKey();
+await new Promise((resolve) => setTimeout(resolve, 50));
+assert.ok(columnFor("待分配")?.textContent.includes("Plain session"), "undo moves the task back");
+assert.equal(
+  columnFor("已完成")?.textContent.includes("Plain session"),
+  false,
+  "undo removes the task from the target status",
 );
 
 // The status manager lists the catalog and marks the built-in roles.

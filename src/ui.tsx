@@ -42,6 +42,15 @@ function shortId(id: string): string {
   return id.replace(/^ses_/, "").slice(-6);
 }
 
+function isTextEntry(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  const tag = element.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+  return Boolean(element.closest?.('[contenteditable="true"]'));
+}
+
 function summary(t: T, total: number, shown: number): string {
   return t("board.summary", { total, shown });
 }
@@ -233,6 +242,26 @@ export function BoardPage(props: { board: Board; t: T }) {
         searchInput?.focus();
         searchInput?.select();
         setHistoryOpen(history().length > 0);
+        return;
+      }
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        !event.shiftKey &&
+        !event.altKey &&
+        event.key.toLowerCase() === "z"
+      ) {
+        if (
+          isTextEntry(event.target) ||
+          menu() ||
+          board.createOpen() ||
+          board.editingId() ||
+          labelsOpen() ||
+          statusOpen() ||
+          board.deleteId()
+        )
+          return;
+        event.preventDefault();
+        void board.undo();
         return;
       }
       if (event.key !== "Escape") return;
@@ -1101,7 +1130,7 @@ export function BoardPage(props: { board: Board; t: T }) {
                               type="button"
                               data-ysb-menu-read
                               onClick={() => {
-                                board.markOpened(task().id);
+                                board.markRead(task().id);
                                 closeMenu(true);
                               }}
                             >
